@@ -1,0 +1,5 @@
+{
+  "API_BASE_URL": "https://postgresqlticketapi.ortezerp.in/Api/V1",
+  "API_IMAGE_BASE_URL": "https://postgresqlticketapi.ortezerp.in/",
+  "FCM_VAPID_KEY": "BfTrt9N3iTa2M3K4g3jsHP7hSbFdDk4yL0S_CcByo1rVepvqPU0kJMVXgYoHfzdLGa_SlYpwqVOuK2sKMgpnmTk"
+}
