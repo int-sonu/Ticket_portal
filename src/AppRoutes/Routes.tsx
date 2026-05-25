@@ -1,16 +1,15 @@
 import React from 'react';
 import { BrowserRouter, Routes as ReactRoutes, Route, Navigate } from 'react-router-dom';
 import Login from '../Components/Login/Login';
+import ForgotPassword from '../Components/Login/ForgotPassword/ForgotPassword';
+import EnterOtp from '../Components/Login/EnterOtp/EnterOtp';
+import SetNewPassword from '../Components/Login/SetNewPassword/SetNewPassword';
 import PrivateRoute from './PrivateRoute';
 import MainLayout from '../layouts/MainLayout';
 
-// A simple dummy dashboard page for now
-const Dashboard = () => (
-  <div>
-    <h1 className="text-2xl font-bold text-gray-800">Welcome to the Dashboard!</h1>
-    <p className="mt-2 text-gray-600">You are successfully logged in and viewing a protected route.</p>
-  </div>
-);
+// Dashboard page placeholder — replace with real component when ready
+const Dashboard = () => <></>;
+
 
 const Routes: React.FC = () => {
   return (
@@ -18,6 +17,9 @@ const Routes: React.FC = () => {
       <ReactRoutes>
        
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password-otp" element={<EnterOtp />} />
+        <Route path="/set-new-password" element={<SetNewPassword />} />
         
         <Route element={<PrivateRoute />}>
           <Route element={<MainLayout />}>

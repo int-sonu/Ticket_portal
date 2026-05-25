@@ -1,9 +1,11 @@
 import React from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useUserLogin } from '../../Hooks/useAuth';
 
 const LoginForm: React.FC = () => {
+  const navigate = useNavigate();
   const { mutate: loginUser, isPending } = useUserLogin();
 
   const onFinish = (values: any) => {
@@ -29,7 +31,7 @@ const LoginForm: React.FC = () => {
           sessionStorage.setItem('userSession', JSON.stringify(response.data));
           
           // You could also use React Router here to redirect to a dashboard:
-          // navigate('/dashboard');
+          navigate('/dashboard');
         } else {
           message.error(response.message || 'Login failed');
         }
