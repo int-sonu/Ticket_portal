@@ -66,7 +66,7 @@ const LoginForm: React.FC = () => {
           <Form.Item
             label="Company Code"
             name="companyCode"
-            rules={[{ required: true }]}
+            rules={[{ required: true ,message: 'Company Code is required.' }]}
           >
             <Input size="large" className="bg-[#fcfdff]" />
           </Form.Item>
