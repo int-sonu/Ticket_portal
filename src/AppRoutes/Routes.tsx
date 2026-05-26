@@ -7,10 +7,12 @@ import SetNewPassword from '../Components/Login/SetNewPassword/SetNewPassword';
 import PrivateRoute from './PrivateRoute';
 import MainLayout from '../layouts/MainLayout';
 
-// Dashboard page placeholder — replace with real component when ready
-const Dashboard = () => <></>;
-
-
+import Dashboard from '../Pages/Dashboard/Dashboard';
+import AgentGroupList from '../Pages/Master/AgentGroup/AgentGroupList';
+import AgentMasterList from '../Pages/Master/AgentGroup/AgentMasterList';
+import TripModeList from '../Pages/Master/TripMode/TripModeList';
+import FollowupModeList from '../Pages/Master/FollowUpMode/FollowUpModalList';
+import FinancialYearList from "../Pages/Master/FinancialYear/FinancialYearList";
 const Routes: React.FC = () => {
   return (
     <BrowserRouter>
@@ -24,6 +26,16 @@ const Routes: React.FC = () => {
         <Route element={<PrivateRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/masters/agent" element={<AgentMasterList />} />
+            <Route path="/masters/agent-group" element={<AgentGroupList />} />
+            <Route path="/masters/trip-mode" element={<TripModeList />} />
+            <Route path="/masters/tripmode" element={<TripModeList />} />
+            <Route path="/masters/follow-up-mode" element={<FollowupModeList />} />
+            <Route path="/masters/followup-mode" element={<FollowupModeList />} />
+            <Route
+  path="/masters/financial-year"
+  element={<FinancialYearList />}
+/>
           </Route>
         </Route>
 

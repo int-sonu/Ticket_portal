@@ -27,3 +27,7 @@ export const getConfig = (): AppConfig => {
   }
   return config;
 };
+
+export const getApiImageBaseUrl = (): string => {
+  return getConfig().API_IMAGE_BASE_URL;
+};

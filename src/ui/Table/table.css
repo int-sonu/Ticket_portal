@@ -1,0 +1,28 @@
+.custom-ant-table,
+.custom-ant-table .ant-spin-nested-loading,
+.custom-ant-table .ant-spin-container,
+.custom-ant-table .ant-table,
+.custom-ant-table .ant-table-container {
+  height: 100%;
+}
+
+.custom-ant-table .ant-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-ant-table .ant-table-container {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-ant-table .ant-table-header {
+  flex: 0 0 auto;
+}
+
+.custom-ant-table .ant-table-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+}
