@@ -2,7 +2,7 @@ import type React from 'react';
 import { Modal, message } from 'antd';
 import type { UseMutateFunction } from '@tanstack/react-query';
 import type { SimpleMasterRow } from './SimpleMasterUtils';
-import { getSessionPayload } from './SimpleMasterUtils';
+import { getApiMessage, getSessionPayload, isApiSuccess, trimFormValues } from './SimpleMasterUtils';
 
 type UseSimpleMasterCrudParams = {
   selectedRow: SimpleMasterRow | null;
@@ -12,7 +12,10 @@ type UseSimpleMasterCrudParams = {
   updateMutation?: UseMutateFunction<any, Error, any, unknown>;
   deleteMutation: UseMutateFunction<any, Error, any, unknown>;
   buildPayload: (values: any, selectedRow: SimpleMasterRow | null) => any;
+  buildFormValues: (row?: SimpleMasterRow | null) => any;
+  buildDeletePayload?: (record: SimpleMasterRow) => any;
   closeDrawer: () => void;
+  onDeleted?: (record: SimpleMasterRow) => void;
 };
 
 export const useSimpleMasterCrud = ({
@@ -23,33 +26,61 @@ export const useSimpleMasterCrud = ({
   updateMutation,
   deleteMutation,
   buildPayload,
+  buildFormValues,
+  buildDeletePayload,
   closeDrawer,
+  onDeleted,
 }: UseSimpleMasterCrudParams) => {
   const handleDelete = (event: React.MouseEvent, record: SimpleMasterRow) => {
     event.stopPropagation();
     Modal.confirm({
       title: `Are you sure you want to delete this ${entityName.toLowerCase()}?`,
       onOk: () => {
-        deleteMutation({ ...getSessionPayload(), [idKey]: record.id }, {
-          onSuccess: () => {
+        deleteMutation({
+          ...getSessionPayload(),
+          ...(buildDeletePayload
+            ? buildDeletePayload(record)
+            : buildPayload(
+                {
+                  ...buildFormValues(record),
+                  active: false,
+                },
+                record,
+              )),
+          [idKey]: record.id,
+        }, {
+          onSuccess: (response) => {
+            if (!isApiSuccess(response)) {
+              message.error(getApiMessage(response, `Failed to delete ${entityName.toLowerCase()}`));
+              return;
+            }
+
             message.success(`${entityName} deleted successfully`);
+            onDeleted?.(record);
             if (selectedRow?.id === record.id) closeDrawer();
           },
-          onError: () => message.error(`Failed to delete ${entityName.toLowerCase()}`),
+          onError: (error) => message.error(getApiMessage(error, `Failed to delete ${entityName.toLowerCase()}`)),
         });
       },
     });
   };
 
+
   const handleSave = (values: any) => {
     const mutation = selectedRow && updateMutation ? updateMutation : saveMutation;
+    const trimmedValues = trimFormValues(values);
 
-    mutation({ ...getSessionPayload(), ...buildPayload(values, selectedRow) }, {
-      onSuccess: () => {
+    mutation({ ...getSessionPayload(), ...buildPayload(trimmedValues, selectedRow) }, {
+      onSuccess: (response) => {
+        if (!isApiSuccess(response)) {
+          message.error(getApiMessage(response, `Failed to save ${entityName.toLowerCase()}`));
+          return;
+        }
+
         message.success(`${entityName} ${selectedRow ? 'updated' : 'saved'} successfully`);
         closeDrawer();
       },
-      onError: () => message.error(`Failed to save ${entityName.toLowerCase()}`),
+      onError: (error) => message.error(getApiMessage(error, `Failed to save ${entityName.toLowerCase()}`)),
     });
   };
 

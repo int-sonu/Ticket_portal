@@ -7,37 +7,42 @@ import type {
 } from "../Common/SimpleMasterUtils";
 
 import {
-  useDeleteServiceType,
-  useGetServiceTypes,
-  useSaveServiceType,
-  useUpdateServiceType,
+  useDeleteBrand,
+  useGetBrands,
+  useSaveBrand,
+  useUpdateBrand,
 } from "./Hooks";
 
-const mapServiceTypeRow = (
+
+
+// ============================
+// TABLE DATA
+// ============================
+
+const mapBrandRow = (
   item: any,
   index: number
 ): SimpleMasterRow => ({
   id:
-    item?.nServiceId ??
-    item?.nServiceTypeId ??
+    item?.nBrandid ??
+    item?.nBrandId ??
     index + 1,
 
   key:
-    item?.nServiceId ??
-    item?.nServiceTypeId ??
+    item?.nBrandid ??
+    item?.nBrandId ??
     index + 1,
 
   srl:
     index + 1,
 
   name:
-    item?.cServiceName ??
-    item?.cServiceTypeName ??
+    item?.cBrandName ??
     "N/A",
 
   shortName:
-    item?.cServiceShName ??
-    item?.cServiceTypeShName ??
+    item?.cBrandShName ??
+    item?.cShName ??
     "",
 
   active:
@@ -47,30 +52,41 @@ const mapServiceTypeRow = (
   raw: item,
 });
 
-const buildServiceTypePayload = (
+
+
+
+
+// ============================
+// SAVE / UPDATE
+// ============================
+
+const buildBrandPayload = (
   values: any,
   selectedRow: SimpleMasterRow | null
 ) => ({
-  nServiceTypeId:
+  nBrandId:
     selectedRow?.id,
 
-  nServiceId:
+  nBrandid:
     selectedRow?.id,
 
-  cServiceName:
+  cBrandName:
     values.name,
 
-  cServiceShName:
+  cShName:
+    values.shortName,
+
+  cBrandShName:
     values.shortName,
 
   bActive:
     values.active ?? true,
 });
 
-const buildServiceTypeDeletePayload = (
+const buildBrandDeletePayload = (
   record: SimpleMasterRow
 ) =>
-  buildServiceTypePayload(
+  buildBrandPayload(
     {
       name: record.name,
       shortName: record.shortName,
@@ -79,73 +95,100 @@ const buildServiceTypeDeletePayload = (
     record
   );
 
-const ServiceTypeList = () => {
+
+
+
+
+
+
+const Brand = () => {
+
   const {
-    mutate: saveServiceType,
+    mutate: saveBrand,
+
     isPending: isSaving,
-  } = useSaveServiceType();
+  } = useSaveBrand();
+
+
+
 
   const {
-    mutate: updateServiceType,
+    mutate: updateBrand,
+
     isPending: isUpdating,
-  } = useUpdateServiceType();
+  } = useUpdateBrand();
+
+
+
 
   const {
-    mutate: deleteServiceType,
-  } = useDeleteServiceType();
+    mutate: deleteBrand,
+  } = useDeleteBrand();
+
+
+
+
+
+
 
   const listProps = useMemo(
     () => ({
       title:
-        "Service Type Master",
+        "Brand Master",
 
       entityName:
-        "Service Type",
+        "Brand",
 
       nameColumnTitle:
-        "Service Type Name",
+        "Brand Name",
 
       drawerDescription:
-        "This section allows you to manage Service Types, which includes adding, editing, and viewing.",
+        "This section allows you to manage brand details including add, edit, delete and view.",
 
       idKey:
-        "nServiceId",
+        "nBrandId",
 
       useListQuery:
-        useGetServiceTypes,
+        useGetBrands,
 
       saveMutation:
-        saveServiceType,
+        saveBrand,
 
       updateMutation:
-        updateServiceType,
+        updateBrand,
 
       deleteMutation:
-        deleteServiceType,
+        deleteBrand,
 
       isSaving:
         isSaving || isUpdating,
 
       mapRow:
-        mapServiceTypeRow,
+        mapBrandRow,
 
       buildPayload:
-        buildServiceTypePayload,
+        buildBrandPayload,
 
       buildDeletePayload:
-        buildServiceTypeDeletePayload,
+        buildBrandDeletePayload,
 
       hasShortName:
         true,
     }),
+
     [
-      deleteServiceType,
+      deleteBrand,
       isSaving,
       isUpdating,
-      saveServiceType,
-      updateServiceType,
+      saveBrand,
+      updateBrand,
     ]
   );
+
+
+
+
+
 
   return (
     <SimpleMasterList
@@ -154,4 +197,4 @@ const ServiceTypeList = () => {
   );
 };
 
-export default ServiceTypeList;
+export default Brand;

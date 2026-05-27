@@ -68,11 +68,15 @@ const buildFinancialYearPayload = (
   cFinShName:
     values.shortName,
 
-  dFromDate:
-    values.fromDate ? dayjs(values.fromDate).format("YYYY-MM-DD") : null,
+ cFromDate:
+  values.fromDate
+    ? dayjs(values.fromDate).format("YYYY-MM-DD")
+    : null,
 
-  dTodate:
-    values.toDate ? dayjs(values.toDate).format("YYYY-MM-DD") : null,
+cToDate:
+  values.toDate
+    ? dayjs(values.toDate).format("YYYY-MM-DD")
+    : null,
 
   bActive:
     values.active ?? true,
