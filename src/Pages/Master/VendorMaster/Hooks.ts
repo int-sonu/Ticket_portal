@@ -1,120 +1,69 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  vendorApis,
-} from "../../../Axios/AgentApis";
-
-
+import { vendorApis } from "../../../Axios/MasterApis";
 
 // ============================
 // GET
 // ============================
 
-export const useGetVendors = (
-  payload: any
-) => {
+export const useGetVendors = (payload: any) => {
   return useQuery({
-    queryKey: [
-      "vendor-list",
-      payload,
-    ],
+    queryKey: ["vendor-list", payload],
 
-    queryFn: () =>
-      vendorApis.vendorListAll(
-        payload
-      ),
+    queryFn: () => vendorApis.vendorListAll(payload),
   });
 };
-
-
-
-
 
 // ============================
 // SAVE
 // ============================
 
-export const useSaveVendor =
-  () => {
+export const useSaveVendor = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: vendorApis.vendorSave,
 
-    return useMutation({
-      mutationFn:
-        vendorApis.vendorSave,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "vendor-list",
-          ],
-        });
-      },
-    });
-  };
-
-
-
-
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["vendor-list"],
+      });
+    },
+  });
+};
 
 // ============================
 // UPDATE
 // ============================
 
-export const useUpdateVendor =
-  () => {
+export const useUpdateVendor = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: vendorApis.vendorUpdate,
 
-    return useMutation({
-      mutationFn:
-        vendorApis.vendorUpdate,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "vendor-list",
-          ],
-        });
-      },
-    });
-  };
-
-
-
-
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["vendor-list"],
+      });
+    },
+  });
+};
 
 // ============================
 // DELETE
 // ============================
 
-export const useDeleteVendor =
-  () => {
+export const useDeleteVendor = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: vendorApis.vendorDelete,
 
-    return useMutation({
-      mutationFn:
-        vendorApis.vendorDelete,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "vendor-list",
-          ],
-        });
-      },
-    });
-  };
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["vendor-list"],
+      });
+    },
+  });
+};

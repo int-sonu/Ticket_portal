@@ -109,6 +109,9 @@ const buildPartsPayload = (
   nPartShName:
     values.shortName,
 
+  cPartShName:
+    values.shortName,
+
 
 
   // API FIELD

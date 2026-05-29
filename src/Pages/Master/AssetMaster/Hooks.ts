@@ -1,126 +1,85 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  assetMasterApis,
-} from "../../../Axios/AgentApis";
+import { assetMasterApis, brandApis } from "../../../Axios/MasterApis";
 
-import type {
-  AssetMasterPayload,
-} from "../../../Axios/AgentApis";
+import type { AssetMasterPayload } from "../../../Axios/MasterApis";
 
 export const ASSET_MASTER_KEYS = {
   all: ["asset-master"] as const,
 
-  lists: () =>
-    [
-      ...ASSET_MASTER_KEYS.all,
-      "list",
-    ] as const,
+  lists: () => [...ASSET_MASTER_KEYS.all, "list"] as const,
 
   list: (filters: string) =>
-    [
-      ...ASSET_MASTER_KEYS.lists(),
-      { filters },
-    ] as const,
+    [...ASSET_MASTER_KEYS.lists(), { filters }] as const,
 };
 
-export const useGetAssetMasters = (
-  payload: AssetMasterPayload
-) =>
+export const useGetAssetMasters = (payload: AssetMasterPayload) =>
   useQuery({
-    queryKey:
-      ASSET_MASTER_KEYS.list(
-        JSON.stringify(payload)
-      ),
+    queryKey: ASSET_MASTER_KEYS.list(JSON.stringify(payload)),
 
-    queryFn: () =>
-      assetMasterApis.assetMasterList(
-        payload
-      ),
+    queryFn: () => assetMasterApis.assetMasterList(payload),
 
     enabled: !!payload,
   });
 
-export const useGetAssetMasterSuggest = (
-  payload: AssetMasterPayload
-) =>
+export const useGetAssetMasterSuggest = (payload: AssetMasterPayload) =>
   useQuery({
-    queryKey: [
-      ...ASSET_MASTER_KEYS.all,
-      "suggest",
-      payload,
-    ],
+    queryKey: [...ASSET_MASTER_KEYS.all, "suggest", payload],
 
-    queryFn: () =>
-      assetMasterApis.assetMasterSuggest(
-        payload
-      ),
+    queryFn: () => assetMasterApis.assetMasterSuggest(payload),
+
+    enabled: !!payload,
+  });
+
+export const useGetAssetBrandOptions = (payload: AssetMasterPayload) =>
+  useQuery({
+    queryKey: [...ASSET_MASTER_KEYS.all, "brands", payload],
+
+    queryFn: () => brandApis.brandListAll(payload),
 
     enabled: !!payload,
   });
 
 export const useSaveAssetMaster = () => {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (
-      payload: AssetMasterPayload
-    ) =>
-      assetMasterApis.assetMasterSave(
-        payload
-      ),
+    mutationFn: (payload: AssetMasterPayload) =>
+      assetMasterApis.assetMasterSave(payload),
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey:
-          ASSET_MASTER_KEYS.lists(),
+        queryKey: ASSET_MASTER_KEYS.lists(),
       });
     },
   });
 };
 
 export const useUpdateAssetMaster = () => {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (
-      payload: AssetMasterPayload
-    ) =>
-      assetMasterApis.assetMasterUpdate(
-        payload
-      ),
+    mutationFn: (payload: AssetMasterPayload) =>
+      assetMasterApis.assetMasterUpdate(payload),
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey:
-          ASSET_MASTER_KEYS.lists(),
+        queryKey: ASSET_MASTER_KEYS.lists(),
       });
     },
   });
 };
 
 export const useDeleteAssetMaster = () => {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (
-      payload: AssetMasterPayload
-    ) =>
-      assetMasterApis.assetMasterDelete(
-        payload
-      ),
+    mutationFn: (payload: AssetMasterPayload) =>
+      assetMasterApis.assetMasterDelete(payload),
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey:
-          ASSET_MASTER_KEYS.lists(),
+        queryKey: ASSET_MASTER_KEYS.lists(),
       });
     },
   });

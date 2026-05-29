@@ -1,88 +1,53 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  ticketSourceApis,
-} from "../../../Axios/AgentApis";
+import { ticketSourceApis } from "../../../Axios/MasterApis";
 
-export const useGetTicketSources = (
-  payload: any
-) => {
+export const useGetTicketSources = (payload: any) => {
   return useQuery({
-    queryKey: [
-      "ticket-source-list",
-      payload,
-    ],
+    queryKey: ["ticket-source-list", payload],
 
-    queryFn: () =>
-      ticketSourceApis.ticketSourceListAll(
-        payload
-      ),
+    queryFn: () => ticketSourceApis.ticketSourceListAll(payload),
   });
 };
 
-export const useSaveTicketSource =
-  () => {
+export const useSaveTicketSource = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: ticketSourceApis.ticketSourceSave,
 
-    return useMutation({
-      mutationFn:
-        ticketSourceApis.ticketSourceSave,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["ticket-source-list"],
+      });
+    },
+  });
+};
 
-      onSuccess: () => {
+export const useUpdateTicketSource = () => {
+  const queryClient = useQueryClient();
 
-        queryClient.invalidateQueries({
-          queryKey: [
-            "ticket-source-list",
-          ],
-        });
-      },
-    });
-  };
+  return useMutation({
+    mutationFn: ticketSourceApis.ticketSourceUpdate,
 
-export const useUpdateTicketSource =
-  () => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["ticket-source-list"],
+      });
+    },
+  });
+};
 
-    const queryClient =
-      useQueryClient();
+export const useDeleteTicketSource = () => {
+  const queryClient = useQueryClient();
 
-    return useMutation({
-      mutationFn:
-        ticketSourceApis.ticketSourceUpdate,
+  return useMutation({
+    mutationFn: ticketSourceApis.ticketSourceDelete,
 
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "ticket-source-list",
-          ],
-        });
-      },
-    });
-  };
-
-export const useDeleteTicketSource =
-  () => {
-
-    const queryClient =
-      useQueryClient();
-
-    return useMutation({
-      mutationFn:
-        ticketSourceApis.ticketSourceDelete,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "ticket-source-list",
-          ],
-        });
-      },
-    });
-  };
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["ticket-source-list"],
+      });
+    },
+  });
+};

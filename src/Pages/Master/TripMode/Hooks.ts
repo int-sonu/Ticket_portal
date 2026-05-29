@@ -1,10 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { tripModeApis } from '../../../Axios/AgentApis';
-import type { TripModePayload } from '../../../Axios/AgentApis';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { tripModeApis } from "../../../Axios/MasterApis";
+import type { TripModePayload } from "../../../Axios/MasterApis";
 
 export const TRIP_MODE_KEYS = {
-  all: ['tripModes'] as const,
-  lists: () => [...TRIP_MODE_KEYS.all, 'list'] as const,
+  all: ["tripModes"] as const,
+  lists: () => [...TRIP_MODE_KEYS.all, "list"] as const,
   list: (filters: string) => [...TRIP_MODE_KEYS.lists(), { filters }] as const,
 };
 
@@ -20,7 +20,8 @@ export const useSaveTripMode = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: TripModePayload) => tripModeApis.tripModeSave(payload),
+    mutationFn: (payload: TripModePayload) =>
+      tripModeApis.tripModeSave(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIP_MODE_KEYS.lists() });
     },
@@ -31,7 +32,8 @@ export const useUpdateTripMode = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: TripModePayload) => tripModeApis.tripModeUpdate(payload),
+    mutationFn: (payload: TripModePayload) =>
+      tripModeApis.tripModeUpdate(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIP_MODE_KEYS.lists() });
     },
@@ -42,7 +44,8 @@ export const useDeleteTripMode = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: TripModePayload) => tripModeApis.tripModeDelete(payload),
+    mutationFn: (payload: TripModePayload) =>
+      tripModeApis.tripModeDelete(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TRIP_MODE_KEYS.lists() });
     },

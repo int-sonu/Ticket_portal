@@ -19,10 +19,20 @@ const mapTicketSourceRow = (
 ): SimpleMasterRow => ({
   id:
     item?.nTicketSourceId ??
+    item?.nTicketsourceId ??
+    item?.nTicketsourceid ??
+    item?.nTicketSourceid ??
+    item?.nSourceId ??
+    item?.nSourceid ??
     index + 1,
 
   key:
     item?.nTicketSourceId ??
+    item?.nTicketsourceId ??
+    item?.nTicketsourceid ??
+    item?.nTicketSourceid ??
+    item?.nSourceId ??
+    item?.nSourceid ??
     index + 1,
 
   srl:
@@ -30,9 +40,18 @@ const mapTicketSourceRow = (
 
   name:
     item?.cTicketSourceName ??
+    item?.cTicketsourceName ??
+    item?.cSourceName ??
     "N/A",
 
   shortName:
+    item?.cTicketSourceShName ??
+    item?.cTicketsourceShName ??
+    item?.cTicketSourceShname ??
+    item?.cTicketsourceShname ??
+    item?.cTicketSourceCode ??
+    item?.cSourceShName ??
+    item?.cSourceShname ??
     item?.cShName ??
     "",
 
@@ -50,27 +69,75 @@ const buildTicketSourcePayload = (
   nTicketSourceId:
     selectedRow?.id,
 
+  nTicketsourceId:
+    selectedRow?.id,
+
+  nTicketsourceid:
+    selectedRow?.id,
+
+  nTicketSourceid:
+    selectedRow?.id,
+
+  nSourceId:
+    selectedRow?.id,
+
+  nSourceid:
+    selectedRow?.id,
+
   cTicketSourceName:
     values.name,
 
+  cTicketsourceName:
+    values.name,
+
+  cSourceName:
+    values.name,
+
   cShName:
+    values.shortName,
+
+  cTicketSourceShName:
+    values.shortName,
+
+  cTicketsourceShName:
+    values.shortName,
+
+  cTicketSourceShname:
+    values.shortName,
+
+  cTicketsourceShname:
+    values.shortName,
+
+  cTicketSourceCode:
+    values.shortName,
+
+  cSourceShName:
     values.shortName,
 
   bActive:
     values.active ?? true,
 });
 
-const TicketSource = () => {
+const buildTicketSourceDeletePayload = (
+  record: SimpleMasterRow
+) =>
+  buildTicketSourcePayload(
+    {
+      name: record.name,
+      shortName: record.shortName,
+      active: false,
+    },
+    record
+  );
 
+const TicketSource = () => {
   const {
     mutate: saveTicketSource,
-
     isPending: isSaving,
   } = useSaveTicketSource();
 
   const {
     mutate: updateTicketSource,
-
     isPending: isUpdating,
   } = useUpdateTicketSource();
 
@@ -116,10 +183,12 @@ const TicketSource = () => {
       buildPayload:
         buildTicketSourcePayload,
 
+      buildDeletePayload:
+        buildTicketSourceDeletePayload,
+
       hasShortName:
         true,
     }),
-
     [
       deleteTicketSource,
       isSaving,

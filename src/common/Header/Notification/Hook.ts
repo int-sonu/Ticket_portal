@@ -29,7 +29,7 @@ export const useFetchNotificationList = (
 
     const listPayload: any = {
       nAgentId: userCreds.id,
-      cDbName: userCreds.dbName,
+      cDbName: userCreds.cDbName ?? userCreds.dbName,
       cSchemaName: userCreds.cSchemaName,
       nCompanyId: userCreds.nCompanyId,
     };

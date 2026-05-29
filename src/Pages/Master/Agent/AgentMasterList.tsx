@@ -18,6 +18,7 @@ import {
   getApiMessage,
   getSessionPayload,
   getTotalCount,
+  isCancelledAgent,
   isApiSuccess,
   makeOption,
   makeUserTypeOption,
@@ -35,6 +36,7 @@ const AgentMasterList: React.FC = () => {
   const [viewMode, setViewMode] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentRow | null>(null);
   const [deletedAgentIds, setDeletedAgentIds] = useState<Array<string | number>>([]);
+  const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
   const [form] = Form.useForm();
   const activeValue = Form.useWatch('active', form);
 
@@ -59,15 +61,20 @@ const AgentMasterList: React.FC = () => {
   const dataSource = useMemo(
     () => filterAgents(
       extractAgentList(agentsData)
+        .filter((agent) => !isCancelledAgent(agent))
         .map(mapAgentRow)
+        .map((agent) => ({
+          ...agent,
+          active: activeOverrides[String(agent.id)] ?? agent.active,
+        }))
         .filter((agent) => !deletedAgentIds.includes(agent.id)),
       searchTerm,
     ),
-    [agentsData, deletedAgentIds, searchTerm],
+    [activeOverrides, agentsData, deletedAgentIds, searchTerm],
   );
 
   const allAgentRows = useMemo(
-    () => extractAgentList(agentsData).map(mapAgentRow),
+    () => extractAgentList(agentsData).filter((agent) => !isCancelledAgent(agent)).map(mapAgentRow),
     [agentsData],
   );
 
@@ -155,16 +162,36 @@ const AgentMasterList: React.FC = () => {
   };
 
   const handleActiveChange = (checked: boolean, record: AgentRow) => {
+    const overrideKey = String(record.id);
+    const previousActive = record.active;
+
+    setActiveOverrides((current) => ({
+      ...current,
+      [overrideKey]: checked,
+    }));
+
     updateAgent(buildAgentPayload({ ...buildAgentFormValues(record), active: checked }, record), {
       onSuccess: (response) => {
         if (!isApiSuccess(response)) {
+          setActiveOverrides((current) => ({
+            ...current,
+            [overrideKey]: previousActive,
+          }));
+
           message.error(getApiMessage(response, 'Failed to update agent'));
           return;
         }
 
         message.success('Agent updated successfully');
       },
-      onError: (error) => message.error(getApiMessage(error, 'Failed to update agent')),
+      onError: (error) => {
+        setActiveOverrides((current) => ({
+          ...current,
+          [overrideKey]: previousActive,
+        }));
+
+        message.error(getApiMessage(error, 'Failed to update agent'));
+      },
     });
   };
 
@@ -173,11 +200,32 @@ const AgentMasterList: React.FC = () => {
       normalizeCompareText(agent.id) !== normalizeCompareText(selectedAgent?.id) &&
       normalizeCompareText(agent.shortName) === normalizeCompareText(values.agentShortName),
     );
+    const duplicateUsername = allAgentRows.find((agent) =>
+      normalizeCompareText(agent.id) !== normalizeCompareText(selectedAgent?.id) &&
+      normalizeCompareText(agent.username) === normalizeCompareText(values.username),
+    );
+    const usernameChanged =
+      selectedAgent &&
+      normalizeCompareText(selectedAgent.username) !== normalizeCompareText(values.username);
 
     if (duplicateShortName) {
       form.setFields([{ name: 'agentShortName', errors: ['Short Name already exists'] }]);
       form.scrollToField('agentShortName', { focus: true });
       message.error('Short Name already exists');
+      return;
+    }
+
+    if (duplicateUsername) {
+      form.setFields([{ name: 'username', errors: ['Username already exists'] }]);
+      form.scrollToField('username', { focus: true });
+      message.error('Username already exists');
+      return;
+    }
+
+    if (usernameChanged && !String(values.password ?? '').trim()) {
+      form.setFields([{ name: 'password', errors: ['Password is required when changing username'] }]);
+      form.scrollToField('password', { focus: true });
+      message.error('Password is required when changing username');
       return;
     }
 

@@ -1,14 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { agentApis } from '../../../Axios/AgentApis';
-import type { AgentPayload } from '../../../Axios/AgentApis';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { agentApis } from "../../../Axios/MasterApis";
+import type { AgentPayload } from "../../../Axios/MasterApis";
 
 export const AGENT_KEYS = {
-  all: ['agents'] as const,
-  lists: () => [...AGENT_KEYS.all, 'list'] as const,
+  all: ["agents"] as const,
+  lists: () => [...AGENT_KEYS.all, "list"] as const,
   list: (filters: string) => [...AGENT_KEYS.lists(), { filters }] as const,
-  dropdown: (filters: string) => [...AGENT_KEYS.all, 'dropdown', { filters }] as const,
-  reportTo: (filters: string) => [...AGENT_KEYS.all, 'report-to', { filters }] as const,
-  details: () => [...AGENT_KEYS.all, 'detail'] as const,
+  dropdown: (filters: string) =>
+    [...AGENT_KEYS.all, "dropdown", { filters }] as const,
+  reportTo: (filters: string) =>
+    [...AGENT_KEYS.all, "report-to", { filters }] as const,
+  details: () => [...AGENT_KEYS.all, "detail"] as const,
   detail: (id: string | number) => [...AGENT_KEYS.details(), id] as const,
 };
 

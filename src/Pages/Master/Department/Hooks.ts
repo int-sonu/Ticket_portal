@@ -1,119 +1,69 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  departmentApis,
-} from "../../../Axios/AgentApis";
-
-
+import { departmentApis } from "../../../Axios/MasterApis";
 
 // ============================
 // GET
 // ============================
 
-export const useGetDepartments = (
-  payload: any
-) => {
+export const useGetDepartments = (payload: any) => {
   return useQuery({
-    queryKey: [
-      "department-list",
-      payload,
-    ],
+    queryKey: ["department-list", payload],
 
-    queryFn: () =>
-      departmentApis.departmentListAll(
-        payload
-      ),
+    queryFn: () => departmentApis.departmentListAll(payload),
   });
 };
-
-
-
 
 // ============================
 // SAVE
 // ============================
 
-export const useSaveDepartment =
-  () => {
+export const useSaveDepartment = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: departmentApis.departmentSave,
 
-    return useMutation({
-      mutationFn:
-        departmentApis.departmentSave,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "department-list",
-          ],
-        });
-      },
-    });
-  };
-
-
-
-
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["department-list"],
+      });
+    },
+  });
+};
 
 // ============================
 // UPDATE
 // ============================
 
-export const useUpdateDepartment =
-  () => {
+export const useUpdateDepartment = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: departmentApis.departmentUpdate,
 
-    return useMutation({
-      mutationFn:
-        departmentApis.departmentUpdate,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "department-list",
-          ],
-        });
-      },
-    });
-  };
-
-
-
-
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["department-list"],
+      });
+    },
+  });
+};
 
 // ============================
 // DELETE
 // ============================
 
-export const useDeleteDepartment =
-  () => {
+export const useDeleteDepartment = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: departmentApis.departmentDelete,
 
-    return useMutation({
-      mutationFn:
-        departmentApis.departmentDelete,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "department-list",
-          ],
-        });
-      },
-    });
-  };
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["department-list"],
+      });
+    },
+  });
+};

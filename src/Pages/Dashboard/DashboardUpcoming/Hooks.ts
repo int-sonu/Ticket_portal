@@ -25,7 +25,7 @@ export const useFetchDashboardUpcomingTicketList = (
       dToDate: dayjs().format("YYYY/MM/DD"),
       nCompanyId: userCreds.nCompanyId,
       cSchemaName: userCreds.cSchemaName,
-      cDbName: userCreds.dbName,
+      cDbName: userCreds.cDbName ?? userCreds.dbName,
     };
 
     async function fetchData() {

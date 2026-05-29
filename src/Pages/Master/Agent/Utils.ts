@@ -28,7 +28,7 @@ export const getSessionPayload = () => {
     const session = JSON.parse(sessionStorage.getItem('userSession') || '{}');
 
     return {
-      cDbName: session?.dbName,
+      cDbName: session?.cDbName ?? session?.dbName,
       cSchemaName: session?.cSchemaName,
       nCompanyId: session?.nCompanyId,
     };
@@ -48,6 +48,27 @@ export const extractAgentList = (response: any): any[] => {
   if (Array.isArray(response?.agentList)) return response.agentList;
 
   return [];
+};
+
+const truthyValues = new Set(['true', '1', 'yes', 'y']);
+
+export const isCancelledAgent = (agent: any) => {
+  const values = [
+    agent?.bCancelled,
+    agent?.bCancel,
+    agent?.cancelled,
+    agent?.isCancelled,
+    agent?.bDeleted,
+    agent?.deleted,
+    agent?.isDeleted,
+  ];
+
+  return values.some((value) => {
+    if (value === true || value === 1) return true;
+    if (typeof value === 'string') return truthyValues.has(value.trim().toLowerCase());
+
+    return false;
+  });
 };
 
 export const getTotalCount = (response: any, fallback: number) =>
@@ -197,11 +218,12 @@ export const buildAgentPayload = (formValues: any, selectedAgent: AgentRow | nul
     nType: values.nUserType,
     nReportAgentId: values.nReportTo,
     bNonSuportingUser: !values.bSupportAgent,
-    nCreatedBy: userCreds.id,
+    nCreatedBy: selectedAgent ? undefined : userCreds.id,
+    nModifiedBy: selectedAgent ? userCreds.id : undefined,
     bActive: values.active ?? true,
     nCompanyId: userCreds.nCompanyId,
     cSchemaName: userCreds.cSchemaName,
-    cDbName: userCreds.dbName,
+    cDbName: userCreds.cDbName ?? userCreds.dbName,
   };
 
   if (values.password) {
@@ -253,19 +275,77 @@ export const uniqueOptions = <T extends { value: string | number }>(options: Arr
 
 export const isApiSuccess = (response: any) => {
   const statusCode = response?.statusCode ?? response?.data?.statusCode;
+  const messageText = String(
+    response?.message ??
+      response?.data?.message ??
+      response?.title ??
+      response?.data?.title ??
+      ''
+  ).toLowerCase();
+  const successFlag =
+    response?.success ??
+    response?.data?.success ??
+    response?.isSuccess ??
+    response?.data?.isSuccess ??
+    response?.status ??
+    response?.data?.status;
+
+  if (
+    messageText.includes('cannot delete') ||
+    messageText.includes('can not delete') ||
+    messageText.includes('cannot be deleted') ||
+    messageText.includes('failed') ||
+    messageText.includes('error') ||
+    messageText.includes('not found')
+  ) {
+    return false;
+  }
+
+  if (typeof successFlag === 'boolean') return successFlag;
+  if (typeof successFlag === 'string') {
+    const normalizedFlag = successFlag.trim().toLowerCase();
+
+    if (['true', 'success', 'succeeded', 'ok', '1'].includes(normalizedFlag)) return true;
+    if (['false', 'failed', 'failure', 'error', '0'].includes(normalizedFlag)) return false;
+  }
 
   return statusCode === undefined || (Number(statusCode) >= 200 && Number(statusCode) < 300);
 };
 
 export const getApiMessage = (response: any, fallback: string) =>
-  String(
-    response?.response?.data?.message ??
-    response?.data?.message ??
-    response?.message ??
-    fallback,
-  ).includes('tm_agent_cusername_key')
-    ? 'Username already exists in backend. Please use another username.'
-    : response?.response?.data?.message ??
-      response?.data?.message ??
-      response?.message ??
-      fallback;
+  formatAgentMessage(response, fallback);
+
+const formatValidationErrors = (errors: any) => {
+  if (!errors || typeof errors !== 'object') return '';
+
+  return Object.entries(errors)
+    .flatMap(([field, messages]) => {
+      const list = Array.isArray(messages) ? messages : [messages];
+
+      return list.map((item) => `${field}: ${item}`);
+    })
+    .join(', ');
+};
+
+const formatAgentMessage = (response: any, fallback: string) => {
+  const rawMessage =
+    formatValidationErrors(response?.response?.data?.errors) ||
+    formatValidationErrors(response?.data?.errors) ||
+    response?.response?.data?.message ||
+    response?.response?.data?.title ||
+    response?.data?.message ||
+    response?.data?.title ||
+    response?.message ||
+    fallback;
+  const status = response?.response?.status ?? response?.status;
+
+  if (String(rawMessage).includes('tm_agent_cusername_key')) {
+    return 'Username already exists. Please use another username.';
+  }
+
+  if (status === 405) {
+    return 'Agent action is not allowed by the API. Please refresh and try again.';
+  }
+
+  return rawMessage;
+};

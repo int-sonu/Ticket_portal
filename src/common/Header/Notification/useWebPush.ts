@@ -86,7 +86,7 @@ export function useWebPush(userCreds: UserCredsType | undefined) {
             cFcmToken: token,
             cPlatform: "web",
             cSchemaName: userCreds.cSchemaName,
-            cDbName: userCreds.dbName,
+            cDbName: userCreds.cDbName ?? userCreds.dbName,
           }));
           console.log("[WebPush] token registered with backend for agent", userCreds.id);
         }
@@ -112,7 +112,7 @@ export function useWebPush(userCreds: UserCredsType | undefined) {
             nAgentId: userCreds.id,
             nCompanyId: userCreds.nCompanyId,
             cSchemaName: userCreds.cSchemaName,
-            cDbName: userCreds.dbName,
+            cDbName: userCreds.cDbName ?? userCreds.dbName,
           }));
         });
         console.log("[WebPush] onMessage listener attached, ready to receive foreground pushes");

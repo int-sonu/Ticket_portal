@@ -54,7 +54,7 @@ const refetchNotifications = () => {
     nAgentId: userCreds.id,
     nCompanyId: userCreds.nCompanyId,
     cSchemaName: userCreds.cSchemaName,
-    cDbName: userCreds.dbName,
+    cDbName: userCreds.cDbName ?? userCreds.dbName,
   }));
 };
 
@@ -63,7 +63,7 @@ const handleClearNotification = (id : any)=>{
     cNotifIds : String(id),
     nAgentId: userCreds?.id,
     nCompanyId: userCreds?.nCompanyId,
-    cDbName: userCreds?.dbName,
+    cDbName: userCreds?.cDbName ?? userCreds?.dbName,
     cSchemaName: userCreds?.cSchemaName,
   }
 
@@ -84,7 +84,7 @@ const handleClearAll = () => {
     nAgentId: userCreds.id,
     nCompanyId: userCreds.nCompanyId,
     cSchemaName: userCreds.cSchemaName,
-    cDbName: userCreds.dbName,
+    cDbName: userCreds.cDbName ?? userCreds.dbName,
   })).unwrap().then(() => {
     refetchNotifications();
     toast.success("All notifications cleared");

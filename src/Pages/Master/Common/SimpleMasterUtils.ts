@@ -21,7 +21,7 @@ export const getSessionPayload = (): SessionPayload => {
     const session = JSON.parse(sessionStorage.getItem('userSession') || '{}');
 
     return {
-      cDbName: session?.dbName,
+      cDbName: session?.cDbName ?? session?.dbName,
       cSchemaName: session?.cSchemaName,
       nCompanyId: session?.nCompanyId,
       nModifiedBy: session?.id,
@@ -45,6 +45,18 @@ export const extractList = (response: any): any[] => {
   if (Array.isArray(response?.data?.list)) return response.data.list;
   if (Array.isArray(response?.groupList)) return response.groupList;
   if (Array.isArray(response?.data?.groupList)) return response.data.groupList;
+  if (Array.isArray(response?.vendorList)) return response.vendorList;
+  if (Array.isArray(response?.data?.vendorList)) return response.data.vendorList;
+  if (Array.isArray(response?.brandList)) return response.brandList;
+  if (Array.isArray(response?.data?.brandList)) return response.data.brandList;
+  if (Array.isArray(response?.departmentList)) return response.departmentList;
+  if (Array.isArray(response?.data?.departmentList)) return response.data.departmentList;
+  if (Array.isArray(response?.assetList)) return response.assetList;
+  if (Array.isArray(response?.data?.assetList)) return response.data.assetList;
+  if (Array.isArray(response?.issueList)) return response.issueList;
+  if (Array.isArray(response?.data?.issueList)) return response.data.issueList;
+  if (Array.isArray(response?.ticketSourceList)) return response.ticketSourceList;
+  if (Array.isArray(response?.data?.ticketSourceList)) return response.data.ticketSourceList;
 
   return [];
 };
@@ -69,6 +81,39 @@ export const isCancelled = (item: any) =>
 
 export const isApiSuccess = (response: any) => {
   const statusCode = response?.statusCode ?? response?.data?.statusCode;
+  const messageText = String(
+    response?.message ??
+      response?.data?.message ??
+      response?.title ??
+      response?.data?.title ??
+      ''
+  ).toLowerCase();
+  const successFlag =
+    response?.success ??
+    response?.data?.success ??
+    response?.isSuccess ??
+    response?.data?.isSuccess ??
+    response?.status ??
+    response?.data?.status;
+
+  if (
+    messageText.includes('cannot delete') ||
+    messageText.includes('can not delete') ||
+    messageText.includes('cannot be deleted') ||
+    messageText.includes('failed') ||
+    messageText.includes('error') ||
+    messageText.includes('not found')
+  ) {
+    return false;
+  }
+
+  if (typeof successFlag === 'boolean') return successFlag;
+  if (typeof successFlag === 'string') {
+    const normalizedFlag = successFlag.trim().toLowerCase();
+
+    if (['true', 'success', 'succeeded', 'ok', '1'].includes(normalizedFlag)) return true;
+    if (['false', 'failed', 'failure', 'error', '0'].includes(normalizedFlag)) return false;
+  }
 
   return statusCode === undefined || (Number(statusCode) >= 200 && Number(statusCode) < 300);
 };
@@ -90,11 +135,14 @@ export const getApiMessage = (response: any, fallback: string) => {
     formatValidationErrors(response?.response?.data?.errors) ||
     formatValidationErrors(response?.data?.errors) ||
     formatValidationErrors(response?.errors);
+  const status = response?.response?.status ?? response?.status;
 
   return (
     validationMessage ||
     response?.response?.data?.message ||
     response?.response?.data?.title ||
+    (status === 405 ? 'This action is not allowed by the API. Please refresh and try again.' : '') ||
+    (status ? fallback : '') ||
     response?.response?.statusText ||
     response?.data?.message ||
     response?.data?.title ||

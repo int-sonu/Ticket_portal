@@ -209,6 +209,11 @@ const SimpleMasterList = ({
       []
     );
 
+  const [activeOverrides, setActiveOverrides] =
+    useState<Record<string, boolean>>(
+      {}
+    );
+
   const [form] = Form.useForm();
 
   const activeValue = Form.useWatch(
@@ -251,6 +256,12 @@ const SimpleMasterList = ({
       extractList(data)
         .filter(filterRawItem)
         .map(mapRow)
+        .map((row) => ({
+          ...row,
+          active:
+            activeOverrides[String(row.id)] ??
+            row.active,
+        }))
         .filter(
           (row) =>
             !deletedRowIds.includes(
@@ -261,6 +272,7 @@ const SimpleMasterList = ({
     [
       data,
       deletedRowIds,
+      activeOverrides,
       filterRawItem,
       mapRow,
     ]
@@ -588,6 +600,14 @@ const SimpleMasterList = ({
 
     if (!updateMutation) return;
 
+    const overrideKey = String(record.id);
+    const previousActive = record.active;
+
+    setActiveOverrides((current) => ({
+      ...current,
+      [overrideKey]: checked,
+    }));
+
     updateMutation(
       {
         ...getSessionPayload(),
@@ -609,6 +629,11 @@ const SimpleMasterList = ({
           if (
             !isApiSuccess(response)
           ) {
+            setActiveOverrides((current) => ({
+              ...current,
+              [overrideKey]: previousActive,
+            }));
+
             message.error(
               getApiMessage(
                 response,
@@ -624,13 +649,19 @@ const SimpleMasterList = ({
           );
         },
 
-        onError: (error) =>
+        onError: (error) => {
+          setActiveOverrides((current) => ({
+            ...current,
+            [overrideKey]: previousActive,
+          }));
+
           message.error(
             getApiMessage(
               error,
               `Failed to update ${entityName.toLowerCase()}`
             )
-          ),
+          );
+        },
       }
     );
   };

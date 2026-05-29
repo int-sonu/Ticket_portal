@@ -1,19 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { followupApis } from "../../../Axios/AgentApis";
-import type { FollowupPayload } from "../../../Axios/AgentApis";
+import { followupApis } from "../../../Axios/MasterApis";
+import type { FollowupPayload } from "../../../Axios/MasterApis";
 
 export const FOLLOWUP_KEYS = {
   all: ["followupModes"] as const,
 
   lists: () => [...FOLLOWUP_KEYS.all, "list"] as const,
 
-  list: (filters: string) =>
-    [...FOLLOWUP_KEYS.lists(), { filters }] as const,
+  list: (filters: string) => [...FOLLOWUP_KEYS.lists(), { filters }] as const,
 };
 
-export const useGetFollowupModes = (
-  payload: FollowupPayload
-) => {
+export const useGetFollowupModes = (payload: FollowupPayload) => {
   return useQuery({
     queryKey: FOLLOWUP_KEYS.list(JSON.stringify(payload)),
 

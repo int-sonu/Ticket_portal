@@ -240,7 +240,7 @@ const TripMode = () => {
     setIsSaving(true);
 
     const savePayload: TripModeSavePayload = {
-      cDbName: userCreds.dbName,
+      cDbName: userCreds.cDbName ?? userCreds.dbName,
       cSchemaName: userCreds.cSchemaName,
       nCompanyId: userCreds.nCompanyId,
       cModeName: formValues.name,
@@ -325,7 +325,7 @@ const TripMode = () => {
 
     const editPayload: TripModeEditPayload = {
       cSchemaName: userCreds?.cSchemaName,
-      cDbName: userCreds?.dbName,
+      cDbName: userCreds?.cDbName ?? userCreds?.dbName,
       nCompanyId: userCreds?.nCompanyId,
       cModeName: formValues.name,
       cShName: formValues.shortName,
@@ -365,7 +365,7 @@ const TripMode = () => {
 
         const deletePayload: any = {
           cSchemaName: userCreds.cSchemaName,
-          cDbName: userCreds.dbName,
+          cDbName: userCreds.cDbName ?? userCreds.dbName,
           nCompanyId: userCreds.nCompanyId,
           nTripModeId: nTripModeId,
         };
@@ -402,7 +402,7 @@ const TripMode = () => {
     if (!userCreds) return;
     const editPayload: any = {
       cSchemaName: userCreds.cSchemaName,
-      cDbName: userCreds.dbName,
+      cDbName: userCreds.cDbName ?? userCreds.dbName,
       nCompanyId: userCreds.nCompanyId,
       nTripmodeId: data.nTripModeId,
       cModeName: data.cTripModeNmae,

@@ -1,99 +1,81 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+  customerApis,
+  departmentApis,
+  brandApis,
+} from "../../../Axios/MasterApis";
 
-import {customerApis,} from  "../../../Axios/AgentApis";
-
-export const useGetCustomers = (
-  payload: any
-) => {
+export const useGetCustomers = (payload: any) => {
   return useQuery({
-    queryKey: [
-      "customer-list",
-      payload,
-    ],
+    queryKey: ["customer-list", payload],
 
-    queryFn: () =>
-      customerApis.customerList(
-        payload
-      ),
+    queryFn: () => customerApis.customerList(payload),
   });
 };
 
-export const useSaveCustomer =
-  () => {
+export const useSaveCustomer = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: customerApis.customerSave,
 
-    return useMutation({
-      mutationFn:
-        customerApis.customerSave,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["customer-list"],
+      });
+    },
+  });
+};
 
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: [
-            "customer-list",
-          ],
-        });
-      },
-    });
-  };
+export const useUpdateCustomer = () => {
+  const queryClient = useQueryClient();
 
-export const useUpdateCustomer =
-  () => {
+  return useMutation({
+    mutationFn: customerApis.customerUpdate,
 
-    const queryClient =
-      useQueryClient();
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["customer-list"],
+      });
+    },
+  });
+};
 
-    return useMutation({
-      mutationFn:
-        customerApis.customerUpdate,
+export const useDeleteCustomer = () => {
+  const queryClient = useQueryClient();
 
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: [
-            "customer-list",
-          ],
-        });
-      },
-    });
-  };
+  return useMutation({
+    mutationFn: customerApis.customerDelete,
 
-export const useDeleteCustomer =
-  () => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["customer-list"],
+      });
+    },
+  });
+};
 
-    const queryClient =
-      useQueryClient();
-
-    return useMutation({
-      mutationFn:
-        customerApis.customerDelete,
-
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: [
-            "customer-list",
-          ],
-        });
-      },
-    });
-  };
-
-export const useGetAssetMasterSuggest = (
-  payload: any
-) => {
+export const useGetAssetMasterSuggest = (payload: any) => {
   return useQuery({
-    queryKey: [
-      "asset-master-suggest",
-      payload,
-    ],
+    queryKey: ["asset-master-suggest", payload],
 
-    queryFn: () =>
-      customerApis.assetMasterSuggest(
-        payload
-      ),
+    queryFn: () => customerApis.assetMasterSuggest(payload),
+  });
+};
+
+export const useGetCustomerAssetDepartments = (payload: any) => {
+  return useQuery({
+    queryKey: ["customer-asset-departments", payload],
+
+    queryFn: () => departmentApis.departmentDropDown(payload),
+  });
+};
+
+export const useGetCustomerBrandOptions = (payload: any) => {
+  return useQuery({
+    queryKey: ["customer-brand-options", payload],
+
+    queryFn: () => brandApis.brandListAll(payload),
   });
 };

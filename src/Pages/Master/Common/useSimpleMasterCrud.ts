@@ -47,6 +47,10 @@ export const useSimpleMasterCrud = ({
                 },
                 record,
               )),
+          bActive: false,
+          bCancelled: true,
+          bCancel: true,
+          bDeleted: true,
           [idKey]: record.id,
         }, {
           onSuccess: (response) => {

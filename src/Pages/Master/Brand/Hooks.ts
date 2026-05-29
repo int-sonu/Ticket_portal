@@ -1,120 +1,69 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  brandApis,
-} from "../../../Axios/AgentApis";
-
-
+import { brandApis } from "../../../Axios/MasterApis";
 
 // ============================
 // GET
 // ============================
 
-export const useGetBrands = (
-  payload: any
-) => {
+export const useGetBrands = (payload: any) => {
   return useQuery({
-    queryKey: [
-      "brand-list",
-      payload,
-    ],
+    queryKey: ["brand-list", payload],
 
-    queryFn: () =>
-      brandApis.brandListAll(
-        payload
-      ),
+    queryFn: () => brandApis.brandListAll(payload),
   });
 };
-
-
-
-
 
 // ============================
 // SAVE
 // ============================
 
-export const useSaveBrand =
-  () => {
+export const useSaveBrand = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: brandApis.brandSave,
 
-    return useMutation({
-      mutationFn:
-        brandApis.brandSave,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "brand-list",
-          ],
-        });
-      },
-    });
-  };
-
-
-
-
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["brand-list"],
+      });
+    },
+  });
+};
 
 // ============================
 // UPDATE
 // ============================
 
-export const useUpdateBrand =
-  () => {
+export const useUpdateBrand = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: brandApis.brandUpdate,
 
-    return useMutation({
-      mutationFn:
-        brandApis.brandUpdate,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "brand-list",
-          ],
-        });
-      },
-    });
-  };
-
-
-
-
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["brand-list"],
+      });
+    },
+  });
+};
 
 // ============================
 // DELETE
 // ============================
 
-export const useDeleteBrand =
-  () => {
+export const useDeleteBrand = () => {
+  const queryClient = useQueryClient();
 
-    const queryClient =
-      useQueryClient();
+  return useMutation({
+    mutationFn: brandApis.brandDelete,
 
-    return useMutation({
-      mutationFn:
-        brandApis.brandDelete,
-
-      onSuccess: () => {
-
-        queryClient.invalidateQueries({
-          queryKey: [
-            "brand-list",
-          ],
-        });
-      },
-    });
-  };
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["brand-list"],
+      });
+    },
+  });
+};

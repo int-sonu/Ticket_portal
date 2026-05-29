@@ -27,6 +27,8 @@ import {
 
 import {
   useGetAssetMasterSuggest,
+  useGetCustomerAssetDepartments,
+  useGetCustomerBrandOptions,
 } from "./Hooks";
 
 const {
@@ -94,15 +96,48 @@ const CustomerDrawer = ({
     suggestPayload
   );
 
+  const {
+    data: departmentData,
+  } = useGetCustomerAssetDepartments(
+    suggestPayload
+  );
+
+  const brandPayload = useMemo(
+    () => ({
+      ...getSessionPayload(),
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    []
+  );
+
+  const {
+    data: brandData,
+  } = useGetCustomerBrandOptions(
+    brandPayload
+  );
+
   const assetSuggestList = useMemo(
     () => extractList(assetSuggestData),
     [assetSuggestData]
   );
 
+  const departmentList = useMemo(
+    () => extractList(departmentData),
+    [departmentData]
+  );
+
+  const brandList = useMemo(
+    () => extractList(brandData),
+    [brandData]
+  );
+
   const departmentOptions = useMemo(
     () =>
       toUniqueOptions(
-        assetSuggestList,
+        departmentList.length
+          ? departmentList
+          : assetSuggestList,
         [
           "cDepartmentName",
           "cDepartment",
@@ -110,13 +145,15 @@ const CustomerDrawer = ({
           "departmentName",
         ]
       ),
-    [assetSuggestList]
+    [assetSuggestList, departmentList]
   );
 
   const brandOptions = useMemo(
     () =>
       toUniqueOptions(
-        assetSuggestList,
+        brandList.length
+          ? brandList
+          : assetSuggestList,
         [
           "cBrandName",
           "cBrand",
@@ -124,7 +161,7 @@ const CustomerDrawer = ({
           "brandName",
         ]
       ),
-    [assetSuggestList]
+    [brandList, assetSuggestList]
   );
 
   // LOCATION MODAL

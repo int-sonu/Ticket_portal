@@ -26,11 +26,13 @@ const mapBrandRow = (
   id:
     item?.nBrandid ??
     item?.nBrandId ??
+    item?.nBrandID ??
     index + 1,
 
   key:
     item?.nBrandid ??
     item?.nBrandId ??
+    item?.nBrandID ??
     index + 1,
 
   srl:
@@ -38,16 +40,16 @@ const mapBrandRow = (
 
   name:
     item?.cBrandName ??
+    item?.brandName ??
+    item?.brand ??
+    item?.name ??
     "N/A",
 
   shortName:
     item?.cBrandShName ??
+    item?.cBrandShname ??
     item?.cShName ??
     "",
-
-  active:
-    item?.bActive !== false &&
-    item?.bCancelled !== true,
 
   raw: item,
 });
@@ -70,6 +72,9 @@ const buildBrandPayload = (
   nBrandid:
     selectedRow?.id,
 
+  nBrandID:
+    selectedRow?.id,
+
   cBrandName:
     values.name,
 
@@ -77,6 +82,9 @@ const buildBrandPayload = (
     values.shortName,
 
   cBrandShName:
+    values.shortName,
+
+  cBrandShname:
     values.shortName,
 
   bActive:

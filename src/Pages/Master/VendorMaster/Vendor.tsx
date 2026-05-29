@@ -25,10 +25,12 @@ const mapVendorRow = (
 ): SimpleMasterRow => ({
   id:
     item?.nVendorId ??
+    item?.nVendorid ??
     index + 1,
 
   key:
     item?.nVendorId ??
+    item?.nVendorid ??
     index + 1,
 
   srl:
@@ -64,6 +66,9 @@ const buildVendorPayload = (
   nVendorId:
     selectedRow?.id,
 
+  nVendorid:
+    selectedRow?.id,
+
   cVendorName:
     values.name,
 
@@ -79,6 +84,18 @@ const buildVendorPayload = (
 
 
 
+
+const buildVendorDeletePayload = (
+  record: SimpleMasterRow
+) =>
+  buildVendorPayload(
+    {
+      name: record.name,
+      shortName: record.shortName,
+      active: false,
+    },
+    record
+  );
 
 const Vendor = () => {
 
@@ -147,6 +164,9 @@ const Vendor = () => {
 
       buildPayload:
         buildVendorPayload,
+
+      buildDeletePayload:
+        buildVendorDeletePayload,
 
       hasShortName:
         true,

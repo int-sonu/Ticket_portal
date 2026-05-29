@@ -14,6 +14,7 @@ import type {
 
 import {
   useDeleteAssetMaster,
+  useGetAssetBrandOptions,
   useGetAssetMasters,
   useGetAssetMasterSuggest,
   useSaveAssetMaster,
@@ -86,6 +87,8 @@ const mapAssetMasterRow = (
   brand:
     item?.cBrandName ??
     item?.cBrand ??
+    item?.brandName ??
+    item?.brand ??
     "",
 
   description:
@@ -138,6 +141,9 @@ const buildAssetMasterPayload = (
   cBrandName:
     values.brand,
 
+  cBrand:
+    values.brand,
+
   cDescription:
     values.description,
 
@@ -171,18 +177,36 @@ const AssetMasterList = () => {
     suggestPayload
   );
 
+  const brandPayload = useMemo(
+    () => ({
+      ...getSessionPayload(),
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    []
+  );
+
+  const {
+    data: brandData,
+  } = useGetAssetBrandOptions(
+    brandPayload
+  );
+
   const brandOptions = useMemo(
     () =>
       toOptions(
-        extractList(suggestData),
+        extractList(brandData).length
+          ? extractList(brandData)
+          : extractList(suggestData),
         [
           "cBrandName",
           "cBrand",
           "brandName",
           "brand",
+          "name",
         ]
       ),
-    [suggestData]
+    [brandData, suggestData]
   );
 
   const renderAssetFields = useCallback(() => (

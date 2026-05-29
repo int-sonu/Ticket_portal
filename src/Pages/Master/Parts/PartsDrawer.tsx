@@ -40,7 +40,7 @@ const PartsDrawer = () => {
                   },
                 ]}
               >
-                <Input />
+                <Input autoFocus />
               </Form.Item>
 
 

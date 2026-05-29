@@ -1,13 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { groupApis } from '../../../Axios/AgentApis';
-import type { GroupPayload } from '../../../Axios/AgentApis';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { groupApis } from "../../../Axios/MasterApis";
+import type { GroupPayload } from "../../../Axios/MasterApis";
 
 export const GROUP_KEYS = {
-  all: ['groups'] as const,
-  lists: () => [...GROUP_KEYS.all, 'list'] as const,
+  all: ["groups"] as const,
+  lists: () => [...GROUP_KEYS.all, "list"] as const,
   list: (filters: string) => [...GROUP_KEYS.lists(), { filters }] as const,
-  dropdown: (filters: string) => [...GROUP_KEYS.all, 'dropdown', { filters }] as const,
-  details: () => [...GROUP_KEYS.all, 'detail'] as const,
+  dropdown: (filters: string) =>
+    [...GROUP_KEYS.all, "dropdown", { filters }] as const,
+  details: () => [...GROUP_KEYS.all, "detail"] as const,
   detail: (id: string | number) => [...GROUP_KEYS.details(), id] as const,
 };
 

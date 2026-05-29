@@ -77,7 +77,7 @@ const AgentMasterDrawer = ({
 
           <Switch
             checked={activeValue ?? true}
-            disabled={viewMode}
+            disabled={viewMode || !selectedAgent}
             size="small"
             onChange={(checked) =>
               form.setFieldsValue({

@@ -1,9 +1,14 @@
-import type React from 'react';
-import { Modal, message } from 'antd';
-import type { UseMutateFunction } from '@tanstack/react-query';
-import type { AgentPayload } from '../../../Axios/AgentApis';
-import type { AgentRow } from './Utils';
-import { buildAgentFormValues, buildAgentPayload, getApiMessage, isApiSuccess } from './Utils';
+import type React from "react";
+import { Modal, message } from "antd";
+import type { UseMutateFunction } from "@tanstack/react-query";
+import type { AgentPayload } from "../../../Axios/MasterApis";
+import type { AgentRow } from "./Utils";
+import {
+  buildAgentFormValues,
+  buildAgentPayload,
+  getApiMessage,
+  isApiSuccess,
+} from "./Utils";
 
 type UseAgentCrudParams = {
   selectedAgent: AgentRow | null;
@@ -25,31 +30,41 @@ export const useAgentCrud = ({
   const handleDelete = (event: React.MouseEvent, record: AgentRow) => {
     event.stopPropagation();
     Modal.confirm({
-      title: 'Are you sure you want to delete this agent?',
+      title: "Are you sure you want to delete this agent?",
       onOk: () => {
-        deleteAgent({
-          ...buildAgentPayload(
-            {
-              ...buildAgentFormValues(record),
-              active: false,
-            },
-            record,
-          ),
-          nAgentId: record.id,
-          id: record.id,
-        }, {
-          onSuccess: (response) => {
-            if (!isApiSuccess(response)) {
-              message.error(getApiMessage(response, 'Failed to delete agent'));
-              return;
-            }
-
-            message.success('Agent deleted successfully');
-            onDeleted?.(record);
-            if (selectedAgent?.id === record.id) closeDrawer();
+        deleteAgent(
+          {
+            ...buildAgentPayload(
+              {
+                ...buildAgentFormValues(record),
+                active: false,
+              },
+              record,
+            ),
+            nAgentId: record.id,
+            id: record.id,
+            bActive: false,
+            bCancelled: true,
+            bCancel: true,
+            bDeleted: true,
           },
-          onError: (error) => message.error(getApiMessage(error, 'Failed to delete agent')),
-        });
+          {
+            onSuccess: (response) => {
+              if (!isApiSuccess(response)) {
+                message.error(
+                  getApiMessage(response, "Failed to delete agent"),
+                );
+                return;
+              }
+
+              message.success("Agent deleted successfully");
+              onDeleted?.(record);
+              if (selectedAgent?.id === record.id) closeDrawer();
+            },
+            onError: (error) =>
+              message.error(getApiMessage(error, "Failed to delete agent")),
+          },
+        );
       },
     });
   };
@@ -60,14 +75,17 @@ export const useAgentCrud = ({
     mutation(buildAgentPayload(values, selectedAgent), {
       onSuccess: (response) => {
         if (!isApiSuccess(response)) {
-          message.error(getApiMessage(response, 'Failed to save agent'));
+          message.error(getApiMessage(response, "Failed to save agent"));
           return;
         }
 
-        message.success(`Agent ${selectedAgent ? 'updated' : 'saved'} successfully`);
+        message.success(
+          `Agent ${selectedAgent ? "updated" : "saved"} successfully`,
+        );
         closeDrawer();
       },
-      onError: (error) => message.error(getApiMessage(error, 'Failed to save agent')),
+      onError: (error) =>
+        message.error(getApiMessage(error, "Failed to save agent")),
     });
   };
 

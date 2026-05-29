@@ -87,7 +87,7 @@ const buildStatusPayload = (
       userCreds?.cSchemaName,
 
     cDbName:
-      userCreds?.dbName,
+      userCreds?.cDbName ?? userCreds?.dbName,
   };
 
   if (selectedRow) {
@@ -95,6 +95,9 @@ const buildStatusPayload = (
       ...basePayload,
 
       nStatusId:
+        selectedRow.id,
+
+      nTicketStatusId:
         selectedRow.id,
 
       nModifiedBy:
@@ -138,7 +141,6 @@ const Status = () => {
   const {
     mutate: deleteStatus,
   } = useDeleteStatus();
-
 
 
 
