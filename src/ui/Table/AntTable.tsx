@@ -22,14 +22,14 @@ function AntTable<T extends object>({
         <Table<T>
           pagination={false}
           size="middle"
-          scroll={{ y: 'calc(100vh - 280px)', x: 'max-content', ...scroll }}
+          scroll={{ y: '100%', x: 'max-content', ...scroll }}
           className="custom-ant-table"
           rowKey={(record: any) => record.id || record.key || Math.random().toString()}
           {...props}
         />
       </div>
       {showPagination && paginationProps && (
-        <div className="shrink-0 overflow-x-auto  border-t border-gray-100 bg-white rounded-b-lg">
+        <div className="mt-auto shrink-0 overflow-x-auto border-t border-gray-100 bg-white rounded-b-lg">
           <CustomPagination {...paginationProps} />
         </div>
       )}

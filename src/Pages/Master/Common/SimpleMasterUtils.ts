@@ -141,12 +141,11 @@ export const getApiMessage = (response: any, fallback: string) => {
     validationMessage ||
     response?.response?.data?.message ||
     response?.response?.data?.title ||
-    (status === 405 ? 'This action is not allowed by the API. Please refresh and try again.' : '') ||
-    (status ? fallback : '') ||
-    response?.response?.statusText ||
     response?.data?.message ||
     response?.data?.title ||
     response?.message ||
+    response?.response?.statusText ||
+    (status === 405 ? 'This action is not allowed by the API. Please refresh and try again.' : '') ||
     fallback
   );
 };

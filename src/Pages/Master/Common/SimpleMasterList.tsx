@@ -123,6 +123,12 @@ type SimpleMasterListProps = {
   hasShortName?: boolean;
 
   showNameField?: boolean;
+  showDescription?: boolean;
+
+  requiredFields?: {
+    name?: string;
+    shortName?: string;
+  };
 
   extraColumns?: any[];
 
@@ -170,6 +176,8 @@ const SimpleMasterList = ({
   hasShortName = true,
 
   showNameField = true,
+  showDescription = true,
+  requiredFields,
 
   extraColumns = [],
 
@@ -790,6 +798,8 @@ const SimpleMasterList = ({
         onSave={handleSave}
         hasShortName={hasShortName}
         showNameField={showNameField}
+        showDescription={showDescription}
+        requiredFields={requiredFields}
         editDisabled={
           selectedRow
             ? disableEdit?.(selectedRow)

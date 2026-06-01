@@ -13,6 +13,7 @@ import {
 import type { FormInstance } from 'antd';
 
 import {
+  CloseOutlined,
   DeleteOutlined,
   EditOutlined,
 } from '@ant-design/icons';
@@ -63,11 +64,22 @@ const AgentMasterDrawer = ({
     <Drawer
       open={open}
       onClose={onClose}
-      title="Agent Master"
+      closable={false}
+      title={
+        <div className="flex items-center justify-between">
+          <span>Agent Master</span>
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            onClick={onClose}
+          />
+        </div>
+      }
       placement="right"
-      size="large"
+      zIndex={1500}
+      width={490}
       destroyOnClose
-      className="agent-master-drawer"
+      className="agent-master-drawer simple-master-drawer"
       footer={
         <div className="flex items-center justify-end gap-4">
 
@@ -76,8 +88,9 @@ const AgentMasterDrawer = ({
           </span>
 
           <Switch
+            className="agent-green-switch"
             checked={activeValue ?? true}
-            disabled={viewMode || !selectedAgent}
+            disabled={viewMode}
             size="small"
             onChange={(checked) =>
               form.setFieldsValue({
@@ -131,7 +144,9 @@ const AgentMasterDrawer = ({
           bSupportAgent: false,
         }}
         disabled={viewMode}
+        requiredMark={false}
         scrollToFirstError={{ focus: true }}
+        className="flex h-full min-h-0 flex-col"
       >
 
         <Form.Item
@@ -147,13 +162,13 @@ const AgentMasterDrawer = ({
 
         {/* DESCRIPTION */}
 
-        <div className="-mx-6 mb-4 border-y border-slate-100 bg-slate-50 px-6 py-3">
+        <div className="-mx-6 -mt-6 mb-4 bg-slate-100 px-6 py-3">
 
-          <p className="mb-2 font-medium text-slate-800">
+          <p className="mb-2 text-sm font-medium text-slate-900">
             Description
           </p>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm leading-5 text-slate-500">
             This section allows you to manage agents,
             which includes adding, editing,
             and viewing.
@@ -165,11 +180,14 @@ const AgentMasterDrawer = ({
 
 
 
+        <div className="simple-master-drawer-scroll min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+
         {/* NAME */}
 
         <Form.Item
           name="agentName"
           label="Name"
+          className="!mb-3"
           rules={[
             {
               required: true,
@@ -179,7 +197,7 @@ const AgentMasterDrawer = ({
             },
           ]}
         >
-          <Input />
+          <Input className="h-[30px]" />
         </Form.Item>
 
 
@@ -193,6 +211,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="agentShortName"
             label="Short Name"
+            className="!mb-3"
             rules={[
               {
                 required: true,
@@ -202,7 +221,7 @@ const AgentMasterDrawer = ({
               },
             ]}
           >
-            <Input />
+            <Input className="h-[30px]" />
           </Form.Item>
 
 
@@ -214,6 +233,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="nUserType"
             label="User Type"
+            className="!mb-3"
             rules={[
               {
                 required: true,
@@ -223,6 +243,7 @@ const AgentMasterDrawer = ({
             ]}
           >
             <Select
+              className="agent-compact-select"
               options={userTypeOptions}
               suffixIcon={
                 <span className="text-lg leading-none">
@@ -243,8 +264,10 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="nReportTo"
           label="Reporting to"
+          className="!mb-3"
         >
           <Select
+            className="agent-compact-select"
             allowClear
             options={reportToOptions.filter(
               (agent) =>
@@ -268,6 +291,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="nAgentGroupId"
           label="Agent Group"
+          className="!mb-3"
           rules={[
             {
               required: true,
@@ -277,6 +301,7 @@ const AgentMasterDrawer = ({
           ]}
         >
           <Select
+            className="agent-compact-select"
             options={groupOptions}
             suffixIcon={
               <span className="text-lg leading-none">
@@ -317,7 +342,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="bSupportAgent"
           valuePropName="checked"
-          className="mb-2"
+          className="!mb-3"
         >
           <Checkbox>
             Support Agent
@@ -328,13 +353,14 @@ const AgentMasterDrawer = ({
 
 
 
-        <div className="grid grid-cols-[0.8fr_1.6fr] gap-3 border-b border-slate-100 pb-3">
+        <div className="grid grid-cols-[0.8fr_1.6fr] gap-3 border-b border-slate-100 pb-2">
 
           {/* MOBILE */}
 
           <Form.Item
             name="cMobileNo"
             label="Mobile Number"
+            className="!mb-3"
             rules={[
               {
                 required: true,
@@ -343,7 +369,7 @@ const AgentMasterDrawer = ({
               },
             ]}
           >
-            <Input />
+            <Input className="h-[30px]" />
           </Form.Item>
 
 
@@ -355,6 +381,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="cEmail"
             label="Email"
+            className="!mb-3"
             rules={[
               {
                 required: true,
@@ -368,7 +395,7 @@ const AgentMasterDrawer = ({
               },
             ]}
           >
-            <Input />
+            <Input className="h-[30px]" />
           </Form.Item>
 
         </div>
@@ -377,7 +404,7 @@ const AgentMasterDrawer = ({
 
 
 
-        <h2 className="mt-3 mb-3 text-base font-medium text-slate-900">
+        <h2 className="mt-2 mb-2 text-sm font-medium text-slate-900">
           Create a username and password
           for the created agent.
         </h2>
@@ -391,6 +418,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="username"
           label="User Name"
+          className="!mb-3"
           rules={[
             {
               required: true,
@@ -400,7 +428,7 @@ const AgentMasterDrawer = ({
             },
           ]}
         >
-          <Input />
+          <Input className="h-[30px]" />
         </Form.Item>
 
 
@@ -412,6 +440,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="password"
           label="Password"
+          className="!mb-3"
           rules={[
             {
               required: !selectedAgent,
@@ -420,8 +449,10 @@ const AgentMasterDrawer = ({
             },
           ]}
         >
-          <Input.Password />
+          <Input.Password className="h-[30px]" />
         </Form.Item>
+
+        </div>
 
       </Form>
     </Drawer>

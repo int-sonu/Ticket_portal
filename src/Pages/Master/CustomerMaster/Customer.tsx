@@ -206,7 +206,7 @@ const buildCustomerPayload = (
 
   dExpiryDate:
     values.expiryDate
-      ? dayjs(values.expiryDate).format("YYYY-MM-DD")
+      ? dayjs(values.expiryDate).format("DD/MM/YYYY")
       : null,
 
   assets:
@@ -315,6 +315,9 @@ const Customer = () => {
       // REMOVE COMMON FIELDS
 
       showNameField:
+        false,
+
+      showDescription:
         false,
 
       hasShortName:

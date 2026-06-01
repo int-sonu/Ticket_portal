@@ -5,11 +5,11 @@ import {
 
 const CustomerAssetTab = () => {
   return (
-    <div className="space-y-4">
+    <div >
 
       <Button
         block
-        className="border-blue-400 text-blue-500 h-10"
+        className="border-blue-400 text-blue-500"
       >
         + Link Asset
       </Button>

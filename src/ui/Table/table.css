@@ -26,3 +26,7 @@
   min-height: 0;
   overflow-y: auto !important;
 }
+
+.custom-ant-table .ant-table-content {
+  height: 100%;
+}

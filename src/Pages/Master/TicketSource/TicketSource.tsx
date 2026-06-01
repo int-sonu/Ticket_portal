@@ -50,9 +50,17 @@ const mapTicketSourceRow = (
     item?.cTicketSourceShname ??
     item?.cTicketsourceShname ??
     item?.cTicketSourceCode ??
+    item?.cTicketsourceCode ??
     item?.cSourceShName ??
     item?.cSourceShname ??
+    item?.cSourceShortName ??
+    item?.cSourceShortname ??
     item?.cShName ??
+    item?.cShname ??
+    item?.cShortName ??
+    item?.shortName ??
+    item?.cCode ??
+    item?.code ??
     "",
 
   active:

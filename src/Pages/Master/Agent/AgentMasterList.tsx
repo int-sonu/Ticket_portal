@@ -9,17 +9,14 @@ import { useAgentCrud } from './useAgentCrud';
 import { useGetGroupDropdown } from '../AgentGroup/Hooks';
 import {
   buildAgentFormValues,
-  buildAgentPayload,
   extractFirstRecord,
   extractAgentList,
   extractGenericList,
   extractNamedList,
   filterAgents,
-  getApiMessage,
   getSessionPayload,
   getTotalCount,
   isCancelledAgent,
-  isApiSuccess,
   makeOption,
   makeUserTypeOption,
   mapAgentRow,
@@ -36,7 +33,6 @@ const AgentMasterList: React.FC = () => {
   const [viewMode, setViewMode] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentRow | null>(null);
   const [deletedAgentIds, setDeletedAgentIds] = useState<Array<string | number>>([]);
-  const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
   const [form] = Form.useForm();
   const activeValue = Form.useWatch('active', form);
 
@@ -63,14 +59,10 @@ const AgentMasterList: React.FC = () => {
       extractAgentList(agentsData)
         .filter((agent) => !isCancelledAgent(agent))
         .map(mapAgentRow)
-        .map((agent) => ({
-          ...agent,
-          active: activeOverrides[String(agent.id)] ?? agent.active,
-        }))
         .filter((agent) => !deletedAgentIds.includes(agent.id)),
       searchTerm,
     ),
-    [activeOverrides, agentsData, deletedAgentIds, searchTerm],
+    [agentsData, deletedAgentIds, searchTerm],
   );
 
   const allAgentRows = useMemo(
@@ -161,40 +153,6 @@ const AgentMasterList: React.FC = () => {
     setPageSize(size);
   };
 
-  const handleActiveChange = (checked: boolean, record: AgentRow) => {
-    const overrideKey = String(record.id);
-    const previousActive = record.active;
-
-    setActiveOverrides((current) => ({
-      ...current,
-      [overrideKey]: checked,
-    }));
-
-    updateAgent(buildAgentPayload({ ...buildAgentFormValues(record), active: checked }, record), {
-      onSuccess: (response) => {
-        if (!isApiSuccess(response)) {
-          setActiveOverrides((current) => ({
-            ...current,
-            [overrideKey]: previousActive,
-          }));
-
-          message.error(getApiMessage(response, 'Failed to update agent'));
-          return;
-        }
-
-        message.success('Agent updated successfully');
-      },
-      onError: (error) => {
-        setActiveOverrides((current) => ({
-          ...current,
-          [overrideKey]: previousActive,
-        }));
-
-        message.error(getApiMessage(error, 'Failed to update agent'));
-      },
-    });
-  };
-
   const handleAgentSave = (values: any) => {
     const duplicateShortName = allAgentRows.find((agent) =>
       normalizeCompareText(agent.id) !== normalizeCompareText(selectedAgent?.id) &&
@@ -243,15 +201,13 @@ const AgentMasterList: React.FC = () => {
       dataIndex: 'active',
       key: 'active',
       width: 90,
-      render: (active: boolean, record: AgentRow) => (
+      render: () => (
         <Switch
-          checked={active}
+          className="agent-green-switch"
+          checked
+          disabled
           size="small"
           onClick={(_, event) => event.stopPropagation()}
-          onChange={(checked, event) => {
-            event.stopPropagation();
-            handleActiveChange(checked, record);
-          }}
         />
       ),
     },
@@ -290,6 +246,8 @@ const AgentMasterList: React.FC = () => {
 
       <div className="flex-1 min-h-0 overflow-hidden">
         <AntTable
+          size="small"
+          className="agent-master-table"
           columns={columns}
           dataSource={dataSource}
           loading={isLoading}

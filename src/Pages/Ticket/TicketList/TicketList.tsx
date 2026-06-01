@@ -22,8 +22,155 @@ import {
   useTicketUpcoming,
   useTicketUnAssigned,
   useClosedTicketList,
-  useTicketListAll,
+  useOverdueTicketList,
+  usePostponedTicketList,
+  useCreatedTicketList,
 } from "../../../Hooks/Ticket/useTicketQueries";
+
+const formatApiDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}/${month}/${day}`;
+};
+
+const getRows = (response: any) => {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if (Array.isArray(response?.Data)) {
+    return response.Data;
+  }
+
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  if (Array.isArray(response?.data?.Data)) {
+    return response.data.Data;
+  }
+
+  return [];
+};
+
+const getFieldValue = (
+  record: any,
+  keys: string[]
+) => {
+  for (const key of keys) {
+    if (
+      record?.[key] !== undefined &&
+      record?.[key] !== null
+    ) {
+      return record[key];
+    }
+  }
+
+  const recordKey = Object.keys(
+    record || {}
+  ).find((item) =>
+    keys.some(
+      (key) =>
+        key.toLowerCase() ===
+        item.toLowerCase()
+    )
+  );
+
+  if (!recordKey) {
+    return "";
+  }
+
+  return record[recordKey] ?? "";
+};
+
+const parseTicketDate = (value: any) => {
+  if (!value) return null;
+
+  const text = String(value);
+  const direct = new Date(text);
+
+  if (!Number.isNaN(direct.getTime())) {
+    return direct;
+  }
+
+  const match = text.match(
+    /(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/
+  );
+
+  if (!match) return null;
+
+  const [, day, month, year] = match;
+  const parsed = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day)
+  );
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+};
+
+const isOverdueTicket = (record: any) => {
+  const status = String(
+    getFieldValue(record, [
+          "Status",
+          "StatusName",
+          "cStatus",
+          "cStatusName",
+          "cTicketStatusName",
+          "TicketStatus",
+          "TicketStatusName",
+          "cCurrentStatus",
+          "cCurrentStatusName",
+          "cCallStatus",
+          "cCallStatusName",
+          "cTicketStatus",
+          "nStatus",
+          "nTicketStatus",
+        ])
+  ).toLowerCase();
+
+  if (
+    status.includes("closed") ||
+    status.includes("completed")
+  ) {
+    return false;
+  }
+
+  const ticketDate = parseTicketDate(
+    getFieldValue(record, [
+      "DueDate",
+      "dDueDate",
+      "FollowupDate",
+      "dFollowupDate",
+      "CreatedDate",
+      "CreatedDateTime",
+      "CreatedOn",
+      "dCreatedDate",
+      "dCreatedOn",
+      "cDate",
+    ])
+  );
+
+  if (!ticketDate) return false;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  ticketDate.setHours(0, 0, 0, 0);
+
+  return ticketDate < todayStart;
+};
 
 const TicketList = () => {
   const navigate = useNavigate();
@@ -31,85 +178,151 @@ const TicketList = () => {
   const [activeTab, setActiveTab] =
     useState("ONGOING");
 
- const payload = {
-  ...getRequestPayload(),
-  pageNumber: 1,
-  pageSize: 10,
-};
+  const basePayload =
+    getRequestPayload();
 
-const closedPayload = {
-  ...getRequestPayload(),
-  dFromDate: "01/01/2026",
-  dToDate: "31/12/2026",
-  pageNumber: 1,
-  pageSize: 10,
-};
+  const today = new Date();
+  const currentYear =
+    today.getFullYear();
 
-console.log(
-  "Ticket Payload",
-  payload
-);
+  const payload = {
+    ...basePayload,
+    pageNumber: 1,
+    pageSize: 10,
+  };
 
-console.log(
-  "Closed Payload",
-  closedPayload
-);
+  const dashboardPayload = {
+    ...payload,
+    cAgentId:
+      basePayload.nType === 1
+        ? "0"
+        : String(
+            basePayload.nAgentId ??
+              basePayload.id ??
+              0
+          ),
+    nMode: 0,
+    dFromDate: `${currentYear}/01/01`,
+    dToDate: `${currentYear}/12/31`,
+  };
+
+  const upcomingPayload = {
+    ...payload,
+    cDate: formatApiDate(today),
+  };
+
+  const closedPayload = {
+    ...payload,
+    dFromDate: `${currentYear}/01/01`,
+    dToDate: `${currentYear}/12/31`,
+  };
 
   const ongoing =
-    useTicketOngoing(payload);
+    useTicketOngoing(
+      payload,
+      activeTab === "ONGOING"
+    );
 
   const upcoming =
-    useTicketUpcoming(payload);
+    useTicketUpcoming(
+      upcomingPayload,
+      activeTab === "UPCOMING"
+    );
 
   const unassigned =
-    useTicketUnAssigned(payload);
+    useTicketUnAssigned(
+      payload,
+      activeTab === "UNASSIGNED"
+    );
 
   const closed =
-    useClosedTicketList(payload);
+    useClosedTicketList(
+      closedPayload,
+      activeTab === "CLOSED"
+    );
 
-  const allTickets =
-    useTicketListAll(payload);
+  const overdue =
+    useOverdueTicketList(
+      dashboardPayload,
+      activeTab === "OVERDUE"
+    );
+
+  const postponed =
+    usePostponedTicketList(
+      dashboardPayload,
+      activeTab === "POSTPONED"
+    );
+
+  const created =
+    useCreatedTicketList(
+      dashboardPayload,
+      activeTab === "CREATED"
+    );
 
   const getTableData = () => {
-    const allData =
-      allTickets.data?.Data || [];
-
     switch (activeTab) {
       case "ONGOING":
-        return ongoing.data?.Data || [];
+        return getRows(ongoing.data);
 
       case "UPCOMING":
-        return upcoming.data?.Data || [];
+        return getRows(upcoming.data);
 
       case "UNASSIGNED":
-        return (
-          unassigned.data?.Data || []
-        );
+        return getRows(unassigned.data);
 
       case "CLOSED":
-        return closed.data?.Data || [];
+        return getRows(closed.data);
 
       case "OVERDUE":
-        return allData.filter(
-          (item: any) =>
-            item.Status
-              ?.toLowerCase?.() ===
-            "overdue"
-        );
+        {
+          const overdueRows =
+            getRows(overdue.data);
+
+          if (overdueRows.length) {
+            return overdueRows;
+          }
+
+          return getRows(ongoing.data).filter(
+            isOverdueTicket
+          );
+        }
 
       case "POSTPONED":
-        return allData.filter(
-          (item: any) =>
-            item.Status
-              ?.toLowerCase?.() ===
-            "postponed"
-        );
+        return getRows(postponed.data);
 
       case "CREATED":
-        return allData;
+        return getRows(created.data);
 
       default:
         return [];
+    }
+  };
+
+  const getTableLoading = () => {
+    switch (activeTab) {
+      case "ONGOING":
+        return ongoing.isLoading;
+
+      case "UPCOMING":
+        return upcoming.isLoading;
+
+      case "UNASSIGNED":
+        return unassigned.isLoading;
+
+      case "CLOSED":
+        return closed.isLoading;
+
+      case "OVERDUE":
+        return overdue.isLoading;
+
+      case "POSTPONED":
+        return postponed.isLoading;
+
+      case "CREATED":
+        return created.isLoading;
+
+      default:
+        return false;
     }
   };
 
@@ -126,29 +339,76 @@ console.log(
     {
       title:
         "Created Date & Time",
-      dataIndex: "CreatedDate",
+      render: (_: any, record: any) =>
+        getFieldValue(record, [
+          "CreatedDate",
+          "CreatedDateTime",
+          "CreatedOn",
+          "dCreatedDate",
+          "dCreatedOn",
+          "cDate",
+        ]),
     },
     {
       title: "Ticket No.",
-      dataIndex: "TicketNo",
+      render: (_: any, record: any) =>
+        getFieldValue(record, [
+          "TicketNo",
+          "cTicketNo",
+          "cTicketNumber",
+          "nTicketNo",
+        ]),
     },
     {
       title: "Customer Name",
-      dataIndex:
-        "CustomerName",
+      render: (_: any, record: any) =>
+        getFieldValue(record, [
+          "CustomerName",
+          "cCustomerName",
+          "cCustName",
+          "Customer",
+        ]),
     },
     {
       title: "Ticket Summary",
-      dataIndex:
-        "TicketSummary",
+      render: (_: any, record: any) =>
+        getFieldValue(record, [
+          "TicketSummary",
+          "cTicketSummary",
+          "cSummary",
+          "cDescription",
+          "cComplaint",
+        ]),
     },
     {
       title: "Priority",
-      dataIndex: "Priority",
+      render: (_: any, record: any) =>
+        getFieldValue(record, [
+          "Priority",
+          "PriorityName",
+          "cPriority",
+          "cPriorityName",
+        ]),
     },
     {
       title: "Status",
-      dataIndex: "Status",
+      render: (_: any, record: any) =>
+        getFieldValue(record, [
+          "Status",
+          "StatusName",
+          "cStatus",
+          "cStatusName",
+          "cTicketStatusName",
+          "TicketStatus",
+          "TicketStatusName",
+          "cCurrentStatus",
+          "cCurrentStatusName",
+          "cCallStatus",
+          "cCallStatusName",
+          "cTicketStatus",
+          "nStatus",
+          "nTicketStatus",
+        ]),
     },
   ];
 
@@ -320,16 +580,16 @@ console.log(
       </Space>
 
       <Table
-        rowKey="TicketId"
+        rowKey={(record) =>
+          getFieldValue(record, [
+            "TicketId",
+            "nTicketId",
+            "nTicketid",
+          ])
+        }
         columns={columns}
         dataSource={getTableData()}
-        loading={
-          ongoing.isLoading ||
-          upcoming.isLoading ||
-          unassigned.isLoading ||
-          closed.isLoading ||
-          allTickets.isLoading
-        }
+        loading={getTableLoading()}
         pagination={{
           pageSize: 10,
         }}

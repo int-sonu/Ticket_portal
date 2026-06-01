@@ -1,7 +1,7 @@
 import type React from 'react';
 import { Button, Drawer, Form, Input, Switch } from 'antd';
 import type { FormInstance } from 'antd';
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { CloseOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import type { SimpleMasterRow } from './SimpleMasterUtils';
 
 type SimpleMasterDrawerProps = {
@@ -20,6 +20,11 @@ type SimpleMasterDrawerProps = {
   editDisabled?: boolean;
   deleteDisabled?: boolean;
   activeDisabled?: boolean;
+  showDescription?: boolean;
+  requiredFields?: {
+    name?: string;
+    shortName?: string;
+  };
   renderExtraFields?: (options: { viewMode: boolean; form: FormInstance }) => React.ReactNode;
   onClose: () => void;
   onEdit: () => void;
@@ -43,6 +48,8 @@ const SimpleMasterDrawer = ({
   editDisabled = false,
   deleteDisabled = false,
   activeDisabled = false,
+  showDescription = true,
+  requiredFields,
   renderExtraFields,
   onClose,
   onEdit,
@@ -52,11 +59,27 @@ const SimpleMasterDrawer = ({
  <Drawer
   open={open}
   onClose={onClose}
-  title={title}
-  placement="right"
+  closable={false}
+  title={
+    <div className="flex items-center justify-between">
+      <span>{title}</span>
+      <Button
+        type="text"
+        icon={<CloseOutlined />}
+        onClick={onClose}
+      />
+    </div>
+  }
+ placement="right"
+  zIndex={1500}
+  className="simple-master-drawer"
   width={
     title === "Part Master"
+      ? 500
+      :title === "Follow up Master"
       ? 700
+      : title === "Customer Master"
+        ? 500
       : 500
   }
   destroyOnClose
@@ -116,59 +139,69 @@ const SimpleMasterDrawer = ({
       onFinish={onSave}
       initialValues={{ active: true }}
       disabled={viewMode}
+      requiredMark={false}
       scrollToFirstError={{ focus: true }}
+      className="flex h-full min-h-0 flex-col"
     >
       <Form.Item name="active" hidden>
         <Input />
       </Form.Item>
 
-      {!viewMode && (
-        <div className="-mx-6 mb-4 border-y border-slate-100 bg-slate-50 px-6 py-3">
-          <p className="mb-2 font-medium text-slate-800">
+      {showDescription && (
+        <div className="-mx-6 -mt-6 mb-4 bg-slate-100 px-6 py-3">
+          <p className="mb-2 text-sm font-medium text-slate-900">
             Description
           </p>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm leading-5 text-slate-500">
             {description}
           </p>
         </div>
       )}
 
-      {showNameField && (
-        <>
-          <Form.Item
-            name="name"
-            label={nameLabel}
-            rules={[
-              {
-                required: true,
-                whitespace: true,
-                message: `Please enter ${nameLabel.toLowerCase()}`,
-              },
-            ]}
-          >
-            <Input />
-          </Form.Item>
-
-          {hasShortName && (
+      <div className="simple-master-drawer-scroll min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+        {showNameField && (
+          <>
             <Form.Item
-              name="shortName"
-              label={shortNameLabel}
+              name="name"
+              label={nameLabel}
+              className="!mb-2"
               rules={[
                 {
                   required: true,
                   whitespace: true,
-                  message: `Please enter ${shortNameLabel.toLowerCase()}`,
+                  message:
+                    requiredFields?.name ??
+                    `Please enter ${nameLabel.toLowerCase()}`,
                 },
               ]}
             >
-              <Input className="max-w-[230px]" />
+              <Input className="h-[30px] w-[469px]" />
             </Form.Item>
-          )}
-        </>
-      )}
 
-      {renderExtraFields?.({ viewMode, form })}
+            {hasShortName && (
+              <Form.Item
+                name="shortName"
+                label={shortNameLabel}
+                className="!mb-2"
+                rules={[
+                  {
+                    required: true,
+                    whitespace: true,
+                    message:
+                      requiredFields?.shortName ??
+                      `Please enter ${shortNameLabel.toLowerCase()}`,
+                  },
+                ]}
+              >
+                <Input className="h-[30px] w-[213px]" />
+              </Form.Item>
+            )}
+          </>
+        )}
+
+        {renderExtraFields?.({ viewMode, form })}
+      </div>
     </Form>
   </Drawer>
 );

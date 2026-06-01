@@ -3,11 +3,17 @@ export const getRequestPayload = () => {
     sessionStorage.getItem("userSession") || "{}"
   );
 
-  console.log("FULL SESSION:", JSON.stringify(session, null, 2)); // 👈 see exact keys
-  
   return {
-    cDbName: session.cDbName || session.DbName || session.cDatabaseName || session.databaseName,
+    cDbName:
+      session.cDbName ??
+      session.dbName ??
+      session.DbName ??
+      session.cDatabaseName ??
+      session.databaseName,
     cSchemaName: session.cSchemaName,
     nCompanyId: session.nCompanyId,
+    id: session.id,
+    nType: session.nType,
+    nAgentId: session.id ?? session.nAgentId,
   };
 };

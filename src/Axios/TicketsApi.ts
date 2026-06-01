@@ -79,6 +79,27 @@ const sendWithMethodFallback = async (
   }
 };
 
+const returnEmptyListOnNoTickets = (
+  error: any
+) => {
+  if (
+    error?.response?.status === 404 &&
+    error?.response?.data?.message
+      ?.toLowerCase?.()
+      ?.includes("no") &&
+    error?.response?.data?.message
+      ?.toLowerCase?.()
+      ?.includes("tickets")
+  ) {
+    return {
+      ...error.response.data,
+      data: [],
+    };
+  }
+
+  throw error;
+};
+
 export interface TicketPayload {
   [key: string]: any;
 }
@@ -96,6 +117,60 @@ export const ticketApis = {
       );
 
     return response.data;
+  },
+
+  overdueTicketList: async (
+    payload: TicketPayload
+  ) => {
+    try {
+      const response =
+        await axiosInstance.post(
+          "/Api/V1/Dashboard/OverdueTicketList",
+          payload
+        );
+
+      return response.data;
+    } catch (error) {
+      return returnEmptyListOnNoTickets(
+        error
+      );
+    }
+  },
+
+  postponedTicketList: async (
+    payload: TicketPayload
+  ) => {
+    try {
+      const response =
+        await axiosInstance.post(
+          "/Api/V1/Dashboard/PostponededTicketList",
+          payload
+        );
+
+      return response.data;
+    } catch (error) {
+      return returnEmptyListOnNoTickets(
+        error
+      );
+    }
+  },
+
+  createdTicketList: async (
+    payload: TicketPayload
+  ) => {
+    try {
+      const response =
+        await axiosInstance.post(
+          "/Api/V1/Dashboard/CreatedTicketList",
+          payload
+        );
+
+      return response.data;
+    } catch (error) {
+      return returnEmptyListOnNoTickets(
+        error
+      );
+    }
   },
 
   ticketListActive: async (
@@ -224,3 +299,4 @@ export const ticketApis = {
     return response.data;
   },
 };
+

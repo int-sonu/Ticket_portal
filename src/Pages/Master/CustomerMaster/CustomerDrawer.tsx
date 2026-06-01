@@ -6,7 +6,6 @@ import {
   Form,
   Input,
   message,
-  Modal,
   Tabs,
 } from "antd";
 
@@ -80,6 +79,17 @@ const toUniqueOptions = (
   return Array.from(values).map((value) => ({
     value,
   }));
+};
+
+const parseCoordinates = (value: string) => {
+  const match = value.trim().match(
+    /^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/
+  );
+
+  return {
+    latitude: match?.[1] ?? "",
+    longitude: match?.[2] ?? "",
+  };
 };
 
 const CustomerDrawer = ({
@@ -164,7 +174,7 @@ const CustomerDrawer = ({
     [brandList, assetSuggestList]
   );
 
-  // LOCATION MODAL
+  // LOCATION SECTION
 
   const [
     locationOpen,
@@ -180,6 +190,11 @@ const CustomerDrawer = ({
     showAssetForm,
     setShowAssetForm,
   ] = useState(false);
+
+  const [
+    activeTab,
+    setActiveTab,
+  ] = useState("1");
 
   const [
     assetList,
@@ -225,6 +240,24 @@ const CustomerDrawer = ({
       form
     );
 
+  const watchedLocation =
+    Form.useWatch(
+      "cLocation",
+      form
+    );
+
+  const watchedLatitude =
+    Form.useWatch(
+      "cLattitude",
+      form
+    );
+
+  const watchedLongitude =
+    Form.useWatch(
+      "cLongitude",
+      form
+    );
+
   useEffect(() => {
     setAssetList(
       Array.isArray(watchedAssets)
@@ -232,6 +265,50 @@ const CustomerDrawer = ({
         : []
     );
   }, [watchedAssets]);
+
+  useEffect(() => {
+    const coordinateQuery =
+      watchedLatitude && watchedLongitude
+        ? `${watchedLatitude},${watchedLongitude}`
+        : "";
+    const nextQuery =
+      coordinateQuery ||
+      watchedLocation ||
+      defaultLocationQuery;
+
+    setMapQuery(nextQuery);
+    setLocationQuery(
+      watchedLocation || coordinateQuery
+    );
+  }, [
+    watchedLatitude,
+    watchedLocation,
+    watchedLongitude,
+  ]);
+
+  useEffect(() => {
+    const className =
+      "customer-asset-tab-active";
+
+    document.body.classList.toggle(
+      className,
+      activeTab === "2"
+    );
+
+    document.documentElement.classList.toggle(
+      className,
+      activeTab === "2"
+    );
+
+    return () => {
+      document.body.classList.remove(
+        className
+      );
+      document.documentElement.classList.remove(
+        className
+      );
+    };
+  }, [activeTab]);
 
   const handleAssetValueChange = (
     key: string,
@@ -311,7 +388,9 @@ const CustomerDrawer = ({
     <>
 
       <Tabs
-        defaultActiveKey="1"
+        className="customer-drawer-tabs"
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
 
           // CUSTOMER TAB
@@ -323,11 +402,11 @@ const CustomerDrawer = ({
               "Customer Master",
 
             children: (
-              <div className="pt-2 space-y-5">
+              <div className="customer-compact-form w-full pt-0">
 
                 {/* ROW 1 */}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-[1.6fr_0.95fr] gap-2">
 
                   <Form.Item
                     name="name"
@@ -358,7 +437,7 @@ const CustomerDrawer = ({
 
                 {/* ROW 2 */}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-[1.1fr_1.1fr] gap-2">
 
                   <Form.Item
                     name="contactPerson"
@@ -382,7 +461,7 @@ const CustomerDrawer = ({
 
                 {/* ROW 3 */}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-[1.1fr_1.1fr] gap-2">
 
                   <Form.Item
                     name="email"
@@ -410,7 +489,7 @@ const CustomerDrawer = ({
                   name="address"
                   label="Address"
                 >
-                  <TextArea rows={5} />
+                  <TextArea rows={3} />
                 </Form.Item>
 
 
@@ -419,29 +498,43 @@ const CustomerDrawer = ({
 
                 {/* AMC */}
 
-                <div className="grid grid-cols-3 gap-4 items-end">
+                <div className="grid grid-cols-[66px_86px_180px] items-end gap-3">
 
-                  <div className="flex gap-4">
-
-                    <Form.Item
-                      name="amc"
-                      valuePropName="checked"
+                  <Form.Item
+                    name="amc"
+                    valuePropName="checked"
+                    className="!mb-0"
+                  >
+                    <Checkbox
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          form.setFieldsValue({
+                            warranty: false,
+                          });
+                        }
+                      }}
                     >
-                      <Checkbox>
-                        AMC
-                      </Checkbox>
-                    </Form.Item>
+                      AMC
+                    </Checkbox>
+                  </Form.Item>
 
-                    <Form.Item
-                      name="warranty"
-                      valuePropName="checked"
+                  <Form.Item
+                    name="warranty"
+                    valuePropName="checked"
+                    className="!mb-0"
+                  >
+                    <Checkbox
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          form.setFieldsValue({
+                            amc: false,
+                          });
+                        }
+                      }}
                     >
-                      <Checkbox>
-                        Warranty
-                      </Checkbox>
-                    </Form.Item>
-
-                  </div>
+                      Warranty
+                    </Checkbox>
+                  </Form.Item>
 
 
 
@@ -450,8 +543,12 @@ const CustomerDrawer = ({
                   <Form.Item
                     name="expiryDate"
                     label="Expiry Date"
+                    className="!mb-0"
                   >
-                    <DatePicker className="w-full" />
+                    <DatePicker
+                      className="w-full"
+                      format="DD/MM/YYYY"
+                    />
                   </Form.Item>
 
                 </div>
@@ -465,13 +562,74 @@ const CustomerDrawer = ({
                 <Button
                   htmlType="button"
                   block
-                  className="h-11 border-blue-400 text-blue-500 rounded"
+                  className="h-9 border-blue-400 text-blue-500 rounded"
                   onClick={() =>
-                    setLocationOpen(true)
+                    setLocationOpen(
+                      (current) => !current
+                    )
                   }
                 >
                   + Add Location
                 </Button>
+
+                {locationOpen && (
+                  <div className="mt-2 space-y-2">
+                    <Search
+                      allowClear
+                      value={locationQuery}
+                      placeholder="Search Location"
+                      enterButton="Search"
+                      onChange={(event) =>
+                        setLocationQuery(
+                          event.target.value
+                        )
+                      }
+                      onSearch={(value) =>
+                        setMapQuery(
+                          value.trim() ||
+                            defaultLocationQuery
+                        )
+                      }
+                    />
+
+                    <div className="h-[180px] overflow-hidden rounded border border-slate-200">
+                      <iframe
+                        title="Customer Location Map"
+                        src={mapUrl}
+                        className="h-full w-full border-0"
+                        loading="lazy"
+                      />
+                    </div>
+
+                    <Button
+                      htmlType="button"
+                      type="primary"
+                      className="h-8"
+                      onClick={() => {
+                        const selectedLocation =
+                          locationQuery.trim() ||
+                          mapQuery;
+                        const coordinates =
+                          parseCoordinates(
+                            selectedLocation
+                          );
+
+                        form.setFieldsValue({
+                          cLocation:
+                            selectedLocation,
+                          cLattitude:
+                            coordinates.latitude,
+                          cLongitude:
+                            coordinates.longitude,
+                        });
+
+                        setLocationOpen(false);
+                      }}
+                    >
+                      Save Location
+                    </Button>
+                  </div>
+                )}
 
               </div>
             ),
@@ -490,7 +648,7 @@ const CustomerDrawer = ({
               "Asset",
 
             children: (
-              <div className="space-y-4">
+              <div className="asset-tab-content w-full min-w-full space-y-3">
 
                 {assetList.map(
                   (
@@ -524,20 +682,16 @@ const CustomerDrawer = ({
 
                 {/* BUTTON */}
 
-                {!showAssetForm && (
-
-                  <Button
-                    htmlType="button"
-                    block
-                    className="h-11 border-blue-400 text-blue-500 rounded"
-                    onClick={() =>
-                      setShowAssetForm(true)
-                    }
-                  >
-                    + Link Asset
-                  </Button>
-
-                )}
+                <Button
+                  htmlType="button"
+                  block
+                  className="h-9 w-full border-blue-400 text-blue-500 rounded"
+                  onClick={() =>
+                    setShowAssetForm(true)
+                  }
+                >
+                  + Link Asset
+                </Button>
 
 
 
@@ -548,19 +702,19 @@ const CustomerDrawer = ({
 
                 {showAssetForm && (
 
-                  <div className="rounded-lg border border-transparent p-4">
+                  <div className="mt-20 bg-slate-100 px-5 py-4">
 
                     {/* HEADER */}
 
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-2 flex items-center justify-between">
 
-                      <h2 className="text-2xl font-semibold">
+                      <h2 className="text-lg font-semibold">
                         Asset
                       </h2>
 
                       <button
                         type="button"
-                        className="text-3xl leading-none"
+                        className="text-2xl leading-none"
                         onClick={() =>
                           setShowAssetForm(false)
                         }
@@ -574,11 +728,14 @@ const CustomerDrawer = ({
 
 
 
-                    <div>
+                    <div className="asset-compact-form">
 
                       {/* NAME */}
 
-                      <Form.Item label="Name">
+                      <Form.Item
+                        label="Name"
+                        className="!mb-1"
+                      >
                         <Input
                           value={
                             assetValues.name
@@ -598,9 +755,12 @@ const CustomerDrawer = ({
 
                       {/* ROW */}
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-2">
 
-                        <Form.Item label="Short Name">
+                        <Form.Item
+                          label="Short Name"
+                          className="!mb-1"
+                        >
                           <Input
                             value={
                               assetValues.shortName
@@ -614,7 +774,10 @@ const CustomerDrawer = ({
                           />
                         </Form.Item>
 
-                        <Form.Item label="Department">
+                        <Form.Item
+                          label="Department"
+                          className="!mb-1"
+                        >
                           <AutoComplete
                             value={
                               assetValues.department
@@ -641,7 +804,13 @@ const CustomerDrawer = ({
                               )
                             }
                           >
-                            <Input />
+                            <Input
+                              suffix={
+                                <span className="text-lg leading-none text-slate-600">
+                                  &gt;
+                                </span>
+                              }
+                            />
                           </AutoComplete>
                         </Form.Item>
 
@@ -653,9 +822,12 @@ const CustomerDrawer = ({
 
                       {/* ROW */}
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-2">
 
-                        <Form.Item label="Brand">
+                        <Form.Item
+                          label="Brand"
+                          className="!mb-1"
+                        >
                           <AutoComplete
                             value={
                               assetValues.brand
@@ -682,11 +854,20 @@ const CustomerDrawer = ({
                               )
                             }
                           >
-                            <Input />
+                            <Input
+                              suffix={
+                                <span className="text-lg leading-none text-slate-600">
+                                  &gt;
+                                </span>
+                              }
+                            />
                           </AutoComplete>
                         </Form.Item>
 
-                        <Form.Item label="Serial No">
+                        <Form.Item
+                          label="Serial No"
+                          className="!mb-1"
+                        >
                           <Input
                             value={
                               assetValues.serialNo
@@ -708,9 +889,12 @@ const CustomerDrawer = ({
 
                       {/* DESCRIPTION */}
 
-                      <Form.Item label="Description">
+                      <Form.Item
+                        label="Description"
+                        className="!mb-2"
+                      >
                         <Input.TextArea
-                          rows={4}
+                          rows={3}
                           value={
                             assetValues.description
                           }
@@ -726,50 +910,59 @@ const CustomerDrawer = ({
 
 
 
-
                       {/* AMC */}
 
-                      <div className="grid grid-cols-3 gap-4 items-end">
+                      <div className="grid grid-cols-[66px_88px_180px] items-end gap-3">
 
-                        <div className="flex gap-4">
+                        <Checkbox
+                          checked={
+                            assetValues.amc
+                          }
+                          onChange={(event) =>
+                            setAssetValues(
+                              (current: any) => ({
+                                ...current,
+                                amc:
+                                  event.target.checked,
+                                warranty:
+                                  event.target.checked
+                                    ? false
+                                    : current.warranty,
+                              })
+                            )
+                          }
+                        >
+                          AMC
+                        </Checkbox>
 
-                          <Checkbox
-                            checked={
-                              assetValues.amc
-                            }
-                            onChange={(event) =>
-                              handleAssetValueChange(
-                                "amc",
-                                event.target.checked
-                              )
-                            }
-                          >
-                            AMC
-                          </Checkbox>
+                        <Checkbox
+                          checked={
+                            assetValues.warranty
+                          }
+                          onChange={(event) =>
+                            setAssetValues(
+                              (current: any) => ({
+                                ...current,
+                                warranty:
+                                  event.target.checked,
+                                amc:
+                                  event.target.checked
+                                    ? false
+                                    : current.amc,
+                              })
+                            )
+                          }
+                        >
+                          Warranty
+                        </Checkbox>
 
-                          <Checkbox
-                            checked={
-                              assetValues.warranty
-                            }
-                            onChange={(event) =>
-                              handleAssetValueChange(
-                                "warranty",
-                                event.target.checked
-                              )
-                            }
-                          >
-                            Warranty
-                          </Checkbox>
-
-                        </div>
-
-
-
-
-
-                        <Form.Item label="Expiry Date">
+                        <Form.Item
+                          label="Expiry Date"
+                          className="!mb-0"
+                        >
                           <DatePicker
                             className="w-full"
+                            format="DD/MM/YYYY"
                             value={
                               assetValues.expiryDate
                             }
@@ -790,11 +983,10 @@ const CustomerDrawer = ({
 
                       <Button
                         htmlType="button"
-                        type="primary"
-                        className="bg-blue-600 border-blue-600"
+                        className="mt-4 h-8 bg-black px-5 text-white border-black hover:!bg-black hover:!text-white"
                         onClick={handleAssetSave}
                       >
-                        Save Asset
+                        Save
                       </Button>
 
                     </div>
@@ -836,82 +1028,6 @@ const CustomerDrawer = ({
       >
         <Input />
       </Form.Item>
-
-
-
-
-
-      {/* LOCATION MODAL */}
-
-      <Modal
-        open={locationOpen}
-        footer={null}
-        zIndex={1600}
-        onCancel={() =>
-          setLocationOpen(false)
-        }
-        title="Location"
-        width={800}
-      >
-
-        <div className="space-y-4">
-
-          <Search
-            allowClear
-            value={locationQuery}
-            placeholder="Search Location"
-            enterButton="Search"
-            onChange={(event) =>
-              setLocationQuery(
-                event.target.value
-              )
-            }
-            onSearch={(value) =>
-              setMapQuery(
-                value.trim() ||
-                  defaultLocationQuery
-              )
-            }
-          />
-
-          <div className="h-[360px] overflow-hidden rounded border border-slate-200">
-            <iframe
-              title="Customer Location Map"
-              src={mapUrl}
-              className="h-full w-full border-0"
-              loading="lazy"
-            />
-          </div>
-
-
-
-
-
-          <Button
-            htmlType="button"
-            type="primary"
-            onClick={() => {
-              const selectedLocation =
-                locationQuery.trim() ||
-                mapQuery;
-
-              form.setFieldsValue({
-                cLocation:
-                  selectedLocation,
-                cLattitude: "",
-                cLongitude: "",
-              });
-
-              setLocationOpen(false);
-            }}
-          >
-            Save Location
-          </Button>
-
-        </div>
-
-      </Modal>
-
     </>
   );
 };

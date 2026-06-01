@@ -23,6 +23,16 @@ export const useGetServiceTypes = (payload: ServiceTypePayload) => {
   });
 };
 
+export const useGetServiceTypeDropdown = (payload: ServiceTypePayload) => {
+  return useQuery({
+    queryKey: [...SERVICE_TYPE_KEYS.all, "dropdown", JSON.stringify(payload)],
+
+    queryFn: () => serviceTypeApis.serviceTypeDropDown(payload),
+
+    enabled: !!payload,
+  });
+};
+
 export const useSaveServiceType = () => {
   const queryClient = useQueryClient();
 

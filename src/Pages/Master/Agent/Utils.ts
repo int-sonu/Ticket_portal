@@ -51,6 +51,16 @@ export const extractAgentList = (response: any): any[] => {
 };
 
 const truthyValues = new Set(['true', '1', 'yes', 'y']);
+const falseyValues = new Set(['false', '0', 'no', 'n']);
+
+const isFalseValue = (value: any) => {
+  if (value === false || value === 0) return true;
+  if (typeof value === 'string') {
+    return falseyValues.has(value.trim().toLowerCase());
+  }
+
+  return false;
+};
 
 export const isCancelledAgent = (agent: any) => {
   const values = [
@@ -100,7 +110,7 @@ export const mapAgentRow = (agent: any, index: number): AgentRow => {
     username: agent?.cUsername ?? agent?.username ?? '',
     reportingTo: agent?.cReportingagentDtls ?? agent?.reportingTo ?? '',
     isSupportAgent: !agent?.bNonSuportingUser,
-    active: agent?.bActive !== false && agent?.bCancelled !== true,
+    active: !isFalseValue(agent?.bActive) && !isFalseValue(agent?.bCancelled),
   };
 };
 

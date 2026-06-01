@@ -80,6 +80,12 @@ const buildPartsFormValues = (row?: SimpleMasterRow | null) => ({
   serviceCharge:
     row?.raw?.bServiceCharge ?? false,
 
+  partImage:
+    row?.raw?.cPartImage ??
+    row?.raw?.cImageUrl ??
+    row?.raw?.cImage ??
+    "",
+
   taxes:
     row?.raw?.taxes ?? [],
 
@@ -130,6 +136,12 @@ const buildPartsPayload = (
 
   bServiceCharge:
     values.serviceCharge ?? false,
+
+  cPartImage:
+    values.partImage,
+
+  cImageUrl:
+    values.partImage,
 
   taxes:
     values.taxes ?? [],

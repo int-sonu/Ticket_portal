@@ -6,72 +6,127 @@ import { ticketApis } from "../../Axios/TicketsApi";
 // ============================
 
 export const useTicketListAll = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["ticket-list-all", payload],
     queryFn: () =>
       ticketApis.ticketListAll(payload),
+    enabled,
+  });
+};
+
+export const useOverdueTicketList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["overdue-ticket-list", payload],
+    queryFn: () =>
+      ticketApis.overdueTicketList(payload),
+    enabled,
+  });
+};
+
+export const usePostponedTicketList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: [
+      "postponed-ticket-list",
+      payload,
+    ],
+    queryFn: () =>
+      ticketApis.postponedTicketList(
+        payload
+      ),
+    enabled,
+  });
+};
+
+export const useCreatedTicketList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["created-ticket-list", payload],
+    queryFn: () =>
+      ticketApis.createdTicketList(payload),
+    enabled,
   });
 };
 
 export const useTicketListActive = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["ticket-list-active", payload],
     queryFn: () =>
       ticketApis.ticketListActive(payload),
+    enabled,
   });
 };
 
 export const useTicketListAgentWise = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["ticket-list-agent-wise", payload],
     queryFn: () =>
       ticketApis.ticketListAgentWise(payload),
+    enabled,
   });
 };
 
 export const useTicketOngoing = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["ticket-ongoing", payload],
     queryFn: () =>
       ticketApis.ticketOngoing(payload),
+    enabled,
   });
 };
 
 export const useTicketUpcoming = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["ticket-upcoming", payload],
     queryFn: () =>
       ticketApis.ticketUpcoming(payload),
+    enabled,
   });
 };
 
 export const useTicketUnAssigned = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["ticket-unassigned", payload],
     queryFn: () =>
       ticketApis.ticketUnAssigned(payload),
+    enabled,
   });
 };
 
 export const useClosedTicketList = (
-  payload: any
+  payload: any,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["closed-ticket-list", payload],
     queryFn: () =>
       ticketApis.closedTicketList(payload),
+    enabled,
   });
 };
 
