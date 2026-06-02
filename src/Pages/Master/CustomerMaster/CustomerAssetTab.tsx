@@ -1,21 +1,21 @@
-import {
-  Button,
-  Form,
-} from "antd";
+// import {
+//   Button,
+//   Form,
+// } from "antd";
 
-const CustomerAssetTab = () => {
-  return (
-    <div >
+// const CustomerAssetTab = () => {
+//   return (
+//     <div >
 
-      <Button
-        block
-        className="border-blue-400 text-blue-500"
-      >
-        + Link Asset
-      </Button>
+//       <Button
+//         block
+//         className="border-blue-400 text-blue-500 "
+//       >
+//         + Link Asset
+//       </Button>
 
-    </div>
-  );
-};
+//     </div>
+//   );
+// };
 
-export default CustomerAssetTab;
+// export default CustomerAssetTab;

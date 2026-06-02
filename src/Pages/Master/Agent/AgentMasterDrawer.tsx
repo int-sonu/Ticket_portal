@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 
 import type { AgentRow } from './Utils';
+import { normalizeCompareText } from './Utils';
 
 type Option = {
   label: string;
@@ -146,7 +147,7 @@ const AgentMasterDrawer = ({
         disabled={viewMode}
         requiredMark={false}
         scrollToFirstError={{ focus: true }}
-        className="flex h-full min-h-0 flex-col"
+        className="flex h-full min-h-0 flex-col "
       >
 
         <Form.Item
@@ -187,7 +188,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="agentName"
           label="Name"
-          className="!mb-3"
+          className="!mb-0"
           rules={[
             {
               required: true,
@@ -211,7 +212,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="agentShortName"
             label="Short Name"
-            className="!mb-3"
+            className="!mb-2"
             rules={[
               {
                 required: true,
@@ -233,7 +234,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="nUserType"
             label="User Type"
-            className="!mb-3"
+            className="!mb-2"
             rules={[
               {
                 required: true,
@@ -264,22 +265,44 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="nReportTo"
           label="Reporting to"
-          className="!mb-3"
+          className="!mb-1"
         >
           <Select
             className="agent-compact-select"
             allowClear
+            showSearch
+            optionFilterProp="label"
             options={reportToOptions.filter(
               (agent) =>
-                agent.value !==
-                selectedAgent?.id
+                typeof agent.value !== 'object' &&
+                typeof agent.label !== 'object' &&
+                normalizeCompareText(agent.value) !==
+                normalizeCompareText(selectedAgent?.id)
             )}
             suffixIcon={
               <span className="text-lg leading-none">
                 &gt;
               </span>
             }
+            onChange={(_, option) => {
+              const selectedOption =
+                Array.isArray(option)
+                  ? option[0]
+                  : option;
+
+              form.setFieldValue(
+                'cReportingagentDtls',
+                selectedOption?.label ?? ''
+              );
+            }}
           />
+        </Form.Item>
+
+        <Form.Item
+          name="cReportingagentDtls"
+          hidden
+        >
+          <Input />
         </Form.Item>
 
 
@@ -291,7 +314,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="nAgentGroupId"
           label="Agent Group"
-          className="!mb-3"
+          className="!mb-2"
           rules={[
             {
               required: true,
@@ -342,7 +365,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="bSupportAgent"
           valuePropName="checked"
-          className="!mb-3"
+          className="!mb-2"
         >
           <Checkbox>
             Support Agent
@@ -360,7 +383,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="cMobileNo"
             label="Mobile Number"
-            className="!mb-3"
+            className="!mb-2"
             rules={[
               {
                 required: true,
@@ -381,7 +404,7 @@ const AgentMasterDrawer = ({
           <Form.Item
             name="cEmail"
             label="Email"
-            className="!mb-3"
+            className="!mb-2"
             rules={[
               {
                 required: true,
@@ -404,7 +427,7 @@ const AgentMasterDrawer = ({
 
 
 
-        <h2 className="mt-2 mb-2 text-sm font-medium text-slate-900">
+        <h2 className="mt-0 mb-2 text-lg font-bold text-slate-900">
           Create a username and password
           for the created agent.
         </h2>
@@ -418,7 +441,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="username"
           label="User Name"
-          className="!mb-3"
+          className="!mb-2"
           rules={[
             {
               required: true,
@@ -440,7 +463,7 @@ const AgentMasterDrawer = ({
         <Form.Item
           name="password"
           label="Password"
-          className="!mb-3"
+          className="!mb-2"
           rules={[
             {
               required: !selectedAgent,

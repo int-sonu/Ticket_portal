@@ -62,7 +62,7 @@ const SimpleMasterDrawer = ({
   closable={false}
   title={
     <div className="flex items-center justify-between">
-      <span>{title}</span>
+      {title !== "Customer Master" && <span>{title}</span>}
       <Button
         type="text"
         icon={<CloseOutlined />}
@@ -72,12 +72,15 @@ const SimpleMasterDrawer = ({
   }
  placement="right"
   zIndex={1500}
-  className="simple-master-drawer"
+  className={`simple-master-drawer${
+    title === "Customer Master" ? " customer-master-drawer" : ""
+  }`}
   width={
-    title === "Part Master"
-      ? 500
+  title === "Agent Group Master"
+      ? 550
       :title === "Follow up Master"
       ? 700
+      
       : title === "Customer Master"
         ? 500
       : 500
@@ -141,7 +144,7 @@ const SimpleMasterDrawer = ({
       disabled={viewMode}
       requiredMark={false}
       scrollToFirstError={{ focus: true }}
-      className="flex h-full min-h-0 flex-col"
+      className="flex h-full min-h-0 flex-col "
     >
       <Form.Item name="active" hidden>
         <Input />
@@ -165,7 +168,7 @@ const SimpleMasterDrawer = ({
             <Form.Item
               name="name"
               label={nameLabel}
-              className="!mb-2"
+              className="!mb-1 w-[469px] mt[-48px]"
               rules={[
                 {
                   required: true,
@@ -176,14 +179,14 @@ const SimpleMasterDrawer = ({
                 },
               ]}
             >
-              <Input className="h-[30px] w-[469px]" />
+              <Input className="h-[27px] w-[469px]" />
             </Form.Item>
 
             {hasShortName && (
               <Form.Item
                 name="shortName"
                 label={shortNameLabel}
-                className="!mb-2"
+                className="!mb-2 w-[150px]"
                 rules={[
                   {
                     required: true,
@@ -194,7 +197,7 @@ const SimpleMasterDrawer = ({
                   },
                 ]}
               >
-                <Input className="h-[30px] w-[213px]" />
+                <Input className="h-[27px] w-[150px]" />
               </Form.Item>
             )}
           </>

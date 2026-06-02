@@ -6,6 +6,10 @@ import type {
   SimpleMasterRow,
 } from "../Common/SimpleMasterUtils";
 
+import {
+  getApiImageBaseUrl,
+} from "../../../Axios/config";
+
 import PartsDrawer from "./PartsDrawer";
 
 import {
@@ -14,6 +18,272 @@ import {
   useSaveParts,
   useUpdateParts,
 } from "./Hooks";
+
+const PART_TAX_CACHE_KEY =
+  "partsTaxSettingsCache";
+const PART_IMAGE_CACHE_KEY =
+  "partsImageCache";
+
+const partImageKeys = [
+  "cPartImage",
+  "cImageUrl",
+  "cImage",
+  "cPartImageUrl",
+  "cPartImagePath",
+  "cImagePath",
+  "cPartPhoto",
+  "cPhoto",
+  "cPhotoUrl",
+  "cFilePath",
+  "cFileName",
+  "cPartImg",
+  "partImage",
+  "imageUrl",
+  "imagePath",
+];
+
+const getFirstPartImage = (item: any) =>
+  {
+    if (!item || typeof item !== "object") return "";
+
+    const normalizedKeys = partImageKeys.map((key) =>
+      key.toLowerCase()
+    );
+    const directImage = partImageKeys
+      .map((key) => item?.[key])
+      .find(
+        (value) =>
+          value !== undefined &&
+          value !== null &&
+          String(value).trim()
+      );
+
+    if (directImage) return directImage;
+
+    return (
+      Object.entries(item).find(
+        ([key, value]) =>
+          normalizedKeys.includes(key.toLowerCase()) &&
+          value !== undefined &&
+          value !== null &&
+          String(value).trim()
+      )?.[1] ?? ""
+    );
+  };
+
+const normalizePartImage = (value: any) => {
+  const rawImage =
+    value && typeof value === "object"
+      ? value.url ??
+        value.path ??
+        value.filePath ??
+        value.fileName ??
+        value.cFilePath ??
+        value.cFileName ??
+        value.imageUrl ??
+        value.imagePath ??
+        ""
+      : value;
+  const image = String(rawImage ?? "").trim();
+
+  if (!image) return "";
+
+  if (
+    image.startsWith("data:image") ||
+    image.startsWith("http") ||
+    image.startsWith("blob:")
+  )
+    return image;
+
+  if (/^[A-Za-z0-9+/=\s]+$/.test(image) && image.length > 100) {
+    return `data:image/png;base64,${image.replace(/\s/g, "")}`;
+  }
+
+  try {
+    const baseUrl = getApiImageBaseUrl().replace(/\/$/, "");
+
+    return `${baseUrl}/${image.replace(/^\//, "")}`;
+  } catch {
+    return image;
+  }
+};
+
+const getPartTaxList = (item: any) =>
+  item?.taxes ??
+  item?.partTaxes ??
+  item?.taxSettings ??
+  item?.PartTaxSettings ??
+  item?.lPartTaxSettings ??
+  [];
+
+const readPartTaxCache = () => {
+  try {
+    return JSON.parse(
+      localStorage.getItem(PART_TAX_CACHE_KEY) ?? "{}"
+    );
+  } catch {
+    return {};
+  }
+};
+
+const readPartImageCache = () => {
+  try {
+    return JSON.parse(
+      localStorage.getItem(PART_IMAGE_CACHE_KEY) ?? "{}"
+    );
+  } catch {
+    return {};
+  }
+};
+
+const getPartTaxCacheKeys = (
+  part: any
+) => {
+  const id =
+    part?.id ??
+    part?.nPartId ??
+    part?.raw?.nPartId;
+  const name =
+    part?.name ??
+    part?.cPartName ??
+    part?.raw?.cPartName;
+
+  return [
+    id !== undefined && id !== null
+      ? `id:${id}`
+      : "",
+    name
+      ? `name:${String(name).trim().toLowerCase()}`
+      : "",
+  ].filter(Boolean);
+};
+
+const getCachedPartTaxes = (
+  part: any
+) => {
+  const cache = readPartTaxCache();
+
+  for (const key of getPartTaxCacheKeys(part)) {
+    if (Array.isArray(cache[key])) {
+      return cache[key];
+    }
+  }
+
+  return [];
+};
+
+const getCachedPartImage = (
+  part: any
+) => {
+  const cache = readPartImageCache();
+
+  for (const key of getPartTaxCacheKeys(part)) {
+    if (cache[key]) {
+      return cache[key];
+    }
+  }
+
+  return "";
+};
+
+const writePartTaxCache = (
+  part: any,
+  taxes: any[]
+) => {
+  const keys = getPartTaxCacheKeys(part);
+
+  if (!keys.length) return;
+
+  const cache = readPartTaxCache();
+
+  keys.forEach((key) => {
+    cache[key] = taxes;
+  });
+
+  localStorage.setItem(
+    PART_TAX_CACHE_KEY,
+    JSON.stringify(cache)
+  );
+};
+
+const writePartImageCache = (
+  part: any,
+  image: string
+) => {
+  if (!image) return;
+
+  const keys = getPartTaxCacheKeys(part);
+
+  if (!keys.length) return;
+
+  const cache = readPartImageCache();
+
+  keys.forEach((key) => {
+    cache[key] = image;
+  });
+
+  localStorage.setItem(
+    PART_IMAGE_CACHE_KEY,
+    JSON.stringify(cache)
+  );
+};
+
+const normalizePartTaxes = (
+  taxes: any[]
+) =>
+  (Array.isArray(taxes) ? taxes : [])
+    .map((tax) => ({
+      nTaxId:
+        tax?.nTaxId ??
+        tax?.taxId ??
+        tax?.id ??
+        tax?.nPartTaxId,
+
+      taxName:
+        tax?.taxName ??
+        tax?.cTaxName ??
+        tax?.name ??
+        tax?.cName ??
+        "",
+
+      taxRate:
+        tax?.taxRate ??
+        tax?.nTaxRate ??
+        tax?.nRate ??
+        tax?.rate ??
+        0,
+
+      applyAfterDisc:
+        tax?.applyAfterDisc ??
+        tax?.bApplyAfterDisc ??
+        tax?.bAfterDiscount ??
+        false,
+    }))
+    .filter(
+      (tax) =>
+        tax.nTaxId !== undefined ||
+        String(tax.taxName).trim()
+    );
+
+const buildPartTaxPayload = (
+  taxes: any[]
+) =>
+  normalizePartTaxes(taxes).map((tax) => ({
+    nTaxId:
+      tax.nTaxId,
+    cTaxName:
+      tax.taxName,
+    taxName:
+      tax.taxName,
+    nTaxRate:
+      Number(tax.taxRate ?? 0),
+    taxRate:
+      Number(tax.taxRate ?? 0),
+    bApplyAfterDisc:
+      tax.applyAfterDisc ?? false,
+    applyAfterDisc:
+      tax.applyAfterDisc ?? false,
+  }));
 
 
 
@@ -81,13 +351,31 @@ const buildPartsFormValues = (row?: SimpleMasterRow | null) => ({
     row?.raw?.bServiceCharge ?? false,
 
   partImage:
-    row?.raw?.cPartImage ??
-    row?.raw?.cImageUrl ??
-    row?.raw?.cImage ??
-    "",
+    (() => {
+      const apiImage =
+        normalizePartImage(
+          getFirstPartImage(row?.raw)
+        );
+
+      return apiImage ||
+        normalizePartImage(
+          getCachedPartImage(row)
+        );
+    })(),
 
   taxes:
-    row?.raw?.taxes ?? [],
+    (() => {
+      const apiTaxes =
+        normalizePartTaxes(
+          getPartTaxList(row?.raw)
+        );
+
+      return apiTaxes.length
+        ? apiTaxes
+        : normalizePartTaxes(
+            getCachedPartTaxes(row)
+          );
+    })(),
 
   active:
     row?.active ?? true,
@@ -96,59 +384,110 @@ const buildPartsFormValues = (row?: SimpleMasterRow | null) => ({
 
 
 
+const cleanPartImageForPayload = (image: string) => {
+  const imageUrl = String(image ?? "").trim();
+  if (!imageUrl) return "";
+
+  if (imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) {
+    return imageUrl;
+  }
+
+  try {
+    const baseUrl = getApiImageBaseUrl().replace(/\/$/, "");
+    if (imageUrl.startsWith(baseUrl)) {
+      return imageUrl.slice(baseUrl.length).replace(/^\//, "");
+    }
+  } catch {
+    // Ignore error
+  }
+
+  return imageUrl;
+};
+
 // SAVE / UPDATE PAYLOAD
 
 const buildPartsPayload = (
   values: any,
   selectedRow: SimpleMasterRow | null
-) => ({
-  nPartId:
-    selectedRow?.id,
+) => {
+  const taxPayload =
+    buildPartTaxPayload(
+      values.taxes ?? []
+    );
+  writePartTaxCache(
+    {
+      ...selectedRow,
+      name: values.name,
+      nPartId: selectedRow?.id,
+    },
+    taxPayload
+  );
+  writePartImageCache(
+    {
+      ...selectedRow,
+      name: values.name,
+      nPartId: selectedRow?.id,
+    },
+    values.partImage
+  );
 
-  cPartName:
-    values.name,
+  const cleanedImage = cleanPartImageForPayload(values.partImage);
+
+  return {
+    nPartId:
+      selectedRow?.id,
+
+    cPartName:
+      values.name,
 
 
 
-  // API FIELD
+    // API FIELD
 
-  nPartShName:
-    values.shortName,
+    nPartShName:
+      values.shortName,
 
-  cPartShName:
-    values.shortName,
-
-
-
-  // API FIELD
-
-  nPartRate:
-    Number(values.amount ?? 0),
+    cPartShName:
+      values.shortName,
 
 
 
-  // API FIELD
+    // API FIELD
 
-  cPartDescription:
-    values.description,
+    nPartRate:
+      Number(values.amount ?? 0),
 
 
 
-  bServiceCharge:
-    values.serviceCharge ?? false,
+    // API FIELD
 
-  cPartImage:
-    values.partImage,
+    cPartDescription:
+      values.description,
 
-  cImageUrl:
-    values.partImage,
 
-  taxes:
-    values.taxes ?? [],
 
-  bActive:
-    values.active ?? true,
-});
+    bServiceCharge:
+      values.serviceCharge ?? false,
+
+    cPartImage:
+      cleanedImage,
+
+    cImageUrl:
+      cleanedImage,
+
+    taxes:
+      taxPayload,
+
+    partTaxes:
+      taxPayload,
+
+    taxSettings:
+      taxPayload,
+
+    bActive:
+      values.active ?? true,
+  };
+};
 
 
 
@@ -230,7 +569,7 @@ const Parts = () => {
       // CUSTOM DRAWER
 
       renderExtraFields:
-        () => <PartsDrawer />, 
+        ({ viewMode }: { viewMode: boolean }) => <PartsDrawer viewMode={viewMode} />, 
 
 
 

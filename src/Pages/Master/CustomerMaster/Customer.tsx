@@ -59,6 +59,77 @@ const mapCustomerRow = (
   raw: item,
 });
 
+const getCustomerAssets = (raw: any) => {
+  const assetCandidates = [
+    raw?.assets,
+    raw?.Assets,
+    raw?.assetList,
+    raw?.AssetList,
+    raw?.customerAssets,
+    raw?.CustomerAssets,
+    raw?.lstAsset,
+    raw?.lstAssets,
+  ];
+
+  const assets = assetCandidates.find(Array.isArray) ?? [];
+
+  return assets.map((asset: any) => ({
+    ...asset,
+    name:
+      asset?.name ??
+      asset?.cAssetName ??
+      asset?.cAssetMasterName ??
+      asset?.AssetName ??
+      "",
+    shortName:
+      asset?.shortName ??
+      asset?.cAssetShName ??
+      asset?.cAssetMasterShName ??
+      asset?.AssetShortName ??
+      "",
+    department:
+      asset?.department ??
+      asset?.cDepartmentName ??
+      asset?.cDepartment ??
+      asset?.DepartmentName ??
+      "",
+    brand:
+      asset?.brand ??
+      asset?.cBrandName ??
+      asset?.cBrand ??
+      asset?.BrandName ??
+      "",
+    serialNo:
+      asset?.serialNo ??
+      asset?.cSerialNo ??
+      asset?.cSerialNumber ??
+      asset?.SerialNo ??
+      "",
+    description:
+      asset?.description ??
+      asset?.cAssetDescription ??
+      asset?.cDescription ??
+      asset?.Description ??
+      "",
+    amc:
+      asset?.amc ??
+      asset?.bAMC ??
+      asset?.bUnderAmc ??
+      false,
+    warranty:
+      asset?.warranty ??
+      asset?.bWarranty ??
+      asset?.bUnderWarranty ??
+      false,
+    expiryDate:
+      asset?.expiryDate
+        ? dayjs(asset.expiryDate)
+        : asset?.dExpiryDate
+          ? dayjs(asset.dExpiryDate)
+          : undefined,
+  }));
+};
+
 const buildCustomerFormValues = (row?: SimpleMasterRow | null) => ({
   name:
     row?.name ?? "",
@@ -105,16 +176,23 @@ const buildCustomerFormValues = (row?: SimpleMasterRow | null) => ({
       : null,
 
   assets:
-    row?.raw?.assets ?? [],
+    getCustomerAssets(row?.raw),
 
   cLocation:
-    row?.raw?.cLocation ?? "",
+    row?.raw?.cLocation ??
+    row?.raw?.cAddressLocation ??
+    "",
 
   cLattitude:
-    row?.raw?.cLattitude ?? "",
+    row?.raw?.cLattitude ??
+    row?.raw?.cLatitude ??
+    row?.raw?.nLatitude ??
+    "",
 
   cLongitude:
-    row?.raw?.cLongitude ?? "",
+    row?.raw?.cLongitude ??
+    row?.raw?.nLongitude ??
+    "",
 
   active:
     row?.active ?? true,
@@ -128,6 +206,55 @@ const requiredText = (
 
   return text || fallback;
 };
+
+const buildCustomerAssetsPayload = (assets: any[] = []) =>
+  assets.map((asset) => ({
+    ...asset,
+    cAssetName:
+      asset?.name ??
+      asset?.cAssetName ??
+      "",
+    cAssetShName:
+      asset?.shortName ??
+      asset?.cAssetShName ??
+      "",
+    cDepartmentName:
+      asset?.department ??
+      asset?.cDepartmentName ??
+      "",
+    cBrandName:
+      asset?.brand ??
+      asset?.cBrandName ??
+      "",
+    cSerialNo:
+      asset?.serialNo ??
+      asset?.cSerialNo ??
+      "",
+    cAssetDescription:
+      asset?.description ??
+      asset?.cAssetDescription ??
+      "",
+    bAMC:
+      asset?.amc ??
+      asset?.bAMC ??
+      false,
+    bUnderAmc:
+      asset?.amc ??
+      asset?.bUnderAmc ??
+      false,
+    bWarranty:
+      asset?.warranty ??
+      asset?.bWarranty ??
+      false,
+    bUnderWarranty:
+      asset?.warranty ??
+      asset?.bUnderWarranty ??
+      false,
+    dExpiryDate:
+      asset?.expiryDate
+        ? dayjs(asset.expiryDate).format("DD/MM/YYYY")
+        : asset?.dExpiryDate ?? null,
+  }));
 
 
 
@@ -186,6 +313,12 @@ const buildCustomerPayload = (
       "0"
     ),
 
+  cLatitude:
+    requiredText(
+      values.cLattitude,
+      "0"
+    ),
+
   cLongitude:
     requiredText(
       values.cLongitude,
@@ -210,7 +343,7 @@ const buildCustomerPayload = (
       : null,
 
   assets:
-    values.assets ?? [],
+    buildCustomerAssetsPayload(values.assets ?? []),
 
   bActive:
     values.active ?? true,

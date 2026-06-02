@@ -88,29 +88,136 @@ export const getTotalCount = (response: any, fallback: number) =>
   response?.totalRecords ??
   fallback;
 
+const normalizeKey = (key: string) =>
+  key.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const getValueByKeys = (item: any, keys: string[]) => {
+  if (!item || typeof item !== 'object') return undefined;
+
+  const normalizedKeys = keys.map(normalizeKey);
+  const entries = Object.entries(item);
+
+  for (const key of keys) {
+    const directValue = item[key];
+
+    if (directValue !== undefined && directValue !== null && directValue !== '') {
+      return directValue;
+    }
+  }
+
+  for (const [itemKey, value] of entries) {
+    if (
+      normalizedKeys.includes(normalizeKey(itemKey)) &&
+      value !== undefined &&
+      value !== null &&
+      value !== ''
+    ) {
+      return value;
+    }
+  }
+
+  return undefined;
+};
+
+const getTextValue = (value: any): string => {
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'object') return String(value);
+
+  const nestedValue = getValueByKeys(value, [
+    'cAgentName',
+    'agentName',
+    'cName',
+    'name',
+    'label',
+    'cReportingAgentName',
+    'cReportingagentDtls',
+    'cReportingAgentDtls',
+    'reportingTo',
+    'reportToName',
+  ]);
+
+  return nestedValue === undefined || nestedValue === null || typeof nestedValue === 'object'
+    ? ''
+    : String(nestedValue);
+};
+
+const getOptionValue = (value: any) => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object') return value;
+
+  return getValueByKeys(value, [
+    'value',
+    'nAgentId',
+    'nReportAgentId',
+    'nReportingAgentId',
+    'nReportingToId',
+    'nReportToId',
+    'nReportTo',
+    'agentId',
+    'id',
+    'nUserId',
+  ]);
+};
+
 export const mapAgentRow = (agent: any, index: number): AgentRow => {
-  const id = agent?.nAgentId ?? agent?.agentId ?? agent?.id ?? agent?.nUserId ?? index + 1;
-  const firstName = agent?.cFirstName || agent?.firstName || '';
-  const lastName = agent?.cLastName || agent?.lastName || '';
+  const id = getValueByKeys(agent, ['nAgentId', 'agentId', 'id', 'nUserId']) ?? index + 1;
+  const firstName = getValueByKeys(agent, ['cFirstName', 'firstName']) || '';
+  const lastName = getValueByKeys(agent, ['cLastName', 'lastName']) || '';
   const fullName = `${firstName} ${lastName}`.trim();
+  const reportingToId = getValueByKeys(agent, [
+    'nReportAgentId',
+    'nReportingAgentId',
+    'nReportingToId',
+    'nReportToId',
+    'nReportTo',
+    'nReportingTo',
+    'nRepAgentId',
+    'nParentAgentId',
+    'nManagerAgentId',
+    'reportAgentId',
+    'reportingAgentId',
+    'reportToId',
+    'reportingToId',
+    'managerAgentId',
+  ]);
+  const reportingToName = getTextValue(getValueByKeys(agent, [
+    'cReportingagentDtls',
+    'cReportingAgentDtls',
+    'cReportingAgentName',
+    'cReportingToAgentName',
+    'cReportAgentName',
+    'cReportToName',
+    'cReportingTo',
+    'cReportTo',
+    'reportingAgentName',
+    'reportingToAgentName',
+    'reportingTo',
+    'reportToName',
+    'managerName',
+  ]));
 
   return {
     id,
     key: id,
     srl: index + 1,
-    name: agent?.cAgentName ?? agent?.agentName ?? agent?.cName ?? agent?.name ?? fullName ?? 'N/A',
-    shortName: agent?.cAgentshName ?? agent?.shortName ?? agent?.cShortName ?? '',
-    userType: agent?.cTypeName ?? agent?.cUserType ?? agent?.role ?? USER_TYPE_LABEL[Number(agent?.nType)] ?? 'Agent',
-    nUserType: agent?.nType ?? agent?.nUserType,
-    nAgentGroupId: agent?.nGroupId ?? agent?.nAgentGroupId,
-    groupName: agent?.cGroupName ?? agent?.groupName ?? 'N/A',
-    nReportTo: agent?.nReportAgentId ?? agent?.nReportTo,
-    phoneNo: agent?.cPhoneNo ?? agent?.phoneNo ?? '',
-    email: agent?.cEmail ?? agent?.email ?? agent?.cEmailId ?? '',
-    username: agent?.cUsername ?? agent?.username ?? '',
-    reportingTo: agent?.cReportingagentDtls ?? agent?.reportingTo ?? '',
-    isSupportAgent: !agent?.bNonSuportingUser,
-    active: !isFalseValue(agent?.bActive) && !isFalseValue(agent?.bCancelled),
+    name: getValueByKeys(agent, ['cAgentName', 'agentName', 'cName', 'name']) ?? fullName ?? 'N/A',
+    shortName: getValueByKeys(agent, ['cAgentshName', 'shortName', 'cShortName']) ?? '',
+    userType:
+      getValueByKeys(agent, ['cTypeName', 'cUserType', 'role']) ??
+      USER_TYPE_LABEL[Number(getValueByKeys(agent, ['nType', 'nUserType']))] ??
+      'Agent',
+    nUserType: getValueByKeys(agent, ['nType', 'nUserType']),
+    nAgentGroupId: getValueByKeys(agent, ['nGroupId', 'nAgentGroupId']),
+    groupName: getValueByKeys(agent, ['cGroupName', 'groupName', 'cAgentGroupName', 'agentGroupName']) ?? 'N/A',
+    nReportTo: reportingToId,
+    phoneNo: getValueByKeys(agent, ['cPhoneNo', 'phoneNo', 'cMobileNo', 'mobileNo']) ?? '',
+    email: getValueByKeys(agent, ['cEmail', 'email', 'cEmailId']) ?? '',
+    username: getValueByKeys(agent, ['cUsername', 'username']) ?? '',
+    reportingTo: reportingToName,
+    isSupportAgent: !getValueByKeys(agent, ['bNonSuportingUser', 'bNonSupportingUser']),
+    active:
+      !isFalseValue(getValueByKeys(agent, ['bActive'])) &&
+      !isFalseValue(getValueByKeys(agent, ['bCancelled', 'bCancel'])),
   };
 };
 
@@ -143,6 +250,7 @@ export const buildAgentFormValues = (agent?: AgentRow | null) => ({
   agentShortName: agent?.shortName ?? '',
   nUserType: agent?.nUserType,
   nReportTo: agent?.nReportTo,
+  cReportingagentDtls: agent?.reportingTo ?? '',
   nAgentGroupId: agent?.nAgentGroupId,
   cAgentGroupName: agent?.groupName === 'N/A' ? '' : agent?.groupName,
   bSupportAgent: agent?.isSupportAgent ?? false,
@@ -216,6 +324,12 @@ export const extractNamedList = (response: any, keys: string[]): any[] => {
 export const buildAgentPayload = (formValues: any, selectedAgent: AgentRow | null) => {
   const userCreds = getSession();
   const values = trimAgentFormValues(formValues);
+  const reportAgentId =
+    selectedAgent?.reportingTo &&
+    !selectedAgent?.nReportTo &&
+    normalizeCompareText(values.nReportTo) === normalizeCompareText(selectedAgent.reportingTo)
+      ? undefined
+      : values.nReportTo;
   const payload: Record<string, any> = {
     nAgentId: selectedAgent?.id,
     cAgentName: values.agentName,
@@ -226,7 +340,13 @@ export const buildAgentPayload = (formValues: any, selectedAgent: AgentRow | nul
     cEmail: values.cEmail,
     cUsername: values.username,
     nType: values.nUserType,
-    nReportAgentId: values.nReportTo,
+    nReportAgentId: reportAgentId,
+    nReportTo: reportAgentId,
+    nReportToId: reportAgentId,
+    nReportingAgentId: reportAgentId,
+    nReportingToId: reportAgentId,
+    cReportingagentDtls: values.cReportingagentDtls,
+    cReportingAgentDtls: values.cReportingagentDtls,
     bNonSuportingUser: !values.bSupportAgent,
     nCreatedBy: selectedAgent ? undefined : userCreds.id,
     nModifiedBy: selectedAgent ? userCreds.id : undefined,
@@ -248,8 +368,8 @@ export const makeOption = (
   valueKeys: string[],
   labelKeys: string[],
 ) => {
-  const value = valueKeys.map((key) => item?.[key]).find((itemValue) => itemValue !== undefined && itemValue !== null);
-  const label = labelKeys.map((key) => item?.[key]).find((itemLabel) => itemLabel !== undefined && itemLabel !== null && itemLabel !== '');
+  const value = getOptionValue(getValueByKeys(item, valueKeys));
+  const label = getTextValue(getValueByKeys(item, labelKeys));
 
   if (value === undefined || value === null || !label) return null;
 

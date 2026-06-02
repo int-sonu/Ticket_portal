@@ -1,13 +1,9 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+
 
 import {
   Checkbox,
   Form,
   Input,
-  InputNumber,
   Tabs,
   Upload,
 } from "antd";
@@ -21,30 +17,25 @@ import TaxSettingsTable from "./TaxSettingsTable";
 
 const { TextArea } = Input;
 
-const PartsDrawer = () => {
+interface PartsDrawerProps {
+  viewMode?: boolean;
+}
+
+const PartsDrawer = ({ viewMode = false }: PartsDrawerProps) => {
   const form = Form.useFormInstance();
   const watchedImage = Form.useWatch(
     "partImage",
     form
   );
-  const [
-    previewImage,
-    setPreviewImage,
-  ] = useState<string>("");
-
-  useEffect(() => {
-    setPreviewImage(
-      watchedImage || ""
-    );
-  }, [watchedImage]);
+  const previewImage = String(watchedImage ?? "");
 
   return (
     <Tabs
       className="part-drawer-tabs"
-      defaultActiveKey="1"
+      defaultActiveKey="part_creation"
       items={[
         {
-          key: "1",
+          key: "part_creation",
           label: "Part Creation",
           children: (
             <div className="part-compact-form">
@@ -94,17 +85,17 @@ const PartsDrawer = () => {
                         },
                       ]}
                     >
-                      <InputNumber className="w-full" />
+                      <Input />
                     </Form.Item>
                   </div>
                 </div>
-
                 <div className="pt-7">
                   <Upload.Dragger
                     multiple={false}
                     showUploadList={false}
                     className="part-image-uploader"
                     accept="image/png,image/jpeg"
+                    disabled={viewMode}
                     beforeUpload={(file) => {
                       const reader =
                         new FileReader();
@@ -114,9 +105,6 @@ const PartsDrawer = () => {
                           reader.result ?? ""
                         );
 
-                        setPreviewImage(
-                          imageUrl
-                        );
                         form.setFieldValue(
                           "partImage",
                           imageUrl
@@ -138,21 +126,22 @@ const PartsDrawer = () => {
                           className="h-full w-full rounded object-cover"
                         />
 
-                        <button
-                          type="button"
-                          className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded bg-red-500 text-xs text-white hover:bg-red-600"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setPreviewImage("");
-                            form.setFieldValue(
-                              "partImage",
-                              ""
-                            );
-                          }}
-                        >
-                          <DeleteOutlined />
-                        </button>
+                        {!viewMode && (
+                          <button
+                            type="button"
+                            className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded bg-red-500 text-xs text-white hover:bg-red-600"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              form.setFieldValue(
+                                "partImage",
+                                ""
+                              );
+                            }}
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -205,9 +194,9 @@ const PartsDrawer = () => {
           ),
         },
         {
-          key: "2",
+          key: "part_tax_setting",
           label: "Tax Setting",
-          children: <TaxSettingsTable />,
+          children: <TaxSettingsTable viewMode={viewMode} />,
         },
       ]}
     />

@@ -102,6 +102,10 @@ type SimpleMasterListProps = {
     item: any
   ) => boolean;
 
+  sortRows?: (
+    rows: SimpleMasterRow[]
+  ) => SimpleMasterRow[];
+
   buildFormValues?: (
     row?: SimpleMasterRow | null
   ) => any;
@@ -131,6 +135,22 @@ type SimpleMasterListProps = {
   };
 
   extraColumns?: any[];
+
+  tableClassName?: string;
+
+  tableScroll?: any;
+
+  disableRowHover?: boolean;
+
+  fetchAllRows?: boolean;
+
+  listPageSize?: number;
+
+  paginateFetchedRows?: boolean;
+
+  keepRestrictedActionsEnabled?: boolean;
+
+  useNeutralMessages?: boolean;
 
   validateShortName?: boolean;
 
@@ -165,6 +185,7 @@ const SimpleMasterList = ({
   buildDeletePayload,
   filterRawItem = (item) =>
     !isCancelled(item),
+  sortRows,
   buildFormValues =
     buildSimpleMasterFormValues,
   renderExtraFields,
@@ -180,6 +201,22 @@ const SimpleMasterList = ({
   requiredFields,
 
   extraColumns = [],
+
+  tableClassName,
+
+  tableScroll,
+
+  disableRowHover = false,
+
+  fetchAllRows = false,
+
+  listPageSize,
+
+  paginateFetchedRows = true,
+
+  keepRestrictedActionsEnabled = false,
+
+  useNeutralMessages = false,
 
   validateShortName = hasShortName,
 
@@ -222,6 +259,9 @@ const SimpleMasterList = ({
       {}
     );
 
+  const [localRows, setLocalRows] =
+    useState<SimpleMasterRow[]>([]);
+
   const [form] = Form.useForm();
 
   const activeValue = Form.useWatch(
@@ -237,11 +277,11 @@ const SimpleMasterList = ({
     () => ({
       ...getSessionPayload(),
 
-      pageNumber: currentPage,
+      pageNumber: fetchAllRows ? 1 : currentPage,
 
-      pageSize,
+      pageSize: listPageSize ?? (fetchAllRows ? 1000 : pageSize),
     }),
-    [currentPage, pageSize]
+    [currentPage, fetchAllRows, listPageSize, pageSize]
   );
 
 
@@ -259,9 +299,9 @@ const SimpleMasterList = ({
 
   // TABLE DATA
 
-  const allRows = useMemo(
-    () =>
-      extractList(data)
+  const fetchedRows = useMemo(
+    () => {
+      const rows = extractList(data)
         .filter(filterRawItem)
         .map(mapRow)
         .map((row) => ({
@@ -275,7 +315,12 @@ const SimpleMasterList = ({
             !deletedRowIds.includes(
               row.id
             )
-        ),
+        );
+
+      return sortRows
+        ? sortRows(rows)
+        : rows;
+    },
 
     [
       data,
@@ -283,6 +328,57 @@ const SimpleMasterList = ({
       activeOverrides,
       filterRawItem,
       mapRow,
+      sortRows,
+    ]
+  );
+
+  const allRows = useMemo(
+    () => {
+      const localRowsById = new Map(
+        localRows.map((row) => [
+          String(row.id),
+          row,
+        ])
+      );
+      const mergedFetchedRows =
+        fetchedRows.map((row) => ({
+          ...row,
+          ...localRowsById.get(String(row.id)),
+          id: row.id,
+          key: row.key,
+        }));
+      const fetchedKeys = new Set(
+        mergedFetchedRows.map((row) =>
+          String(row.id)
+        )
+      );
+      const fetchedNames = new Set(
+        mergedFetchedRows.map((row) =>
+          normalizeCompareText(row.name)
+        )
+      );
+      const pendingRows =
+        localRows.filter(
+          (row) =>
+            !fetchedKeys.has(String(row.id)) &&
+            !fetchedNames.has(
+              normalizeCompareText(row.name)
+            ) &&
+            !deletedRowIds.includes(row.id)
+        );
+
+      return [
+        ...mergedFetchedRows,
+        ...pendingRows,
+      ].map((row, index) => ({
+        ...row,
+        srl: index + 1,
+      }));
+    },
+    [
+      deletedRowIds,
+      fetchedRows,
+      localRows,
     ]
   );
 
@@ -293,6 +389,26 @@ const SimpleMasterList = ({
         searchTerm
       ),
     [allRows, searchTerm]
+  );
+
+  const tableDataSource = useMemo(
+    () => {
+      if (!fetchAllRows || !paginateFetchedRows) return dataSource;
+
+      const start = (currentPage - 1) * pageSize;
+
+      return dataSource.slice(
+        start,
+        start + pageSize
+      );
+    },
+    [
+      currentPage,
+      dataSource,
+      fetchAllRows,
+      paginateFetchedRows,
+      pageSize,
+    ]
   );
 
 
@@ -337,6 +453,83 @@ const SimpleMasterList = ({
           record.id,
         ]
       ),
+
+    onSaved: (
+      values,
+      response,
+      savedSelectedRow
+    ) => {
+      const responseData =
+        response?.data ??
+        response?.result ??
+        response?.message ??
+        {};
+      const responseRecord =
+        Array.isArray(responseData)
+          ? responseData[0]
+          : responseData;
+      const tempId =
+        responseRecord?.[idKey] ??
+        responseRecord?.nStatusId ??
+        responseRecord?.nTicketStatusId ??
+        savedSelectedRow?.id ??
+        `local-${Date.now()}`;
+      const payloadRow = {
+        ...buildPayload(values, null),
+        ...responseRecord,
+        [idKey]: tempId,
+        id: tempId,
+        key: tempId,
+        bActive: values.active ?? true,
+        bCancelled: false,
+      };
+      const mappedRow = mapRow(
+        payloadRow,
+        savedSelectedRow
+          ? savedSelectedRow.srl - 1
+          : allRows.length
+      );
+
+      if (savedSelectedRow) {
+        setLocalRows((current) => {
+          const exists = current.some(
+            (row) =>
+              String(row.id) ===
+              String(savedSelectedRow.id)
+          );
+
+          if (exists) {
+            return current.map((row) =>
+              String(row.id) ===
+              String(savedSelectedRow.id)
+                ? {
+                    ...row,
+                    ...mappedRow,
+                    id: savedSelectedRow.id,
+                    key: savedSelectedRow.id,
+                  }
+                : row
+            );
+          }
+
+          return [
+            ...current,
+            {
+              ...mappedRow,
+              id: savedSelectedRow.id,
+              key: savedSelectedRow.id,
+            },
+          ];
+        });
+
+        return;
+      }
+
+      setLocalRows((current) => [
+        ...current,
+        mappedRow,
+      ]);
+    },
   });
 
   const handleSave = (values: any) => {
@@ -359,7 +552,7 @@ const SimpleMasterList = ({
 
       form.scrollToField('name', { focus: true });
 
-      message.error(`${nameColumnTitle} already exists`);
+      showFeedbackMessage(`${nameColumnTitle} already exists`);
 
       return;
     }
@@ -369,7 +562,7 @@ const SimpleMasterList = ({
 
       form.scrollToField('shortName', { focus: true });
 
-      message.error('Short Name already exists');
+      showFeedbackMessage('Short Name already exists');
 
       return;
     }
@@ -407,8 +600,20 @@ const SimpleMasterList = ({
 
   const showRestrictedMessage = () => {
     if (restrictedMessage) {
-      message.error(restrictedMessage);
+      message.info(restrictedMessage);
     }
+  };
+
+  const showFeedbackMessage = (
+    text: string
+  ) => {
+    if (useNeutralMessages) {
+      message.info(text);
+
+      return;
+    }
+
+    message.error(text);
   };
 
   const handleTableChange = (
@@ -487,7 +692,10 @@ const SimpleMasterList = ({
 
           size="small"
 
-          disabled={disableToggle?.(record)}
+          disabled={
+            disableToggle?.(record) &&
+            !keepRestrictedActionsEnabled
+          }
 
           onClick={(
             _,
@@ -536,7 +744,16 @@ const SimpleMasterList = ({
 
           icon={<EditOutlined />}
 
-          disabled={disableEdit?.(record)}
+          disabled={
+            disableEdit?.(record) &&
+            !keepRestrictedActionsEnabled
+          }
+
+          className={
+            disableEdit?.(record)
+              ? '!bg-transparent'
+              : undefined
+          }
 
           onClick={(event) => {
 
@@ -577,7 +794,16 @@ const SimpleMasterList = ({
 
           icon={<DeleteOutlined />}
 
-          disabled={disableDelete?.(record)}
+          disabled={
+            disableDelete?.(record) &&
+            !keepRestrictedActionsEnabled
+          }
+
+          className={
+            disableDelete?.(record)
+              ? '!bg-transparent'
+              : undefined
+          }
 
           onClick={(event) => {
 
@@ -642,7 +868,7 @@ const SimpleMasterList = ({
               [overrideKey]: previousActive,
             }));
 
-            message.error(
+            showFeedbackMessage(
               getApiMessage(
                 response,
                 `Failed to update ${entityName.toLowerCase()}`
@@ -663,7 +889,7 @@ const SimpleMasterList = ({
             [overrideKey]: previousActive,
           }));
 
-          message.error(
+          showFeedbackMessage(
             getApiMessage(
               error,
               `Failed to update ${entityName.toLowerCase()}`
@@ -673,9 +899,6 @@ const SimpleMasterList = ({
       }
     );
   };
-
-
-
 
   return (
     <div className="h-full min-h-0 bg-white p-6 flex flex-col">
@@ -733,8 +956,10 @@ const SimpleMasterList = ({
       <div className="flex-1 min-h-0 overflow-hidden">
 
         <AntTable
+          className={tableClassName}
           columns={columns}
-          dataSource={dataSource}
+          dataSource={tableDataSource}
+          scroll={tableScroll}
           loading={isLoading}
           locale={{
             emptyText: isError ? (
@@ -755,7 +980,9 @@ const SimpleMasterList = ({
               ),
 
             className:
-              'cursor-pointer hover:bg-slate-50 transition-colors',
+              disableRowHover
+                ? 'cursor-pointer'
+                : 'cursor-pointer hover:bg-slate-50 transition-colors',
           })}
           paginationProps={{
             current: currentPage,
@@ -764,7 +991,9 @@ const SimpleMasterList = ({
 
             total: getTotalCount(
               data,
-              dataSource.length
+              fetchAllRows
+                ? dataSource.length
+                : tableDataSource.length
             ),
 
             onChange:

@@ -476,10 +476,21 @@ export const statusApis = {
   statusList: async (
     payload: StatusPayload
   ) => {
-    const response = await axiosInstance.post(
-      '/Api/V1/TicketStatus/TicketStatusDropDown',
-      payload
-    );
+    const response = await axiosInstance
+      .post(
+        '/Api/V1/TicketStatus/TicketStatusDropDown',
+        payload
+      )
+      .catch((error) => {
+        if ([404, 405].includes(error?.response?.status)) {
+          return axiosInstance.post(
+            '/Api/V1/TicketStatus/TicketStatusDropDown',
+            payload
+          );
+        }
+
+        throw error;
+      });
 
     return response.data;
   },
@@ -1201,7 +1212,7 @@ export const ticketSourceApis = {
     payload: any
   ) => {
     const response = await axiosInstance.post(
-      "/Api/V1/TicketSource/TicketSourceListAll",
+      "/Api/V1/TicketSource/TicketSourceList",
       payload
     ).catch((error) => {
       if (error?.response?.status === 404) {

@@ -85,7 +85,7 @@ const FollowupModeList = () => {
       nameColumnTitle: "Followup Mode Name",
 
       drawerDescription:
-        "This section allows you to manage Followup Mode.",
+        "This section allows you to manage Follow Up Mode, which includes adding, editing, and viewing.",
 
       idKey: "nCallModeId",
 

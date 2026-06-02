@@ -51,6 +51,8 @@ const mapTicketSourceRow = (
     item?.cTicketsourceShname ??
     item?.cTicketSourceCode ??
     item?.cTicketsourceCode ??
+    item?.cSrcShName ??
+    item?.cSrcShname ??
     item?.cSourceShName ??
     item?.cSourceShname ??
     item?.cSourceShortName ??
@@ -101,19 +103,10 @@ const buildTicketSourcePayload = (
   cSourceName:
     values.name,
 
-  cShName:
-    values.shortName,
-
-  cTicketSourceShName:
-    values.shortName,
-
   cTicketsourceShName:
     values.shortName,
 
-  cTicketSourceShname:
-    values.shortName,
-
-  cTicketsourceShname:
+  cSrcShName:
     values.shortName,
 
   cTicketSourceCode:
@@ -165,7 +158,7 @@ const TicketSource = () => {
         "Ticket Source Name",
 
       drawerDescription:
-        "This section allows you to manage ticket source details including add, edit, delete and view.",
+        "",
 
       idKey:
         "nTicketSourceId",
@@ -196,6 +189,9 @@ const TicketSource = () => {
 
       hasShortName:
         true,
+
+      showDescription:
+        false,
     }),
     [
       deleteTicketSource,

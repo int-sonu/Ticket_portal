@@ -18,7 +18,7 @@ export const useSaveCustomer = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: customerApis.customerSave,
+    mutationFn: customerApis.customerSaveWithAssets,
 
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -32,7 +32,7 @@ export const useUpdateCustomer = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: customerApis.customerUpdate,
+    mutationFn: customerApis.customerUpdateWithAssets,
 
     onSuccess: () => {
       queryClient.invalidateQueries({

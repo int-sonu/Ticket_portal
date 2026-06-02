@@ -16,6 +16,11 @@ type UseSimpleMasterCrudParams = {
   buildDeletePayload?: (record: SimpleMasterRow) => any;
   closeDrawer: () => void;
   onDeleted?: (record: SimpleMasterRow) => void;
+  onSaved?: (
+    values: any,
+    response: any,
+    selectedRow: SimpleMasterRow | null
+  ) => void;
 };
 
 export const useSimpleMasterCrud = ({
@@ -30,6 +35,7 @@ export const useSimpleMasterCrud = ({
   buildDeletePayload,
   closeDrawer,
   onDeleted,
+  onSaved,
 }: UseSimpleMasterCrudParams) => {
   const handleDelete = (event: React.MouseEvent, record: SimpleMasterRow) => {
     event.stopPropagation();
@@ -82,6 +88,7 @@ export const useSimpleMasterCrud = ({
         }
 
         message.success(`${entityName} ${selectedRow ? 'updated' : 'saved'} successfully`);
+        onSaved?.(trimmedValues, response, selectedRow);
         closeDrawer();
       },
       onError: (error) => message.error(getApiMessage(error, `Failed to save ${entityName.toLowerCase()}`)),

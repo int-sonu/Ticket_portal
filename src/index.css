@@ -81,19 +81,48 @@ body,
   background: #ffffff;
 }
 
-body.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer {
+/* body.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer {
   display: none;
 }
 
 html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
-.simple-master-drawer:has(.customer-drawer-tabs .ant-tabs-tab:nth-child(2).ant-tabs-tab-active) .ant-drawer-footer {
+.simple-master-drawer:has(
+    .customer-drawer-tabs .ant-tabs-tab:nth-child(2).ant-tabs-tab-active
+  )
+  .ant-drawer-footer {
   display: none !important;
-}
+} */
 
 .simple-master-drawer .ant-drawer-body {
   display: flex;
   min-height: 0;
   overflow: hidden;
+}
+
+.customer-master-drawer .ant-drawer-header {
+  position: absolute;
+  top: 18px;
+  right: 12px;
+  z-index: 4;
+  border-bottom: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.customer-master-drawer .ant-drawer-title {
+  flex: none;
+}
+
+.customer-master-drawer .ant-drawer-title > div {
+  justify-content: flex-end;
+}
+
+.customer-master-drawer .ant-drawer-body {
+  padding-top: 12px;
+}
+
+.customer-master-drawer .simple-master-drawer-scroll {
+  padding-center: 0 !important;
 }
 
 .simple-master-drawer .simple-master-drawer-scroll {
@@ -119,12 +148,16 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   line-height: 28px !important;
 }
 
-.agent-master-drawer .ant-drawer-footer .ant-btn-primary:not(.ant-btn-dangerous) {
+.agent-master-drawer
+  .ant-drawer-footer
+  .ant-btn-primary:not(.ant-btn-dangerous) {
   background: #22c55e !important;
   border-color: #22c55e !important;
 }
 
-.agent-master-drawer .ant-drawer-footer .ant-btn-primary:not(.ant-btn-dangerous):hover {
+.agent-master-drawer
+  .ant-drawer-footer
+  .ant-btn-primary:not(.ant-btn-dangerous):hover {
   background: #16a34a !important;
   border-color: #16a34a !important;
 }
@@ -161,12 +194,23 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .customer-drawer-tabs .ant-tabs-content-holder,
 .customer-drawer-tabs .ant-tabs-content {
   min-width: 0;
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.customer-drawer-tabs .ant-tabs-content-holder {
+  overflow: visible !important;
+}
+
+.customer-drawer-tabs .ant-tabs-content {
+  display: block !important;
+  transform: none !important;
 }
 
 .customer-drawer-tabs .ant-tabs-tabpane {
   min-width: 0;
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .customer-drawer-tabs .ant-tabs-tabpane-hidden {
@@ -179,7 +223,8 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .customer-drawer-tabs .ant-tabs-nav {
-  margin-bottom: 14px !important;
+  margin-bottom: 10px !important;
+  margin-top: 0 !important;
 }
 
 .customer-drawer-tabs .ant-tabs-tab {
@@ -204,27 +249,95 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   width: 100%;
 }
 
+.customer-drawer-tabs .ant-tabs-tabpane {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  align-items: stretch !important;
+}
+
+.customer-drawer-tabs .ant-tabs-tabpane.ant-tabs-tabpane-hidden {
+  display: none !important;
+}
 .asset-tab-content {
-  min-width: 100%;
-  width: 100%;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  width: calc(500px - 32px) !important;
+  min-width: calc(500px - 32px) !important;
+  max-width: calc(100vw - 32px) !important;
+  align-items: stretch !important;
+  position: relative !important;
+  min-height: calc(100vh - 175px);
+  padding-bottom: 12px;
+  margin: 0 auto;
+}
+
+.asset-tab-content > div {
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .asset-tab-content > .ant-btn {
-  display: block;
-  min-width: 100% !important;
   width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 36px !important;
+}
+
+.asset-tab-content .asset-link-button {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
 }
 
 .customer-drawer-tabs .ant-tabs-tabpane-active {
   width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  flex: 0 0 100% !important;
 }
 
 .customer-drawer-tabs .ant-tabs-tabpane-active .asset-tab-content {
+  width: calc(500px - 32px) !important;
+  min-width: calc(500px - 32px) !important;
+  max-width: calc(100vw - 32px) !important;
+}
+
+.asset-tab-content .ant-btn-block {
   width: 100% !important;
+  max-width: none !important;
+}
+
+.asset-form-panel {
+  box-sizing: border-box;
+  width: 100% !important;
+  margin: 76px 0 0;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f7f7f7;
+  padding: 16px 22px 18px;
+}
+
+.asset-form-panel .ant-btn {
+  border-radius: 6px;
+}
+
+.asset-form-panel button {
+  cursor: pointer;
 }
 
 .asset-compact-form .ant-form-item-label {
   padding-bottom: 2px !important;
+}
+
+.asset-compact-form .ant-form-item {
+  margin-bottom: 4px !important;
 }
 
 .asset-compact-form .ant-input,
@@ -433,8 +546,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   gap: 8px;
 }
 
-.ticket-create-form .ant-upload-wrapper .ant-upload-list-picture-card .ant-upload-list-item-container,
-.ticket-create-form .ant-upload-wrapper .ant-upload.ant-upload-select-picture-card {
+.ticket-create-form
+  .ant-upload-wrapper
+  .ant-upload-list-picture-card
+  .ant-upload-list-item-container,
+.ticket-create-form
+  .ant-upload-wrapper
+  .ant-upload.ant-upload-select-picture-card {
   width: 74px !important;
   height: 74px !important;
 }
@@ -685,9 +803,15 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   border-radius: 6px !important;
 }
 
-.modern-ticket-calendar .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
-.modern-ticket-calendar .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
-.modern-ticket-calendar .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+.modern-ticket-calendar
+  .ant-picker-cell-in-view.ant-picker-cell-selected
+  .ant-picker-cell-inner,
+.modern-ticket-calendar
+  .ant-picker-cell-in-view.ant-picker-cell-range-start
+  .ant-picker-cell-inner,
+.modern-ticket-calendar
+  .ant-picker-cell-in-view.ant-picker-cell-range-end
+  .ant-picker-cell-inner {
   background: #10b981;
   color: #ffffff;
 }
@@ -709,7 +833,10 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   background: #10b981;
 }
 
-.modern-ticket-calendar .ant-picker-time-panel-column > li.ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+.modern-ticket-calendar
+  .ant-picker-time-panel-column
+  > li.ant-picker-time-panel-cell-selected
+  .ant-picker-time-panel-cell-inner {
   background: #38bdf8;
   color: #ffffff;
 }

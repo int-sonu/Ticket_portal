@@ -223,14 +223,14 @@ const AssetMasterList = () => {
           },
         ]}
       >
-        <Input className="h-[30px]" />
+        <Input className="h-[27px] w-[469px]" />
       </Form.Item>
 
       <div className="grid grid-cols-2 gap-2">
         <Form.Item
           name="shortName"
           label="Short Name"
-          className="!mb-3"
+          className="!mb-2 w-[230px]"
           rules={[
             {
               required: true,
@@ -239,13 +239,13 @@ const AssetMasterList = () => {
             },
           ]}
         >
-          <Input className="h-[30px]" />
+          <Input className="h-[27px] w-[230px]" />
         </Form.Item>
 
         <Form.Item
           name="brand"
           label="Brand"
-          className="!mb-3"
+          className="!mb-2 h-[27px] w-[230px]"
         >
           <AutoComplete
             options={
@@ -264,7 +264,7 @@ const AssetMasterList = () => {
                 )
             }
           >
-            <Input />
+            <Input className="  h-[27px] w-[230px]"/>
           </AutoComplete>
         </Form.Item>
       </div>
@@ -272,7 +272,7 @@ const AssetMasterList = () => {
       <Form.Item
         name="description"
         label="Description"
-        className="!mb-3"
+        className="!mb-3 w-[469px]"
       >
         <Input.TextArea rows={3} />
       </Form.Item>

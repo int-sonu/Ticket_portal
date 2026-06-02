@@ -13,6 +13,16 @@ import {
   useUpdateFinancialYear,
 } from "./Hooks";
 
+const formatDate = (value: any) => {
+  if (!value) return "";
+
+  const date = dayjs(value);
+
+  return date.isValid()
+    ? date.format("DD/MM/YYYY")
+    : "";
+};
+
 
 
 // TABLE DATA MAPPING
@@ -39,10 +49,15 @@ const mapFinancialYearRow = (
     item?.cFinShName ?? "",
 
   fromDate:
-    item?.dFromDate ?? "",
+    item?.dFromDate ??
+    item?.cFromDate ??
+    "",
 
   toDate:
-    item?.dTodate ?? "",
+    item?.dTodate ??
+    item?.dToDate ??
+    item?.cToDate ??
+    "",
 
   active:
     item?.bActive !== false &&
@@ -181,6 +196,28 @@ const FinancialYear = () => {
         buildFinancialYearFormValues,
       renderExtraFields:
         renderFinancialYearExtraFields,
+
+      extraColumns: [
+        {
+          title: "From Date",
+
+          dataIndex: "fromDate",
+
+          key: "fromDate",
+
+          render: formatDate,
+        },
+
+        {
+          title: "To Date",
+
+          dataIndex: "toDate",
+
+          key: "toDate",
+
+          render: formatDate,
+        },
+      ],
     }),
 
     [

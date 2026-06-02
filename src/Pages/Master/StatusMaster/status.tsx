@@ -22,6 +22,30 @@ const getUserCreds = () => {
 const isDefaultStatus = (row: any) =>
   Number(row?.raw?.nParentId ?? row?.nParentId) === 0;
 
+const sortStatusRows = (
+  rows: SimpleMasterRow[]
+) =>
+  [...rows].sort((first, second) => {
+    const firstParent =
+      Number(first?.raw?.nParentId ?? first?.nParentId);
+    const secondParent =
+      Number(second?.raw?.nParentId ?? second?.nParentId);
+    const firstIsCustom =
+      firstParent !== 0;
+    const secondIsCustom =
+      secondParent !== 0;
+
+    if (firstIsCustom !== secondIsCustom) {
+      return firstIsCustom ? -1 : 1;
+    }
+
+    if (firstIsCustom && secondIsCustom) {
+      return Number(second.id) - Number(first.id);
+    }
+
+    return first.srl - second.srl;
+  });
+
 
 
 // TABLE DATA MAPPING
@@ -32,10 +56,16 @@ const mapStatusRow = (
 ): SimpleMasterRow => ({
   id:
     item?.nStatusId ??
+    item?.nTicketStatusId ??
+    item?.nTicketstatusId ??
+    item?.nTicketStatusid ??
     index + 1,
 
   key:
     item?.nStatusId ??
+    item?.nTicketStatusId ??
+    item?.nTicketstatusId ??
+    item?.nTicketStatusid ??
     index + 1,
 
   srl:
@@ -43,14 +73,17 @@ const mapStatusRow = (
 
   name:
     item?.cStatusName ??
+    item?.cTicketStatusName ??
+    item?.cTicketstatusName ??
+    item?.cTicketStatus ??
+    item?.cStatus ??
     "N/A",
 
   shortName:
     "",
 
   active:
-    item?.bActive !== false &&
-    item?.bCancelled !== true,
+    item?.bActive !== false,
 
   // DEFAULT STATUS
 
@@ -185,6 +218,12 @@ const Status = () => {
       buildPayload:
         buildStatusPayload,
 
+      filterRawItem:
+        () => true,
+
+      sortRows:
+        sortStatusRows,
+
 
 
       // CONFIG
@@ -205,10 +244,32 @@ const Status = () => {
       disableToggle:
         isDefaultStatus,
 
-
-
       restrictedMessage:
-        "Default Status cannot be modified !",
+        "Default Status cannot be modified",
+
+      keepRestrictedActionsEnabled:
+        true,
+
+      useNeutralMessages:
+        true,
+
+      tableClassName:
+        "status-master-table",
+
+      tableScroll:
+        { y: "calc(100vh - 300px)" },
+
+      disableRowHover:
+        true,
+
+      fetchAllRows:
+        true,
+
+      listPageSize:
+        1000,
+
+      paginateFetchedRows:
+        false,
     }),
 
     [

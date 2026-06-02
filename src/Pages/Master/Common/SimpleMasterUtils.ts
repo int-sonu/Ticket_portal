@@ -57,6 +57,10 @@ export const extractList = (response: any): any[] => {
   if (Array.isArray(response?.data?.issueList)) return response.data.issueList;
   if (Array.isArray(response?.ticketSourceList)) return response.ticketSourceList;
   if (Array.isArray(response?.data?.ticketSourceList)) return response.data.ticketSourceList;
+  if (Array.isArray(response?.statusList)) return response.statusList;
+  if (Array.isArray(response?.data?.statusList)) return response.data.statusList;
+  if (Array.isArray(response?.ticketStatusList)) return response.ticketStatusList;
+  if (Array.isArray(response?.data?.ticketStatusList)) return response.data.ticketStatusList;
 
   return [];
 };
