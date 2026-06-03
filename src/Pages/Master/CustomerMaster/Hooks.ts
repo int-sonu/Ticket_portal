@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  assetMasterApis,
   customerApis,
   departmentApis,
   brandApis,
@@ -24,6 +25,9 @@ export const useSaveCustomer = () => {
       queryClient.invalidateQueries({
         queryKey: ["customer-list"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["customer-wise-assets"],
+      });
     },
   });
 };
@@ -37,6 +41,9 @@ export const useUpdateCustomer = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["customer-list"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["customer-wise-assets"],
       });
     },
   });
@@ -60,7 +67,7 @@ export const useGetAssetMasterSuggest = (payload: any) => {
   return useQuery({
     queryKey: ["asset-master-suggest", payload],
 
-    queryFn: () => customerApis.assetMasterSuggest(payload),
+    queryFn: () => assetMasterApis.assetMasterSuggest(payload),
   });
 };
 
@@ -72,10 +79,20 @@ export const useGetCustomerAssetDepartments = (payload: any) => {
   });
 };
 
+export const useGetCustomerWiseAssets = (payload: any, enabled = true) => {
+  return useQuery({
+    queryKey: ["customer-wise-assets", payload],
+
+    queryFn: () => customerApis.customerWiseAssetList(payload),
+
+    enabled,
+  });
+};
+
 export const useGetCustomerBrandOptions = (payload: any) => {
   return useQuery({
     queryKey: ["customer-brand-options", payload],
 
-    queryFn: () => brandApis.brandListAll(payload),
+    queryFn: () => brandApis.brandDropDown(payload),
   });
 };

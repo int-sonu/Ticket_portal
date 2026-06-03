@@ -110,6 +110,10 @@ type SimpleMasterListProps = {
     row?: SimpleMasterRow | null
   ) => any;
 
+  loadRowDetails?: (
+    row: SimpleMasterRow
+  ) => Promise<SimpleMasterRow>;
+
   renderExtraFields?: (
     options: {
       viewMode: boolean;
@@ -117,6 +121,8 @@ type SimpleMasterListProps = {
       form: ReturnType<
         typeof Form.useForm
       >[0];
+
+      selectedRow: SimpleMasterRow | null;
     }
   ) => React.ReactNode;
 
@@ -188,6 +194,7 @@ const SimpleMasterList = ({
   sortRows,
   buildFormValues =
     buildSimpleMasterFormValues,
+  loadRowDetails,
   renderExtraFields,
 
 
@@ -577,7 +584,7 @@ const SimpleMasterList = ({
 
   // OPEN DRAWER
 
-  const openDrawer = (
+  const openDrawer = async (
     row?: SimpleMasterRow,
     readonly = false
   ) => {
@@ -596,6 +603,25 @@ const SimpleMasterList = ({
     );
 
     setDrawerOpen(true);
+
+    if (!row || !loadRowDetails) return;
+
+    try {
+      const detailRow = await loadRowDetails(row);
+
+      setSelectedRow(detailRow);
+
+      form.setFieldsValue(
+        buildFormValues(detailRow)
+      );
+    } catch (error) {
+      message.error(
+        getApiMessage(
+          error,
+          `Unable to fetch ${entityName.toLowerCase()} details`
+        )
+      );
+    }
   };
 
   const showRestrictedMessage = () => {

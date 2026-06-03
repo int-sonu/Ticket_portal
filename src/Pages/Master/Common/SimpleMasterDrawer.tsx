@@ -25,7 +25,11 @@ type SimpleMasterDrawerProps = {
     name?: string;
     shortName?: string;
   };
-  renderExtraFields?: (options: { viewMode: boolean; form: FormInstance }) => React.ReactNode;
+  renderExtraFields?: (options: {
+    viewMode: boolean;
+    form: FormInstance;
+    selectedRow: SimpleMasterRow | null;
+  }) => React.ReactNode;
   onClose: () => void;
   onEdit: () => void;
   onDelete: (event: React.MouseEvent, record: SimpleMasterRow) => void;
@@ -75,7 +79,7 @@ const SimpleMasterDrawer = ({
   className={`simple-master-drawer${
     title === "Customer Master" ? " customer-master-drawer" : ""
   }`}
-  width={
+  size={
   title === "Agent Group Master"
       ? 550
       :title === "Follow up Master"
@@ -203,7 +207,7 @@ const SimpleMasterDrawer = ({
           </>
         )}
 
-        {renderExtraFields?.({ viewMode, form })}
+        {renderExtraFields?.({ viewMode, form, selectedRow })}
       </div>
     </Form>
   </Drawer>

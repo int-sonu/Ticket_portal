@@ -30,6 +30,7 @@ import CustomerDrawer from "../../Master/CustomerMaster/CustomerDrawer";
 import {
   useGetCustomerAssetDepartments,
   useGetCustomerBrandOptions,
+  useGetCustomerWiseAssets,
   useGetCustomers,
   useSaveCustomer,
 } from "../../Master/CustomerMaster/Hooks";
@@ -82,6 +83,25 @@ const toSelectOptions = (
     return { label, value };
   });
 
+const extractAssetList = (response: any) => {
+  const list = extractList(response);
+
+  if (list.length) return list;
+
+  return (
+    [
+      response?.AssetList,
+      response?.assetList,
+      response?.data?.AssetList,
+      response?.data?.assetList,
+      response?.message?.AssetList,
+      response?.message?.assetList,
+      response?.result?.AssetList,
+      response?.result?.assetList,
+    ].find(Array.isArray) ?? []
+  );
+};
+
 const TicketForm = ({
   initialValues,
   isEdit = false,
@@ -98,6 +118,12 @@ const TicketForm = ({
   ] = useState(false);
   const [assetPickerOpen, setAssetPickerOpen] =
     useState(false);
+  const [assetSearch, setAssetSearch] =
+    useState("");
+  const [assetDepartment, setAssetDepartment] =
+    useState("All");
+  const [assetBrand, setAssetBrand] =
+    useState("All");
   const [carryOpen, setCarryOpen] =
     useState(false);
   const [assetOpen, setAssetOpen] =
@@ -123,6 +149,22 @@ const TicketForm = ({
       pageSize: 1000,
     }),
     []
+  );
+
+  const selectedCustomerId =
+    Form.useWatch("CustomerId", form);
+
+  const customerWiseAssetPayload = useMemo(
+    () => ({
+      ...sessionPayload,
+      nCustomerId: selectedCustomerId,
+      CustomerId: selectedCustomerId,
+      customerId: selectedCustomerId,
+      nCustId: selectedCustomerId,
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    [selectedCustomerId, sessionPayload]
   );
 
   const {
@@ -152,6 +194,13 @@ const TicketForm = ({
     );
   const { data: brandData } =
     useGetCustomerBrandOptions(sessionPayload);
+  const {
+    data: customerWiseAssetData,
+    isFetching: isFetchingCustomerAssets,
+  } = useGetCustomerWiseAssets(
+    customerWiseAssetPayload,
+    !!selectedCustomerId
+  );
 
   const customers = useMemo(
     () => extractList(customerData),
@@ -233,6 +282,62 @@ const TicketForm = ({
     ],
     [brandData]
   );
+
+  const customerAssets = useMemo(
+    () => extractAssetList(customerWiseAssetData),
+    [customerWiseAssetData]
+  );
+
+  const filteredCustomerAssets = useMemo(() => {
+    const search = assetSearch.trim().toLowerCase();
+    const department = String(assetDepartment ?? "");
+    const brand = String(assetBrand ?? "");
+
+    return customerAssets.filter((asset: any) => {
+      const assetName = getFirstValue(asset, [
+        "cAssetName",
+        "cAssetMasterName",
+        "AssetName",
+        "assetName",
+        "name",
+      ]);
+      const assetDepartmentText = getFirstValue(asset, [
+        "nDepartmentId",
+        "cDepartmentName",
+        "DepartmentName",
+        "department",
+      ]);
+      const assetBrandText = getFirstValue(asset, [
+        "nBrandId",
+        "cBrandName",
+        "BrandName",
+        "brand",
+      ]);
+      const serialNo = getFirstValue(asset, [
+        "cSerialNo",
+        "SerialNo",
+        "serialNo",
+      ]);
+      const matchesSearch =
+        !search ||
+        [assetName, assetDepartmentText, assetBrandText, serialNo]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      const matchesDepartment =
+        department === "All" ||
+        assetDepartmentText === department;
+      const matchesBrand =
+        brand === "All" || assetBrandText === brand;
+
+      return matchesSearch && matchesDepartment && matchesBrand;
+    });
+  }, [
+    assetBrand,
+    assetDepartment,
+    assetSearch,
+    customerAssets,
+  ]);
 
   const handleUpload = (file: any) => {
     setEditorFile(file);
@@ -900,6 +1005,10 @@ const TicketForm = ({
           <Input
             prefix={<SearchOutlined />}
             placeholder="Search"
+            value={assetSearch}
+            onChange={(event) =>
+              setAssetSearch(event.target.value)
+            }
           />
 
           <div className="grid grid-cols-2 gap-3">
@@ -911,7 +1020,8 @@ const TicketForm = ({
                 className="w-full"
                 suffixIcon=">"
                 options={departmentOptions}
-                defaultValue="All"
+                value={assetDepartment}
+                onChange={setAssetDepartment}
               />
             </div>
 
@@ -923,14 +1033,100 @@ const TicketForm = ({
                 className="w-full"
                 suffixIcon=">"
                 options={brandOptions}
-                defaultValue="All"
+                value={assetBrand}
+                onChange={setAssetBrand}
               />
             </div>
           </div>
 
-          <div className="py-6 text-center text-slate-500">
-            No data found
-          </div>
+          {!selectedCustomerId ? (
+            <div className="py-6 text-center text-slate-500">
+              Select a customer to view assets
+            </div>
+          ) : isFetchingCustomerAssets ? (
+            <div className="py-6 text-center text-slate-500">
+              Loading assets...
+            </div>
+          ) : filteredCustomerAssets.length ? (
+            <div className="space-y-2">
+              {filteredCustomerAssets.map(
+                (asset: any, index: number) => {
+                  const assetName =
+                    getFirstValue(asset, [
+                      "cAssetName",
+                      "cAssetMasterName",
+                      "AssetName",
+                      "assetName",
+                      "name",
+                    ]) || "Asset";
+                  const assetId =
+                    getFirstValue(asset, [
+                      "nAssetId",
+                      "nAssetMasterId",
+                      "AssetId",
+                      "assetId",
+                      "id",
+                    ]) || assetName;
+                  const department =
+                    getFirstValue(asset, [
+                      "cDepartmentName",
+                      "DepartmentName",
+                      "department",
+                    ]) || "-";
+                  const brand =
+                    getFirstValue(asset, [
+                      "cBrandName",
+                      "BrandName",
+                      "brand",
+                    ]) || "-";
+                  const serialNo = getFirstValue(asset, [
+                    "cSerialNo",
+                    "SerialNo",
+                    "serialNo",
+                  ]);
+
+                  return (
+                    <button
+                      type="button"
+                      key={`${assetId}-${index}`}
+                      className="w-full rounded border border-sky-100 bg-white px-3 py-2 text-left text-sm hover:border-sky-300 hover:bg-sky-50"
+                      onClick={() => {
+                        form.setFieldsValue({
+                          AssetId: assetId,
+                          AssetName: assetName,
+                        });
+                        setAssetPickerOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center justify-between border-b border-sky-100 pb-2">
+                        <span className="font-medium text-slate-900">
+                          {assetName}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          ID :{assetId}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-600">
+                        <span>Department : {department}</span>
+                        <span>Brand : {brand}</span>
+                      </div>
+
+                      {serialNo ? (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Srl No : {serialNo}
+                        </p>
+                      ) : null}
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          ) : (
+            <div className="py-6 text-center text-slate-500">
+              No data found
+            </div>
+          )}
         </div>
       </Modal>
 

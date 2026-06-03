@@ -683,9 +683,11 @@ export const customerApis = {
   customerUpdateWithAssets: async (
     payload: CustomerPayload
   ) => {
-    const response = await axiosInstance.post(
+    const response = await sendWithMethodFallback(
+      'post',
       '/Api/V1/Customer/CustomerUpdateWithAssets',
-      payload
+      payload,
+      ['put']
     );
 
     return response.data;
@@ -739,6 +741,17 @@ export const customerApis = {
   ) => {
     const response = await axiosInstance.post(
       '/Api/V1/AssetMaster/AssetMasterSuggest',
+      payload
+    );
+
+    return response.data;
+  },
+
+  customerWiseAssetList: async (
+    payload: CustomerPayload
+  ) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Asset/CustomerWiseAssetList',
       payload
     );
 
@@ -1197,6 +1210,26 @@ export const brandApis = {
       payload,
       ['post']
     );
+
+    return response.data;
+  },
+
+  brandDropDown: async (
+    payload: any
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Brand/BrandDropDown",
+      payload
+    ).catch((error) => {
+      if (error?.response?.status === 404) {
+        return axiosInstance.post(
+          "/Api/V1/Brand/BrandListAll",
+          payload
+        );
+      }
+
+      throw error;
+    });
 
     return response.data;
   },

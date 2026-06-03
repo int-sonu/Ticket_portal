@@ -371,6 +371,24 @@ const getAssetId = (asset: any) =>
   asset?.nAssetMasterId ??
   asset?.nAssetMasterID;
 
+const getAssetMasterId = (asset: any) =>
+  asset?.nAssetMasterId ??
+  asset?.nAssetMasterID ??
+  asset?.AssetMasterId ??
+  asset?.AssetMasterID ??
+  asset?.assetMasterId ??
+  asset?.nMasterAssetId ??
+  0;
+
+const getCustomerAssetId = (asset: any) =>
+  asset?.nAssetId ??
+  asset?.nAssetID ??
+  asset?.CustomerAssetId ??
+  asset?.CustomerAssetID ??
+  asset?.customerAssetId ??
+  asset?.nCustomerAssetId ??
+  0;
+
 const hasAssetDisplayName = (asset: any) =>
   [
     asset?.name,
@@ -445,6 +463,13 @@ const getAssetsForCustomerRecord = (
   const matchingAssets = filterAssetsForCustomer(assets, row);
 
   if (matchingAssets.length) return matchingAssets;
+  if (
+    assets.length &&
+    assets.some(hasAssetDisplayName) &&
+    !assets.some(assetHasCustomerId)
+  ) {
+    return assets;
+  }
 
   return filterAssetsByCustomerAssetLinks(assets, customerAssets);
 };
@@ -526,63 +551,94 @@ const requiredText = (
   return text || fallback;
 };
 
+const toApiDate = (value: any) => {
+  if (!value) return null;
+  if (value?.format) return value.format("YYYY-MM-DD");
+
+  const text = String(value).trim();
+  const ddmmyyyy = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (ddmmyyyy) {
+    return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+  }
+
+  return text;
+};
+
 const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
-  assets.map((asset) => ({
-    ...asset,
-    nCustomerId:
-      asset?.nCustomerId ??
-      customerId,
-    CustomerId:
-      asset?.CustomerId ??
-      customerId,
-    customerId:
-      asset?.customerId ??
-      customerId,
-    cAssetName:
+  assets.map((asset) => {
+    const session = getSessionPayload();
+    const assetId = getCustomerAssetId(asset);
+    const assetMasterId =
+      getAssetMasterId(asset) ||
+      asset?.AssetId ||
+      asset?.assetId ||
+      0;
+    const assetName =
       asset?.name ??
       asset?.cAssetName ??
-      "",
-    cAssetShName:
+      asset?.cAssetMasterName ??
+      "";
+    const shortName =
       asset?.shortName ??
       asset?.cAssetShName ??
-      "",
-    cDepartmentName:
-      asset?.department ??
-      asset?.cDepartmentName ??
-      "",
-    cBrandName:
-      asset?.brand ??
-      asset?.cBrandName ??
-      "",
-    cSerialNo:
-      asset?.serialNo ??
-      asset?.cSerialNo ??
-      "",
-    cAssetDescription:
+      asset?.cAssetMasterShName ??
+      "";
+    const description =
       asset?.description ??
       asset?.cAssetDescription ??
-      "",
-    bAMC:
-      asset?.amc ??
-      asset?.bAMC ??
-      false,
-    bUnderAmc:
-      asset?.amc ??
-      asset?.bUnderAmc ??
-      false,
-    bWarranty:
-      asset?.warranty ??
-      asset?.bWarranty ??
-      false,
-    bUnderWarranty:
-      asset?.warranty ??
-      asset?.bUnderWarranty ??
-      false,
-    dExpiryDate:
-      asset?.expiryDate
-        ? dayjs(asset.expiryDate).format("DD/MM/YYYY")
-        : asset?.dExpiryDate ?? null,
-  }));
+      "";
+    const amc = asset?.amc ?? asset?.bAMC ?? asset?.bUnderAmc ?? false;
+    const warranty =
+      asset?.warranty ?? asset?.bWarranty ?? asset?.bUnderWarranty ?? false;
+
+    return {
+      ...asset,
+      ...session,
+      nAssetMasterId: assetMasterId,
+      AssetMasterId: assetMasterId,
+      assetMasterId,
+      AssetId: assetMasterId,
+      assetId: assetMasterId,
+      nAssetId: assetId,
+      nCustomerAssetId: assetId,
+      CustomerAssetId: assetId,
+      customerAssetId: assetId,
+      nCustomerId: asset?.nCustomerId || customerId,
+      CustomerId: asset?.CustomerId || customerId,
+      customerId: asset?.customerId || customerId,
+      nCustId: asset?.nCustId || customerId,
+      cAssetName: assetName,
+      cAssetMasterName: assetName,
+      cAssetShName: shortName,
+      cAssetMasterShName: shortName,
+      cShortName: shortName,
+      cDepartmentName:
+        asset?.department ??
+        asset?.cDepartmentName ??
+        "",
+      cBrandName:
+        asset?.brand ??
+        asset?.cBrandName ??
+        "",
+      cSerialNo:
+        asset?.serialNo ??
+        asset?.cSerialNo ??
+        "",
+      cAssetDescription: description,
+      cDescription: description,
+      bAMC: amc,
+      bUnderAmc: amc,
+      bWarranty: warranty,
+      bUnderWarranty: warranty,
+      dExpiryDate:
+        asset?.expiryDate
+          ? toApiDate(asset.expiryDate)
+          : toApiDate(asset?.dExpiryDate),
+      bActive: asset?.bActive ?? true,
+      bCancelled: asset?.bCancelled ?? false,
+    };
+  });
 
 
 
@@ -592,90 +648,117 @@ const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
 const buildCustomerPayload = (
   values: any,
   selectedRow: SimpleMasterRow | null
-) => ({
-  nCustomerId:
-    selectedRow?.id,
+) => {
+  const assetPayload = buildCustomerAssetsPayload(
+    values.assets ?? [],
+    selectedRow?.id ?? 0
+  );
 
-  cCustomerName:
-    values.name,
+  return {
+    nCustomerId:
+      selectedRow?.id ?? 0,
+    CustomerId:
+      selectedRow?.id ?? 0,
+    customerId:
+      selectedRow?.id ?? 0,
+    nCustId:
+      selectedRow?.id ?? 0,
 
-  cCustomerShName:
-    values.shortName,
+    cCustomerName:
+      values.name,
 
-  cCustomerCode:
-    values.shortName,
+    cCustomerShName:
+      values.shortName,
 
-  cContactPerson:
-    values.contactPerson,
+    cCustomerCode:
+      values.shortName,
 
-  cMobile:
-    requiredText(values.mobile),
+    cContactPerson:
+      values.contactPerson,
 
-  cPhoneNo:
-    requiredText(values.mobile),
+    cMobile:
+      requiredText(values.mobile),
 
-  CPhoneNo:
-    requiredText(values.mobile),
+    cPhoneNo:
+      requiredText(values.mobile),
 
-  cEmail:
-    values.email,
+    CPhoneNo:
+      requiredText(values.mobile),
 
-  cGSTNo:
-    requiredText(values.gstNo),
+    cEmail:
+      values.email,
 
-  cGstnNummber:
-    requiredText(values.gstNo),
+    cGSTNo:
+      requiredText(values.gstNo),
 
-  cAddress:
-    requiredText(values.address),
+    cGstnNummber:
+      requiredText(values.gstNo),
 
-  cLocation:
-    requiredText(
-      values.cLocation ??
-        values.address
-    ),
+    cAddress:
+      requiredText(values.address),
 
-  cLattitude:
-    requiredText(
-      values.cLattitude,
-      "0"
-    ),
+    cLocation:
+      requiredText(
+        values.cLocation ??
+          values.address
+      ),
 
-  cLatitude:
-    requiredText(
-      values.cLattitude,
-      "0"
-    ),
+    cLattitude:
+      requiredText(
+        values.cLattitude,
+        "0"
+      ),
 
-  cLongitude:
-    requiredText(
-      values.cLongitude,
-      "0"
-    ),
+    cLatitude:
+      requiredText(
+        values.cLattitude,
+        "0"
+      ),
 
-  bAMC:
-    values.amc ?? false,
+    cLongitude:
+      requiredText(
+        values.cLongitude,
+        "0"
+      ),
 
-  bUnderAmc:
-    values.amc ?? false,
+    bAMC:
+      values.amc ?? false,
 
-  bWarranty:
-    values.warranty ?? false,
+    bUnderAmc:
+      values.amc ?? false,
 
-  bUnderWarranty:
-    values.warranty ?? false,
+    bWarranty:
+      values.warranty ?? false,
 
-  dExpiryDate:
-    values.expiryDate
-      ? dayjs(values.expiryDate).format("DD/MM/YYYY")
-      : null,
+    bUnderWarranty:
+      values.warranty ?? false,
 
-  AssetList:
-    buildCustomerAssetsPayload(values.assets ?? [], selectedRow?.id),
+    dExpiryDate:
+      values.expiryDate
+        ? toApiDate(values.expiryDate)
+        : null,
 
-  bActive:
-    values.active ?? true,
-});
+    AssetList:
+      assetPayload,
+    assetList:
+      assetPayload,
+    CustomerAssetList:
+      assetPayload,
+    customerAssetList:
+      assetPayload,
+    lstAsset:
+      assetPayload,
+    lstAssets:
+      assetPayload,
+    lstCustomerAsset:
+      assetPayload,
+    lstCustomerAssets:
+      assetPayload,
+
+    bActive:
+      values.active ?? true,
+  };
+};
 
 const buildCustomerDeletePayload = (
   record: SimpleMasterRow

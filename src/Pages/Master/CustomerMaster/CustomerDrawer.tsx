@@ -13,16 +13,24 @@ import {
 import type { FormInstance } from "antd";
 
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 
 import type { MouseEvent } from "react";
 
-import { extractList, getSessionPayload } from "../Common/SimpleMasterUtils";
+import { assetMasterApis, customerApis } from "../../../Axios/MasterApis";
+
+import {
+  extractList,
+  getApiMessage,
+  getSessionPayload,
+  isApiSuccess,
+} from "../Common/SimpleMasterUtils";
 
 import {
   useGetAssetMasterSuggest,
   useGetCustomerAssetDepartments,
   useGetCustomerBrandOptions,
+  useGetCustomerWiseAssets,
 } from "./Hooks";
 
 const { TextArea, Search } = Input;
@@ -31,6 +39,7 @@ const defaultLocationQuery = "10.8505,76.2711";
 
 type CustomerDrawerProps = {
   form: FormInstance;
+  selectedRow?: any;
 };
 
 const getFirstValue = (item: any, keys: string[]) => {
@@ -58,6 +67,314 @@ const toUniqueOptions = (items: any[], keys: string[]) => {
   }));
 };
 
+const extractAssetList = (response: any) => {
+  const list = extractList(response);
+
+  if (list.length) return list;
+
+  return (
+    [
+      response?.AssetList,
+      response?.assetList,
+      response?.data?.AssetList,
+      response?.data?.assetList,
+      response?.message?.AssetList,
+      response?.message?.assetList,
+      response?.result?.AssetList,
+      response?.result?.assetList,
+    ].find(Array.isArray) ?? []
+  );
+};
+
+const normalizeAssetForDisplay = (asset: any) => ({
+  ...asset,
+  name: asset?.cAssetName ?? asset?.name ?? "",
+  shortName: asset?.cAssetShName ?? asset?.shortName ?? "",
+  department: asset?.cDepartmentName ?? asset?.department ?? "",
+  brand: asset?.cBrandName ?? asset?.brand ?? "",
+  serialNo: asset?.cSerialNo ?? asset?.serialNo ?? "",
+  description: asset?.cAssetDescription ?? asset?.description ?? "",
+});
+
+const getAssetCompareKey = (asset: any) => {
+  const id = getAssetId(asset);
+
+  if (id !== undefined && id !== null && String(id).trim()) {
+    return `id:${String(id).trim()}`;
+  }
+
+  return [
+    asset?.name,
+    asset?.cAssetName,
+    asset?.shortName,
+    asset?.cAssetShName,
+    asset?.serialNo,
+    asset?.cSerialNo,
+  ]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .filter(Boolean)
+    .join("|");
+};
+
+const mergeAssetLists = (primaryAssets: any[] = [], fallbackAssets: any[] = []) => {
+  const merged = primaryAssets.map(normalizeAssetForDisplay);
+  const existingKeys = new Set(
+    merged.map(getAssetCompareKey).filter(Boolean),
+  );
+
+  fallbackAssets.map(normalizeAssetForDisplay).forEach((asset) => {
+    const key = getAssetCompareKey(asset);
+
+    if (key && existingKeys.has(key)) return;
+
+    merged.push(asset);
+
+    if (key) existingKeys.add(key);
+  });
+
+  return merged;
+};
+
+const requiredText = (value: any, fallback = "NIL") => {
+  const text = String(value ?? "").trim();
+
+  return text || fallback;
+};
+
+const formatDate = (value: any) =>
+  {
+    if (!value) return null;
+    if (value?.format) return value.format("YYYY-MM-DD");
+
+    const text = String(value).trim();
+    const ddmmyyyy = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    if (ddmmyyyy) {
+      return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+    }
+
+    return text;
+  };
+
+const getAssetId = (asset: any) =>
+  asset?.nAssetMasterId ??
+  asset?.AssetMasterId ??
+  asset?.assetMasterId ??
+  asset?.nMasterAssetId ??
+  asset?.nAssetId ??
+  asset?.AssetId ??
+  asset?.assetId ??
+  asset?.id;
+
+const getAssetMasterId = (asset: any) =>
+  asset?.nAssetMasterId ??
+  asset?.AssetMasterId ??
+  asset?.assetMasterId ??
+  asset?.nMasterAssetId ??
+  asset?.AssetMasterID ??
+  0;
+
+const getCustomerAssetId = (asset: any) =>
+  asset?.nAssetId ??
+  asset?.CustomerAssetId ??
+  asset?.customerAssetId ??
+  asset?.nCustomerAssetId ??
+  asset?.CustomerAssetID ??
+  0;
+
+const getResponseDataObjects = (response: any): any[] =>
+  [
+    response,
+    response?.data,
+    response?.result,
+    response?.message,
+    ...(Array.isArray(response?.data) ? response.data : []),
+    ...(Array.isArray(response?.result) ? response.result : []),
+    ...(Array.isArray(response?.message) ? response.message : []),
+  ].filter(Boolean);
+
+const getSavedAssetId = (response: any) => {
+  for (const item of getResponseDataObjects(response)) {
+    const id = getAssetId(item);
+
+    if (id) return id;
+  }
+
+  return undefined;
+};
+
+const findMatchingItem = (
+  items: any[],
+  value: any,
+  keys: string[],
+) => {
+  const lookup = String(value ?? "").trim().toLowerCase();
+
+  if (!lookup) return undefined;
+
+  return items.find((item) =>
+    keys.some(
+      (key) => String(item?.[key] ?? "").trim().toLowerCase() === lookup,
+    ),
+  );
+};
+
+const buildAssetPayload = (assets: any[] = [], customerId?: any) =>
+  assets.map((asset) => {
+    const assetMasterId =
+      getAssetMasterId(asset) ||
+      asset?.AssetId ||
+      asset?.assetId ||
+      0;
+    const customerAssetId = getCustomerAssetId(asset);
+
+    return {
+      ...asset,
+      ...getSessionPayload(),
+      nAssetMasterId: assetMasterId,
+      AssetMasterId: assetMasterId,
+      assetMasterId,
+      AssetId: assetMasterId,
+      assetId: assetMasterId,
+      nAssetId: customerAssetId,
+      nCustomerAssetId: customerAssetId,
+      CustomerAssetId: customerAssetId,
+      customerAssetId,
+      nCustomerId: asset?.nCustomerId || customerId,
+      CustomerId: asset?.CustomerId || customerId,
+      customerId: asset?.customerId || customerId,
+      cAssetName:
+        asset?.name ??
+        asset?.cAssetName ??
+        asset?.cAssetMasterName ??
+        "",
+      cAssetShName:
+        asset?.shortName ??
+        asset?.cAssetShName ??
+        asset?.cAssetMasterShName ??
+        "",
+      cShortName:
+        asset?.shortName ??
+        asset?.cAssetShName ??
+        asset?.cAssetMasterShName ??
+        "",
+      cDepartmentName:
+        asset?.department ??
+        asset?.cDepartmentName ??
+        "",
+      cBrandName:
+        asset?.brand ??
+        asset?.cBrandName ??
+        "",
+      cSerialNo:
+        asset?.serialNo ??
+        asset?.cSerialNo ??
+        "",
+      cAssetDescription:
+        asset?.description ??
+        asset?.cAssetDescription ??
+        "",
+      cDescription:
+        asset?.description ??
+        asset?.cAssetDescription ??
+        "",
+      bAMC: asset?.amc ?? asset?.bAMC ?? false,
+      bUnderAmc: asset?.amc ?? asset?.bUnderAmc ?? false,
+      bWarranty: asset?.warranty ?? asset?.bWarranty ?? false,
+      bUnderWarranty: asset?.warranty ?? asset?.bUnderWarranty ?? false,
+      dExpiryDate:
+        asset?.expiryDate
+          ? formatDate(asset.expiryDate)
+          : formatDate(asset?.dExpiryDate),
+    };
+  });
+
+const buildCustomerUpdatePayload = (
+  values: any,
+  assets: any[],
+  customerId: any,
+) => {
+  const assetPayload = buildAssetPayload(assets, customerId);
+
+  return {
+    ...getSessionPayload(),
+    nCustomerId: customerId,
+    CustomerId: customerId,
+    customerId: customerId,
+    cCustomerName: values.name,
+    cCustomerShName: values.shortName,
+    cCustomerCode: values.shortName,
+    cContactPerson: values.contactPerson,
+    cMobile: requiredText(values.mobile),
+    cPhoneNo: requiredText(values.mobile),
+    CPhoneNo: requiredText(values.mobile),
+    cEmail: values.email,
+    cGSTNo: requiredText(values.gstNo),
+    cGstnNummber: requiredText(values.gstNo),
+    cAddress: requiredText(values.address),
+    cLocation: requiredText(values.cLocation ?? values.address),
+    cLattitude: requiredText(values.cLattitude, "0"),
+    cLatitude: requiredText(values.cLattitude, "0"),
+    cLongitude: requiredText(values.cLongitude, "0"),
+    bAMC: values.amc ?? false,
+    bUnderAmc: values.amc ?? false,
+    bWarranty: values.warranty ?? false,
+    bUnderWarranty: values.warranty ?? false,
+    dExpiryDate: formatDate(values.expiryDate),
+    AssetList: assetPayload,
+    assetList: assetPayload,
+    CustomerAssetList: assetPayload,
+    customerAssetList: assetPayload,
+    lstAsset: assetPayload,
+    lstAssets: assetPayload,
+    lstCustomerAsset: assetPayload,
+    lstCustomerAssets: assetPayload,
+    bActive: values.active ?? true,
+  };
+};
+
+const buildAssetMasterSavePayload = (
+  asset: any,
+  brandList: any[],
+  departmentList: any[],
+) => {
+  const brand = findMatchingItem(brandList, asset.brand ?? asset.cBrandName, [
+    "cBrandName",
+    "BrandName",
+    "brandName",
+    "name",
+  ]);
+  const department = findMatchingItem(
+    departmentList,
+    asset.department ?? asset.cDepartmentName,
+    ["cDepartmentName", "DepartmentName", "departmentName", "name"],
+  );
+
+  return {
+    ...getSessionPayload(),
+    cAssetName: asset.name ?? asset.cAssetName ?? "",
+    cAssetShName: asset.shortName ?? asset.cAssetShName ?? "",
+    cShortName: asset.shortName ?? asset.cAssetShName ?? "",
+    nDepartmentId:
+      asset.nDepartmentId ?? department?.nDepartmentId ?? department?.id,
+    cDepartmentName: asset.department ?? asset.cDepartmentName ?? "",
+    nBrandId: asset.nBrandId ?? brand?.nBrandId ?? brand?.id,
+    cBrandName: asset.brand ?? asset.cBrandName ?? "",
+    cBrand: asset.brand ?? asset.cBrandName ?? "",
+    cSerialNo: asset.serialNo ?? asset.cSerialNo ?? "",
+    cAssetDescription: asset.description ?? asset.cAssetDescription ?? "",
+    cDescription: asset.description ?? asset.cAssetDescription ?? "",
+    bAMC: asset.amc ?? asset.bAMC ?? false,
+    bUnderAmc: asset.amc ?? asset.bUnderAmc ?? false,
+    bWarranty: asset.warranty ?? asset.bWarranty ?? false,
+    bUnderWarranty: asset.warranty ?? asset.bUnderWarranty ?? false,
+    dExpiryDate: asset.expiryDate
+      ? formatDate(asset.expiryDate)
+      : formatDate(asset.dExpiryDate),
+    bActive: true,
+  };
+};
+
 const parseCoordinates = (value: string) => {
   const match = value
     .trim()
@@ -74,8 +391,21 @@ const coordinateText = (latitude: string, longitude: string) =>
 
 const roundCoordinate = (value: number) => value.toFixed(6);
 
-const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
+const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
   const suggestPayload = useMemo(() => getSessionPayload(), []);
+
+  const customerWiseAssetPayload = useMemo(
+    () => ({
+      ...getSessionPayload(),
+      nCustomerId: selectedRow?.id,
+      CustomerId: selectedRow?.id,
+      customerId: selectedRow?.id,
+      nCustId: selectedRow?.id,
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    [selectedRow?.id],
+  );
 
   const { data: assetSuggestData } = useGetAssetMasterSuggest(suggestPayload);
 
@@ -92,6 +422,16 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
   );
 
   const { data: brandData } = useGetCustomerBrandOptions(brandPayload);
+
+  const {
+    data: customerWiseAssetData,
+    isFetching: isFetchingCustomerWiseAssets,
+    refetch: refetchCustomerWiseAssets,
+  } = useGetCustomerWiseAssets(
+    customerWiseAssetPayload,
+    !!selectedRow?.id,
+  );
+  const [savingAssetToDb, setSavingAssetToDb] = useState(false);
 
   const assetSuggestList = useMemo(
     () => extractList(assetSuggestData),
@@ -133,9 +473,14 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
 
   const [showAssetForm, setShowAssetForm] = useState(false);
 
+  // -1 = adding new; >= 0 = editing existing at that index
+  const [editingIndex, setEditingIndex] = useState(-1);
+
   const [activeTab, setActiveTab] = useState("customer_details");
 
   const [assetList, setAssetList] = useState<any[]>([]);
+
+  const recentlySavedAssetsRef = useRef<any[]>([]);
 
   const [assetValues, setAssetValues] = useState<any>({
     name: "",
@@ -171,19 +516,92 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
   const watchedLongitude = Form.useWatch("cLongitude", form);
 
   useEffect(() => {
-    setAssetList(Array.isArray(watchedAssets) ? watchedAssets : []);
+    if (Array.isArray(watchedAssets)) {
+      const savedAssets = recentlySavedAssetsRef.current;
+
+      if (savedAssets.length) {
+        setAssetList(mergeAssetLists(savedAssets, watchedAssets));
+
+        return;
+      }
+
+      setAssetList(watchedAssets.map(normalizeAssetForDisplay));
+    }
   }, [watchedAssets]);
 
   useEffect(() => {
-    const coordinateQuery = coordinateText(watchedLatitude, watchedLongitude);
-    const nextQuery =
-      coordinateQuery || watchedLocation || defaultLocationQuery;
+    if (!selectedRow?.id) return;
+
+    recentlySavedAssetsRef.current = [];
+    form.setFieldValue("assets", []);
+    setAssetList([]);
+
+    const selectedRowAssets = extractAssetList(selectedRow?.raw ?? selectedRow);
+
+    if (!selectedRowAssets.length) return;
+
+    const nextAssets = selectedRowAssets.map(normalizeAssetForDisplay);
+
+    form.setFieldValue("assets", nextAssets);
+    setAssetList(nextAssets);
+  }, [form, selectedRow]);
+
+  useEffect(() => {
+    if (!selectedRow?.id) return;
+    if (customerWiseAssetData === undefined) return;
+
+    const fetchedAssets = extractAssetList(customerWiseAssetData);
+    const savedAssets = recentlySavedAssetsRef.current;
+
+    if (!fetchedAssets.length) {
+      const currentAssets = form.getFieldValue("assets");
+
+      if (Array.isArray(currentAssets) && currentAssets.length) {
+        const nextAssets = mergeAssetLists(currentAssets, savedAssets);
+
+        form.setFieldValue("assets", nextAssets);
+        setAssetList(nextAssets);
+
+        return;
+      }
+
+      if (!savedAssets.length) return;
+
+      const nextAssets = savedAssets.map(normalizeAssetForDisplay);
+
+      form.setFieldValue("assets", nextAssets);
+      setAssetList(nextAssets);
+
+      return;
+    }
+
+    const nextAssets = mergeAssetLists(fetchedAssets, savedAssets);
+
+    form.setFieldValue("assets", nextAssets);
+    setAssetList(nextAssets);
+  }, [customerWiseAssetData, form, selectedRow?.id]);
+
+  useEffect(() => {
+    // Filter out API placeholder values ("NIL", "0") that are not real user data
+    const cleanLocation =
+      watchedLocation && watchedLocation !== "NIL" ? watchedLocation : "";
+    const cleanLat =
+      watchedLatitude && watchedLatitude !== "NIL" && watchedLatitude !== "0"
+        ? watchedLatitude
+        : "";
+    const cleanLng =
+      watchedLongitude && watchedLongitude !== "NIL" && watchedLongitude !== "0"
+        ? watchedLongitude
+        : "";
+
+    const coordinateQuery = coordinateText(cleanLat, cleanLng);
+    const nextQuery = coordinateQuery || cleanLocation || defaultLocationQuery;
 
     setMapQuery(nextQuery);
-    setLocationQuery(watchedLocation || coordinateQuery);
+    setLocationQuery(cleanLocation || coordinateQuery);
     setSelectedCoordinates({
-      latitude: watchedLatitude || "",
-      longitude: watchedLongitude || "",
+      latitude: cleanLat,
+      longitude: cleanLng,
     });
   }, [watchedLatitude, watchedLocation, watchedLongitude]);
 
@@ -278,9 +696,137 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
       warranty: false,
       expiryDate: undefined,
     });
+    setEditingIndex(-1);
   };
 
-  const handleAssetSave = () => {
+  const getExistingAssetMaster = (asset: any) => {
+    const assetName = String(asset.name ?? asset.cAssetName ?? "")
+      .trim()
+      .toLowerCase();
+    const shortName = String(asset.shortName ?? asset.cAssetShName ?? "")
+      .trim()
+      .toLowerCase();
+
+    return assetSuggestList.find((item: any) => {
+      const itemName = String(item.cAssetName ?? item.name ?? "")
+        .trim()
+        .toLowerCase();
+      const itemShortName = String(item.cAssetShName ?? item.shortName ?? "")
+        .trim()
+        .toLowerCase();
+
+      return (
+        (!!assetName && itemName === assetName) ||
+        (!!shortName && itemShortName === shortName)
+      );
+    });
+  };
+
+  const ensureAssetMasterSaved = async (asset: any) => {
+    if (getAssetMasterId(asset)) return asset;
+
+    const existingAsset = getExistingAssetMaster(asset);
+    const existingAssetId = getAssetMasterId(existingAsset) || getAssetId(existingAsset);
+
+    if (existingAssetId) {
+      return {
+        ...asset,
+        ...existingAsset,
+        nAssetMasterId: existingAssetId,
+        AssetMasterId: existingAssetId,
+        assetMasterId: existingAssetId,
+        nAssetId: asset.nAssetId ?? 0,
+        name: asset.name,
+        shortName: asset.shortName,
+        department: asset.department,
+        brand: asset.brand,
+        serialNo: asset.serialNo,
+        description: asset.description,
+      };
+    }
+
+    const response = await assetMasterApis.assetMasterSave(
+      buildAssetMasterSavePayload(asset, brandList, departmentList),
+    );
+
+    if (!isApiSuccess(response)) {
+      throw new Error(getApiMessage(response, "Unable to save asset master"));
+    }
+
+    const savedAssetId = getSavedAssetId(response);
+
+    if (savedAssetId) {
+      return {
+        ...asset,
+        nAssetMasterId: savedAssetId,
+        AssetMasterId: savedAssetId,
+        assetMasterId: savedAssetId,
+        nAssetId: asset.nAssetId ?? 0,
+      };
+    }
+
+    const refreshedAssets = extractList(
+      await assetMasterApis.assetMasterSuggest(getSessionPayload()),
+    );
+    const savedAsset = findMatchingItem(
+      refreshedAssets,
+      asset.name ?? asset.cAssetName,
+      ["cAssetName", "cAssetMasterName", "name"],
+    );
+    const refreshedAssetId = getAssetId(savedAsset);
+
+    if (!refreshedAssetId) {
+      throw new Error("Asset saved, but asset id was not returned");
+    }
+
+    return {
+      ...asset,
+      ...savedAsset,
+      nAssetMasterId: refreshedAssetId,
+      AssetMasterId: refreshedAssetId,
+      assetMasterId: refreshedAssetId,
+      nAssetId: asset.nAssetId ?? 0,
+      name: asset.name,
+      shortName: asset.shortName,
+      department: asset.department,
+      brand: asset.brand,
+      serialNo: asset.serialNo,
+      description: asset.description,
+    };
+  };
+
+  const persistCustomerAssets = async (
+    nextAssets: any[],
+    successMessage: string,
+    shouldRefetch = true,
+  ) => {
+    if (!selectedRow?.id) {
+      message.success(`${successMessage}. Save customer to store asset in DB`);
+
+      return true;
+    }
+
+    const values = form.getFieldsValue(true);
+    const response = await customerApis.customerUpdateWithAssets(
+      buildCustomerUpdatePayload(values, nextAssets, selectedRow.id),
+    );
+
+    if (!isApiSuccess(response)) {
+      message.error(getApiMessage(response, "Unable to save asset"));
+
+      return false;
+    }
+
+    if (shouldRefetch) {
+      await refetchCustomerWiseAssets();
+    }
+
+    message.success(successMessage);
+
+    return true;
+  };
+
+  const handleAssetSave = async () => {
     const name = assetValues.name?.trim();
 
     if (!name) {
@@ -289,29 +835,82 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
       return;
     }
 
-    const nextAssets = [
-      ...assetList,
-      {
-        ...assetValues,
-        name,
-        shortName: assetValues.shortName?.trim() ?? "",
-        department: assetValues.department?.trim() ?? "",
-        brand: assetValues.brand?.trim() ?? "",
-        serialNo: assetValues.serialNo?.trim() ?? "",
-        description: assetValues.description?.trim() ?? "",
-      },
-    ];
+    const updatedAsset = {
+      ...assetValues,
+      name,
+      shortName: assetValues.shortName?.trim() ?? "",
+      department: assetValues.department?.trim() ?? "",
+      brand: assetValues.brand?.trim() ?? "",
+      serialNo: assetValues.serialNo?.trim() ?? "",
+      description: assetValues.description?.trim() ?? "",
+    };
 
-    form.setFieldsValue({
-      assets: nextAssets,
-    });
+    let savedAsset = updatedAsset;
 
+    try {
+      setSavingAssetToDb(true);
+      savedAsset = await ensureAssetMasterSaved(updatedAsset);
+    } catch (error) {
+      message.error(getApiMessage(error, "Unable to save asset"));
+      setSavingAssetToDb(false);
+
+      return;
+    }
+
+    let nextAssets: any[];
+
+    if (editingIndex >= 0) {
+      nextAssets = assetList.map((item, idx) =>
+        idx === editingIndex
+          ? normalizeAssetForDisplay({ ...item, ...savedAsset })
+          : item
+      );
+    } else {
+      nextAssets = [
+        ...assetList,
+        normalizeAssetForDisplay(savedAsset),
+      ];
+    }
+
+    form.setFieldsValue({ assets: nextAssets });
     setAssetList(nextAssets);
-
-    message.success("Asset added");
-
+    recentlySavedAssetsRef.current = nextAssets;
     resetAssetForm();
     setShowAssetForm(false);
+
+    try {
+      const saved = await persistCustomerAssets(
+        nextAssets,
+        editingIndex >= 0 ? "Asset updated" : "Asset saved",
+      );
+
+      if (!saved) return;
+    } catch (error) {
+      message.error(getApiMessage(error, "Unable to save asset"));
+
+      return;
+    } finally {
+      setSavingAssetToDb(false);
+    }
+
+  };
+
+  const handleAssetEdit = (index: number) => {
+    const asset = assetList[index];
+    setAssetValues({
+      ...asset,
+      name: asset.name || asset.cAssetName || "",
+      shortName: asset.shortName || asset.cAssetShName || "",
+      department: asset.department || asset.cDepartmentName || "",
+      brand: asset.brand || asset.cBrandName || "",
+      serialNo: asset.serialNo || asset.cSerialNo || "",
+      description: asset.description || asset.cAssetDescription || "",
+      amc: asset.amc ?? asset.bUnderAmc ?? asset.bAMC ?? false,
+      warranty: asset.warranty ?? asset.bUnderWarranty ?? asset.bWarranty ?? false,
+      expiryDate: asset.expiryDate || undefined,
+    });
+    setEditingIndex(index);
+    setShowAssetForm(true);
   };
 
   return (
@@ -324,6 +923,10 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
 
           if (key === "customer_assets") {
             setShowAssetForm(false);
+
+            if (selectedRow?.id) {
+              refetchCustomerWiseAssets();
+            }
           }
         }}
         items={[
@@ -439,10 +1042,28 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
                 {/* LOCATION */}
 
                 {(() => {
+                  const realLocation =
+                    watchedLocation && watchedLocation !== "NIL"
+                      ? watchedLocation
+                      : "";
+                  const realLat =
+                    watchedLatitude &&
+                    watchedLatitude !== "NIL" &&
+                    watchedLatitude !== "0"
+                      ? watchedLatitude
+                      : "";
+                  const realLng =
+                    watchedLongitude &&
+                    watchedLongitude !== "NIL" &&
+                    watchedLongitude !== "0"
+                      ? watchedLongitude
+                      : "";
                   const hasLocation = !!(
-                    watchedLocation ||
-                    (watchedLatitude && watchedLongitude)
+                    realLocation || (realLat && realLng)
                   );
+                  const displayText =
+                    realLocation ||
+                    (realLat && realLng ? `${realLat}, ${realLng}` : "");
                   return hasLocation ? (
                     <div className="space-y-2 mt-4">
                       <p className="text-xs font-semibold text-slate-700 mb-1">
@@ -467,8 +1088,7 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
                       </div>
                       <div className="bg-slate-50 p-2 rounded border border-slate-100">
                         <span className="text-xs text-slate-500 truncate block">
-                          {watchedLocation ||
-                            `${watchedLatitude}, ${watchedLongitude}`}
+                          {displayText}
                         </span>
                       </div>
                     </div>
@@ -497,14 +1117,69 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
 
             children: (
               <div className="asset-tab-content">
-                <Button
-                  htmlType="button"
-                  block
-                  className="asset-link-button h-9 border-blue-400 text-blue-500 rounded"
-                  onClick={() => setShowAssetForm(true)}
-                >
-                  + Link Asset
-                </Button>
+                {!assetList.length && !showAssetForm && (
+                  <Button
+                    htmlType="button"
+                    block
+                    className="asset-link-button h-9 border-blue-400 text-blue-500 rounded"
+                    onClick={() => {
+                      resetAssetForm();
+                      setShowAssetForm(true);
+                    }}
+                  >
+                    + Link Asset
+                  </Button>
+                )}
+
+                {isFetchingCustomerWiseAssets && !assetList.length ? (
+                  <div className="py-6 text-center text-sm text-slate-500">
+                    Loading assets...
+                  </div>
+                ) : assetList.length > 0 ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    {assetList.map((asset: any, index: number) => {
+                      const displayName =
+                        asset.name || asset.cAssetName || "";
+                      const displayDept =
+                        asset.department || asset.cDepartmentName || "-";
+                      const displayBrand =
+                        asset.brand || asset.cBrandName || "-";
+
+                      return (
+                        <button
+                          type="button"
+                          key={`asset-${index}`}
+                          className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-600 hover:border-blue-300"
+                          title="Click to edit asset"
+                          onClick={() => handleAssetEdit(index)}
+                        >
+                          <p className="mb-2 text-sm font-semibold text-slate-900">
+                            {displayName}
+                          </p>
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p>Department : {displayDept}</p>
+                            <p>Brand : {displayBrand}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {assetList.length > 0 && !showAssetForm && (
+                  <Button
+                    htmlType="button"
+                    block
+                    className="asset-link-button mt-2 h-9 border-blue-400 text-blue-500 rounded"
+                    onClick={() => {
+                      resetAssetForm();
+                      setShowAssetForm(true);
+                    }}
+                  >
+                    + Link Asset
+                  </Button>
+                )}
 
                 {/* ASSET FORM */}
 
@@ -514,13 +1189,16 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
 
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="m-0 text-lg font-medium leading-6 text-slate-900">
-                        Asset
+                        {editingIndex >= 0 ? "Edit Asset" : "Asset"}
                       </h2>
 
                       <button
                         type="button"
                         className="text-2xl leading-none text-black"
-                        onClick={() => setShowAssetForm(false)}
+                        onClick={() => {
+                          resetAssetForm();
+                          setShowAssetForm(false);
+                        }}
                       >
                         ✕
                       </button>
@@ -676,7 +1354,9 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
 
                       <Button
                         htmlType="button"
-                        className="mt-4 h-8 bg-black px-5 text-white border-black hover:!bg-black hover:!text-white"
+                        style={{ marginTop: 16, height: 32, background: '#000', color: '#fff', borderColor: '#000', paddingInline: 20 }}
+                        className="hover:!bg-black hover:!text-white hover:!border-black"
+                        loading={savingAssetToDb}
                         onClick={handleAssetSave}
                       >
                         Save
@@ -685,30 +1365,6 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
                   </div>
                 )}
 
-                {assetList.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    {assetList.map((asset: any, index: number) => (
-                      <div
-                        key={`asset-${index}`}
-                        className="rounded border border-slate-200 px-3 py-2 text-xs text-slate-600"
-                      >
-                        <p className="mb-1 text-sm font-medium text-slate-900">
-                          {asset.name}
-                        </p>
-
-                        <p>Srl No : {asset.serialNo || "-"}</p>
-
-                        <div className="mt-2 grid grid-cols-2 gap-3">
-                          <p>Department : {asset.department || "-"}</p>
-
-                          <p className="text-right h-[27px]">
-                            Brand : {asset.brand || "-"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             ),
           },
@@ -721,59 +1377,69 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
         onCancel={() => setLocationOpen(false)}
         onOk={handleLocationSave}
         okText="Save Location"
-        style={{ top: 0, padding: 0, maxWidth: "100vw" }}
-        styles={{ body: { height: "calc(100vh - 110px)", overflowY: "auto", display: "flex", flexDirection: "column" } }}
+        centered={false}
+        style={{ top: 0, margin: 0, padding: 0, maxWidth: "100vw" }}
+        styles={{
+          body: {
+            height: "calc(100vh - 108px)",
+            overflowY: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            padding: "12px 16px",
+          },
+          header: { padding: "12px 16px 8px", marginBottom: 0 },
+          footer: { padding: "8px 16px" },
+        }}
         width="100vw"
       >
-        <div className="space-y-3">
-          <Search
-            allowClear
-            value={locationQuery}
-            placeholder="Search location or enter latitude,longitude"
-            enterButton="Search"
-            onChange={(event) => setLocationQuery(event.target.value)}
-            onSearch={handleLocationSearch}
+        <Search
+          allowClear
+          value={locationQuery}
+          placeholder="Search location or enter latitude,longitude"
+          enterButton="Search"
+          onChange={(event) => setLocationQuery(event.target.value)}
+          onSearch={handleLocationSearch}
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            value={selectedCoordinates.latitude}
+            placeholder="Latitude"
+            onChange={(event) =>
+              setSelectedCoordinates((current) => ({
+                ...current,
+                latitude: event.target.value,
+              }))
+            }
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              value={selectedCoordinates.latitude}
-              placeholder="Latitude"
-              onChange={(event) =>
-                setSelectedCoordinates((current) => ({
-                  ...current,
-                  latitude: event.target.value,
-                }))
-              }
-            />
+          <Input
+            value={selectedCoordinates.longitude}
+            placeholder="Longitude"
+            onChange={(event) =>
+              setSelectedCoordinates((current) => ({
+                ...current,
+                longitude: event.target.value,
+              }))
+            }
+          />
+        </div>
 
-            <Input
-              value={selectedCoordinates.longitude}
-              placeholder="Longitude"
-              onChange={(event) =>
-                setSelectedCoordinates((current) => ({
-                  ...current,
-                  longitude: event.target.value,
-                }))
-              }
-            />
-          </div>
+        <div
+          className="relative overflow-hidden rounded border border-slate-200"
+          style={{ flex: 1, minHeight: 0 }}
+          onClick={handleMapPoint}
+        >
+          <iframe
+            title="Customer Location Map"
+            src={mapUrl}
+            style={{ width: "100%", height: "100%", border: 0, display: "block", pointerEvents: "none" }}
+            loading="lazy"
+          />
 
-          <div
-            className="relative flex-1 overflow-hidden rounded border border-slate-200"
-            style={{ minHeight: 0, height: "calc(100vh - 310px)" }}
-            onClick={handleMapPoint}
-          >
-            <iframe
-              title="Customer Location Map"
-              src={mapUrl}
-              className="pointer-events-none h-full w-full border-0"
-              loading="lazy"
-            />
-
-            <div className="pointer-events-none absolute inset-0 bg-transparent">
-              <div className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-full rounded-full border-2 border-red-500 bg-white shadow" />
-            </div>
+          <div className="pointer-events-none absolute inset-0 bg-transparent">
+            <div className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-full rounded-full border-2 border-red-500 bg-white shadow" />
           </div>
         </div>
       </Modal>
@@ -782,6 +1448,8 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
       <Form.Item name="customerCode" hidden>
         <Input />
       </Form.Item>
+
+      <Form.List name="assets">{() => null}</Form.List>
 
       <Form.Item name="cLocation" hidden>
         <Input />
