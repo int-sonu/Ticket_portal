@@ -6,6 +6,10 @@ import SimpleMasterList from "../Common/SimpleMasterList";
 import type {
   SimpleMasterRow,
 } from "../Common/SimpleMasterUtils";
+import {
+  getSessionPayload,
+} from "../Common/SimpleMasterUtils";
+import { customerApis } from "../../../Axios/MasterApis";
 
 import CustomerDrawer from "./CustomerDrawer";
 
@@ -26,10 +30,20 @@ const mapCustomerRow = (
 ): SimpleMasterRow => ({
   id:
     item?.nCustomerId ??
+    item?.nCustomerID ??
+    item?.CustomerId ??
+    item?.customerId ??
+    item?.nCustId ??
+    item?.nCustID ??
     index + 1,
 
   key:
     item?.nCustomerId ??
+    item?.nCustomerID ??
+    item?.CustomerId ??
+    item?.customerId ??
+    item?.nCustId ??
+    item?.nCustID ??
     index + 1,
 
   srl:
@@ -59,48 +73,221 @@ const mapCustomerRow = (
   raw: item,
 });
 
+const parseAssetArray = (candidate: any): any[] | null => {
+  if (Array.isArray(candidate)) return candidate;
+
+  if (typeof candidate === "string" && candidate.trim()) {
+    try {
+      const parsed = JSON.parse(candidate);
+      return Array.isArray(parsed) ? parsed : findFirstArrayDeep(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
+const getFirstArrayByKeys = (raw: any, keys: string[]) => {
+  const containers = [
+    raw,
+    raw?.data,
+    raw?.data?.data,
+    raw?.data?.message,
+    raw?.message,
+    raw?.result,
+  ];
+
+  for (const container of containers) {
+    for (const key of keys) {
+      const parsed = parseAssetArray(container?.[key]);
+      if (parsed?.length) return parsed;
+    }
+  }
+
+  return [];
+};
+
+const customerAssetKeys = [
+  "customerAssetList",
+  "CustomerAssetList",
+  "customerAssets",
+  "CustomerAssets",
+  "customerAssetDetails",
+  "CustomerAssetDetails",
+  "lstCustomerAsset",
+  "lstCustomerAssets",
+  "customerAsset",
+  "CustomerAsset",
+];
+
+const isAssetLike = (item: any) =>
+  item &&
+  typeof item === "object" &&
+  [
+    "name",
+    "assetName",
+    "AssetName",
+    "Name",
+    "cName",
+    "cAsset",
+    "Asset",
+    "cAssetName",
+    "cAssetMasterName",
+    "nAssetId",
+    "nAssetMasterId",
+    "cAssetShName",
+    "cSerialNo",
+  ].some((key) => item?.[key] !== undefined && item?.[key] !== null);
+
+const findAssetArrayDeep = (
+  value: any,
+  visited = new Set<any>()
+): any[] => {
+  if (!value || typeof value !== "object" || visited.has(value)) return [];
+
+  visited.add(value);
+
+  if (Array.isArray(value)) {
+    return value.some(isAssetLike) ? value : [];
+  }
+
+  const preferredKeys = [
+    "assets",
+    "Assets",
+    "assetList",
+    "AssetList",
+    "customerAssetList",
+    "CustomerAssetList",
+    "customerAssets",
+    "CustomerAssets",
+    "assetDetails",
+    "AssetDetails",
+    "customerAssetDetails",
+    "CustomerAssetDetails",
+    "lstAsset",
+    "lstAssets",
+    "lstCustomerAsset",
+    "lstCustomerAssets",
+    "customerAsset",
+    "CustomerAsset",
+  ];
+
+  for (const key of preferredKeys) {
+    const parsed = parseAssetArray(value?.[key]);
+    if (parsed?.some(isAssetLike)) return parsed;
+  }
+
+  for (const nested of Object.values(value)) {
+    const assets = findAssetArrayDeep(nested, visited);
+    if (assets.length) return assets;
+  }
+
+  return [];
+};
+
+const findFirstArrayDeep = (
+  value: any,
+  visited = new Set<any>()
+): any[] => {
+  if (!value || typeof value !== "object" || visited.has(value)) return [];
+
+  visited.add(value);
+
+  if (Array.isArray(value)) return value;
+
+  for (const nested of Object.values(value)) {
+    const items = findFirstArrayDeep(nested, visited);
+    if (items.length) return items;
+  }
+
+  return [];
+};
+
 const getCustomerAssets = (raw: any) => {
   const assetCandidates = [
     raw?.assets,
     raw?.Assets,
     raw?.assetList,
     raw?.AssetList,
+    raw?.customerAssetList,
+    raw?.CustomerAssetList,
     raw?.customerAssets,
     raw?.CustomerAssets,
+    raw?.assetDetails,
+    raw?.AssetDetails,
+    raw?.customerAssetDetails,
+    raw?.CustomerAssetDetails,
     raw?.lstAsset,
     raw?.lstAssets,
+    raw?.lstCustomerAsset,
+    raw?.lstCustomerAssets,
+    raw?.data?.assets,
+    raw?.data?.AssetList,
+    raw?.data?.assetList,
+    raw?.data?.message?.assets,
+    raw?.data?.message?.AssetList,
+    raw?.data?.message?.assetList,
+    raw?.message?.assets,
+    raw?.message?.AssetList,
+    raw?.message?.assetList,
+    raw?.result?.assets,
+    raw?.result?.AssetList,
+    raw?.result?.assetList,
   ];
 
-  const assets = assetCandidates.find(Array.isArray) ?? [];
+  const assets =
+    assetCandidates.map(parseAssetArray).find((items) => items?.length) ??
+    findAssetArrayDeep(raw);
 
   return assets.map((asset: any) => ({
     ...asset,
     name:
       asset?.name ??
+      asset?.assetName ??
+      asset?.AssetName ??
+      asset?.Name ??
+      asset?.cName ??
+      asset?.cAsset ??
+      asset?.Asset ??
       asset?.cAssetName ??
       asset?.cAssetMasterName ??
-      asset?.AssetName ??
       "",
     shortName:
       asset?.shortName ??
+      asset?.shName ??
+      asset?.short_name ??
+      asset?.ShortName ??
+      asset?.cShortName ??
+      asset?.cShName ??
       asset?.cAssetShName ??
       asset?.cAssetMasterShName ??
       asset?.AssetShortName ??
       "",
     department:
       asset?.department ??
+      asset?.departmentName ??
+      asset?.Department ??
       asset?.cDepartmentName ??
       asset?.cDepartment ??
       asset?.DepartmentName ??
       "",
     brand:
       asset?.brand ??
+      asset?.brandName ??
+      asset?.Brand ??
       asset?.cBrandName ??
       asset?.cBrand ??
       asset?.BrandName ??
       "",
     serialNo:
       asset?.serialNo ??
+      asset?.serialNumber ??
+      asset?.srlNo ??
+      asset?.SrlNo ??
+      asset?.SrlNo ??
+      asset?.SrNo ??
+      asset?.SerialNumber ??
       asset?.cSerialNo ??
       asset?.cSerialNumber ??
       asset?.SerialNo ??
@@ -128,6 +315,138 @@ const getCustomerAssets = (raw: any) => {
           ? dayjs(asset.dExpiryDate)
           : undefined,
   }));
+};
+
+const getCustomerWiseAssets = (raw: any) => {
+  const assets = getCustomerAssets(raw);
+
+  if (assets.length) return assets;
+
+  return getCustomerAssets({
+    AssetList: findFirstArrayDeep(raw),
+  });
+};
+
+const getCustomerViewRecord = (response: any) => {
+  const candidates = [
+    response?.data?.data,
+    response?.data?.message,
+    response?.data,
+    response?.message,
+    response?.result,
+    response?.customer,
+    response?.Customer,
+    response,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate[0];
+    if (Array.isArray(candidate?.data)) return candidate.data[0];
+    if (Array.isArray(candidate?.result)) return candidate.result[0];
+    if (candidate && typeof candidate === "object") return candidate;
+  }
+
+  return null;
+};
+
+const isSameId = (left: any, right: any) =>
+  String(left ?? "").trim() === String(right ?? "").trim();
+
+const getAssetCustomerId = (asset: any) =>
+  asset?.nCustomerId ??
+  asset?.CustomerId ??
+  asset?.customerId ??
+  asset?.nCustId ??
+  asset?.nClientId ??
+  asset?.CustomerID ??
+  asset?.nCustID;
+
+const getAssetId = (asset: any) =>
+  asset?.id ??
+  asset?.assetId ??
+  asset?.AssetId ??
+  asset?.AssetID ??
+  asset?.nAssetId ??
+  asset?.nAssetID ??
+  asset?.nAssetMasterId ??
+  asset?.nAssetMasterID;
+
+const hasAssetDisplayName = (asset: any) =>
+  [
+    asset?.name,
+    asset?.assetName,
+    asset?.AssetName,
+    asset?.cAssetName,
+    asset?.cAssetMasterName,
+  ].some((value) => value !== undefined && value !== null && String(value).trim());
+
+const assetHasCustomerId = (asset: any) =>
+  getAssetCustomerId(asset) !== undefined &&
+  getAssetCustomerId(asset) !== null;
+
+const filterAssetsForCustomer = (assets: any[] = [], row: SimpleMasterRow) => {
+  const assetsWithCustomerId = assets.filter(assetHasCustomerId);
+
+  return assetsWithCustomerId.filter((asset) =>
+    isSameId(getAssetCustomerId(asset), row.id)
+  );
+};
+
+const filterAssetsByCustomerAssetLinks = (
+  assets: any[] = [],
+  links: any[] = []
+) => {
+  const linkedAssetIds = new Set(
+    links
+      .map(getAssetId)
+      .filter((id) => id !== undefined && id !== null)
+      .map((id) => String(id).trim())
+  );
+
+  if (!linkedAssetIds.size) return [];
+
+  return assets.filter((asset) =>
+    linkedAssetIds.has(String(getAssetId(asset) ?? "").trim())
+  );
+};
+
+const getCustomerAssetPayload = (row: SimpleMasterRow) => ({
+  ...getSessionPayload(),
+  nCustomerId: row.id,
+  CustomerId: row.id,
+  customerId: row.id,
+  nCustId: row.id,
+  cCustomerName: row.name,
+  pageNumber: 1,
+  pageSize: 1000,
+});
+
+const getAssetsForCustomerRecord = (
+  assetSource: any,
+  row: SimpleMasterRow
+) => {
+  const customerAssets = getCustomerAssets({
+    AssetList: getFirstArrayByKeys(assetSource, customerAssetKeys),
+  });
+  const matchingCustomerAssets = filterAssetsForCustomer(customerAssets, row);
+
+  if (matchingCustomerAssets.some(hasAssetDisplayName)) {
+    return matchingCustomerAssets;
+  }
+  if (
+    customerAssets.length &&
+    customerAssets.some(hasAssetDisplayName) &&
+    !customerAssets.some(assetHasCustomerId)
+  ) {
+    return customerAssets;
+  }
+
+  const assets = getCustomerAssets(assetSource);
+  const matchingAssets = filterAssetsForCustomer(assets, row);
+
+  if (matchingAssets.length) return matchingAssets;
+
+  return filterAssetsByCustomerAssetLinks(assets, customerAssets);
 };
 
 const buildCustomerFormValues = (row?: SimpleMasterRow | null) => ({
@@ -176,7 +495,7 @@ const buildCustomerFormValues = (row?: SimpleMasterRow | null) => ({
       : null,
 
   assets:
-    getCustomerAssets(row?.raw),
+    row ? getAssetsForCustomerRecord(row.raw, row) : [],
 
   cLocation:
     row?.raw?.cLocation ??
@@ -207,9 +526,18 @@ const requiredText = (
   return text || fallback;
 };
 
-const buildCustomerAssetsPayload = (assets: any[] = []) =>
+const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
   assets.map((asset) => ({
     ...asset,
+    nCustomerId:
+      asset?.nCustomerId ??
+      customerId,
+    CustomerId:
+      asset?.CustomerId ??
+      customerId,
+    customerId:
+      asset?.customerId ??
+      customerId,
     cAssetName:
       asset?.name ??
       asset?.cAssetName ??
@@ -342,8 +670,8 @@ const buildCustomerPayload = (
       ? dayjs(values.expiryDate).format("DD/MM/YYYY")
       : null,
 
-  assets:
-    buildCustomerAssetsPayload(values.assets ?? []),
+  AssetList:
+    buildCustomerAssetsPayload(values.assets ?? [], selectedRow?.id),
 
   bActive:
     values.active ?? true,
@@ -409,6 +737,9 @@ const Customer = () => {
       idKey:
         "nCustomerId",
 
+      listPageSize:
+        10,
+
       useListQuery:
         useGetCustomers,
 
@@ -436,12 +767,62 @@ const Customer = () => {
       buildFormValues:
         buildCustomerFormValues,
 
+      loadRowDetails:
+        async (row: SimpleMasterRow) => {
+          const detailPayload = getCustomerAssetPayload(row);
+          const [response, assetResponse] = await Promise.all([
+            customerApis.customerView(detailPayload),
+            customerApis.customerWiseAssetList(detailPayload),
+          ]);
+
+          const customerWiseAssets = getCustomerWiseAssets(assetResponse);
+
+          const responseAssets = filterAssetsForCustomer(
+            getCustomerAssets(response),
+            row
+          );
+
+          const detailRecord = getCustomerViewRecord(response);
+
+          if (!detailRecord) {
+            return mapCustomerRow(
+              {
+                ...row.raw,
+                AssetList: customerWiseAssets.length
+                  ? customerWiseAssets
+                  : responseAssets,
+              },
+              Math.max((row.srl ?? 1) - 1, 0)
+            );
+          }
+
+          const detailAssets = getAssetsForCustomerRecord(detailRecord, row);
+          const assetList = customerWiseAssets.length
+            ? customerWiseAssets
+            : detailAssets.length
+              ? detailAssets
+              : responseAssets.length
+                ? responseAssets
+                : [];
+
+          return mapCustomerRow(
+            {
+              ...row.raw,
+              ...detailRecord,
+              AssetList: assetList,
+            },
+            Math.max((row.srl ?? 1) - 1, 0)
+          );
+        },
+
 
 
       // CUSTOM DRAWER
 
       renderExtraFields:
-        ({ form }: any) => <CustomerDrawer form={form} />, 
+        ({ form, selectedRow }: any) => (
+          <CustomerDrawer form={form} selectedRow={selectedRow} />
+        ), 
 
 
 

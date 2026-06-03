@@ -12,7 +12,6 @@ import {
 
 import type { FormInstance } from "antd";
 
-import { DeleteOutlined } from "@ant-design/icons";
 
 import { useMemo, useEffect, useState } from "react";
 
@@ -446,34 +445,25 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
                   );
                   return hasLocation ? (
                     <div className="space-y-2 mt-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs font-semibold text-slate-700">
-                          Location Saved
-                        </p>
-                        <Button
-                          type="primary"
-                          danger
-                          size="small"
-                          icon={<DeleteOutlined />}
-                          onClick={() => {
-                            form.setFieldsValue({
-                              cLocation: "",
-                              cLattitude: "",
-                              cLatitude: "",
-                              cLongitude: "",
-                            });
-                            message.success("Location cleared");
-                          }}
-                          className="flex items-center justify-center"
-                        />
-                      </div>
-                      <div className="relative h-[200px] overflow-hidden rounded border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-700 mb-1">
+                        Location Saved
+                      </p>
+                      <div
+                        className="relative h-[200px] overflow-hidden rounded border border-slate-200 cursor-pointer group"
+                        onClick={() => setLocationOpen(true)}
+                        title="Click to edit location"
+                      >
                         <iframe
                           title="Customer Saved Location Map"
                           src={mapUrl}
                           className="pointer-events-none h-full w-full border-0"
                           loading="lazy"
                         />
+                        <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-slate-700 text-xs font-medium px-3 py-1 rounded shadow">
+                            Click to edit location
+                          </span>
+                        </div>
                       </div>
                       <div className="bg-slate-50 p-2 rounded border border-slate-100">
                         <span className="text-xs text-slate-500 truncate block">
@@ -731,7 +721,9 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
         onCancel={() => setLocationOpen(false)}
         onOk={handleLocationSave}
         okText="Save Location"
-        width={620}
+        style={{ top: 0, padding: 0, maxWidth: "100vw" }}
+        styles={{ body: { height: "calc(100vh - 110px)", overflowY: "auto", display: "flex", flexDirection: "column" } }}
+        width="100vw"
       >
         <div className="space-y-3">
           <Search
@@ -768,7 +760,8 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
           </div>
 
           <div
-            className="relative h-[300px] overflow-hidden rounded border border-slate-200"
+            className="relative flex-1 overflow-hidden rounded border border-slate-200"
+            style={{ minHeight: 0, height: "calc(100vh - 310px)" }}
             onClick={handleMapPoint}
           >
             <iframe
@@ -784,6 +777,7 @@ const CustomerDrawer = ({ form }: CustomerDrawerProps) => {
           </div>
         </div>
       </Modal>
+
 
       <Form.Item name="customerCode" hidden>
         <Input />
