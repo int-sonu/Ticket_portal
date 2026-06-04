@@ -102,6 +102,60 @@ const extractAssetList = (response: any) => {
   );
 };
 
+const optionalText = (value: any) => {
+  const text = String(value ?? "").trim();
+
+  return text || null;
+};
+
+const formatApiDate = (value: any) =>
+  value?.format?.("YYYY-MM-DD") ?? value ?? null;
+
+const hasAssetName = (asset: any) =>
+  Boolean(String(asset?.name ?? asset?.cAssetName ?? "").trim());
+
+const getCustomerModalAssets = (assets: any[] = [], draft: any) => {
+  const currentAssets = Array.isArray(assets) ? assets : [];
+
+  if (!hasAssetName(draft)) return currentAssets;
+
+  const editingIndex = Number(draft.editingIndex);
+  const draftAsset = {
+    ...draft,
+    name: String(draft.name ?? draft.cAssetName ?? "").trim(),
+    shortName: String(draft.shortName ?? draft.cAssetShName ?? "").trim(),
+    department: String(draft.department ?? draft.cDepartmentName ?? "").trim(),
+    brand: String(draft.brand ?? draft.cBrandName ?? "").trim(),
+    serialNo: String(draft.serialNo ?? draft.cSerialNo ?? "").trim(),
+    description: String(draft.description ?? draft.cAssetDescription ?? "").trim(),
+  };
+
+  delete draftAsset.editingIndex;
+
+  if (Number.isInteger(editingIndex) && editingIndex >= 0) {
+    return currentAssets.map((asset, index) =>
+      index === editingIndex ? { ...asset, ...draftAsset } : asset,
+    );
+  }
+
+  return [...currentAssets, draftAsset];
+};
+
+const buildCustomerModalAssetPayload = (assets: any[] = []) =>
+  assets.map((asset) => ({
+    cAssetName: asset?.name ?? asset?.cAssetName ?? "",
+    cAssetShName: asset?.shortName ?? asset?.cAssetShName ?? "",
+    cAssetDescription: asset?.description ?? asset?.cAssetDescription ?? "",
+    nBrandId: asset?.nBrandId ?? asset?.brandId ?? asset?.BrandId,
+    nDepartmentId:
+      asset?.nDepartmentId ?? asset?.departmentId ?? asset?.DepartmentId,
+    cSerialNo: optionalText(asset?.serialNo ?? asset?.cSerialNo),
+    bUnderAmc: asset?.amc ?? asset?.bUnderAmc ?? asset?.bAMC ?? false,
+    bUnderWarranty:
+      asset?.warranty ?? asset?.bUnderWarranty ?? asset?.bWarranty ?? false,
+    dExpiryDate: formatApiDate(asset?.expiryDate ?? asset?.dExpiryDate),
+  }));
+
 const TicketForm = ({
   initialValues,
   isEdit = false,
@@ -432,26 +486,48 @@ const TicketForm = ({
   };
 
   const saveCustomerMaster = async () => {
-    const values =
-      await customerForm.validateFields();
+    await customerForm.validateFields();
+
+    const values = customerForm.getFieldsValue(true);
+    const assetDraft =
+      (customerForm as any).__getCustomerAssetDraft?.() ??
+      customerForm.getFieldValue("assetDraft");
+    const assets = getCustomerModalAssets(values.assets ?? [], assetDraft);
+    const assetPayload = buildCustomerModalAssetPayload(assets);
 
     saveCustomer(
       {
         ...sessionPayload,
-        cCustomerName: values.customerName,
+        cCustomerName: values.customerName ?? values.name,
+        cCustomerShName: values.shortName,
         cShortName: values.shortName,
+        cCustomerCode: values.shortName,
         cContactPerson:
-          values.contactPersonName,
+          values.contactPersonName ?? values.contactPerson,
+        cMobile: values.mobile,
         cMobileNo: values.mobile,
+        cPhoneNo: values.mobile,
+        CPhoneNo: values.mobile,
         cEmail: values.email,
-        cGSTNo: values.gstNumber,
+        cGSTNo: values.gstNumber ?? values.gstNo,
+        cGstnNummber: values.gstNumber ?? values.gstNo,
         cAddress: values.address,
         bAMC: values.amc,
+        bUnderAmc: values.amc,
         bWarranty: values.warranty,
+        bUnderWarranty: values.warranty,
         dExpiryDate:
           values.expiryDate?.format?.(
-            "DD/MM/YYYY"
+            "YYYY-MM-DD"
           ) ?? values.expiryDate,
+        AssetList: assetPayload,
+        assetList: assetPayload,
+        CustomerAssetList: assetPayload,
+        customerAssetList: assetPayload,
+        lstAsset: assetPayload,
+        lstAssets: assetPayload,
+        lstCustomerAsset: assetPayload,
+        lstCustomerAssets: assetPayload,
         bActive: values.active ?? true,
       } as any,
       {

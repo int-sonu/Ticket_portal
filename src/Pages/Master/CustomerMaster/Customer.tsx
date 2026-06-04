@@ -381,13 +381,47 @@ const getAssetMasterId = (asset: any) =>
   0;
 
 const getCustomerAssetId = (asset: any) =>
-  asset?.nAssetId ??
-  asset?.nAssetID ??
+  asset?.nCustomerAssetId ??
   asset?.CustomerAssetId ??
   asset?.CustomerAssetID ??
   asset?.customerAssetId ??
-  asset?.nCustomerAssetId ??
+  asset?.nAssetCustMasterId ??
+  asset?.nAssetCustomerId ??
+  asset?.nAssetId ??
   0;
+
+const getAssetPayloadKey = (asset: any) => {
+  const id = getCustomerAssetId(asset) || getAssetMasterId(asset) || getAssetId(asset);
+
+  if (id) return `id:${id}`;
+
+  return [
+    asset?.name,
+    asset?.cAssetName,
+    asset?.shortName,
+    asset?.cAssetShName,
+    asset?.serialNo,
+    asset?.cSerialNo,
+  ]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .filter(Boolean)
+    .join("|");
+};
+
+const uniqueAssetsForPayload = (assets: any[] = []) => {
+  const seen = new Set<string>();
+
+  return assets.filter((asset) => {
+    const key = getAssetPayloadKey(asset);
+
+    if (!key) return true;
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+
+    return true;
+  });
+};
 
 const hasAssetDisplayName = (asset: any) =>
   [
@@ -572,13 +606,14 @@ const toApiDate = (value: any) => {
 };
 
 const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
-  assets.map((asset) => {
+  uniqueAssetsForPayload(assets).map((asset) => {
     const session = getSessionPayload();
-    const assetId = getCustomerAssetId(asset);
+    const customerAssetId = getCustomerAssetId(asset);
     const assetMasterId =
       getAssetMasterId(asset) ||
       asset?.AssetId ||
       asset?.assetId ||
+      asset?.nAssetId ||
       0;
     const assetName =
       asset?.name ??
@@ -606,10 +641,10 @@ const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
       assetMasterId,
       AssetId: assetMasterId,
       assetId: assetMasterId,
-      nAssetId: assetId,
-      nCustomerAssetId: assetId,
-      CustomerAssetId: assetId,
-      customerAssetId: assetId,
+      nAssetId: customerAssetId,
+      nCustomerAssetId: customerAssetId,
+      CustomerAssetId: customerAssetId,
+      customerAssetId: customerAssetId,
       nCustomerId: asset?.nCustomerId || customerId,
       CustomerId: asset?.CustomerId || customerId,
       customerId: asset?.customerId || customerId,
@@ -643,6 +678,50 @@ const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
     };
   });
 
+const hasAssetDraftName = (asset: any) =>
+  Boolean(String(asset?.name ?? asset?.cAssetName ?? "").trim());
+
+const getAssetsWithDraft = (assets: any[] = [], draft: any) => {
+  const currentAssets = Array.isArray(assets) ? assets : [];
+
+  if (!hasAssetDraftName(draft)) return currentAssets;
+
+  const editingIndex = Number(draft.editingIndex);
+  const draftAsset = {
+    ...draft,
+    name: String(draft.name ?? draft.cAssetName ?? "").trim(),
+    shortName: String(draft.shortName ?? draft.cAssetShName ?? "").trim(),
+    department: String(draft.department ?? draft.cDepartmentName ?? "").trim(),
+    brand: String(draft.brand ?? draft.cBrandName ?? "").trim(),
+    serialNo: String(draft.serialNo ?? draft.cSerialNo ?? "").trim(),
+    description: String(
+      draft.description ?? draft.cAssetDescription ?? "",
+    ).trim(),
+  };
+
+  delete draftAsset.editingIndex;
+
+  if (Number.isInteger(editingIndex) && editingIndex >= 0) {
+    return currentAssets.map((asset, index) =>
+      index === editingIndex ? { ...asset, ...draftAsset } : asset,
+    );
+  }
+
+  return [...currentAssets, draftAsset];
+};
+
+const getPayloadAssets = (values: any) =>
+  [
+    values?.assets,
+    values?.assetList,
+    values?.AssetList,
+    values?.customerAssetList,
+    values?.CustomerAssetList,
+    values?.lstAsset,
+    values?.lstAssets,
+    values?.lstCustomerAsset,
+    values?.lstCustomerAssets,
+  ].find(Array.isArray) ?? [];
 
 
 
@@ -652,8 +731,9 @@ const buildCustomerPayload = (
   values: any,
   selectedRow: SimpleMasterRow | null
 ) => {
+  const assets = getAssetsWithDraft(getPayloadAssets(values), values.assetDraft);
   const assetPayload = buildCustomerAssetsPayload(
-    values.assets ?? [],
+    assets,
     selectedRow?.id ?? 0
   );
 
@@ -742,21 +822,11 @@ const buildCustomerPayload = (
         : null,
 
     AssetList:
-      assetPayload,
-    assetList:
-      assetPayload,
-    CustomerAssetList:
-      assetPayload,
-    customerAssetList:
-      assetPayload,
-    lstAsset:
-      assetPayload,
-    lstAssets:
-      assetPayload,
-    lstCustomerAsset:
-      assetPayload,
-    lstCustomerAssets:
-      assetPayload,
+      selectedRow ? [] : assetPayload,
+
+    ...(selectedRow
+      ? { CustomerAssetList: assetPayload }
+      : {}),
 
     bActive:
       values.active ?? true,
@@ -826,6 +896,9 @@ const Customer = () => {
       listPageSize:
         10,
 
+      useLocalRows:
+        false,
+
       useListQuery:
         useGetCustomers,
 
@@ -874,9 +947,10 @@ const Customer = () => {
             return mapCustomerRow(
               {
                 ...row.raw,
-                AssetList: customerWiseAssets.length
-                  ? customerWiseAssets
-                  : responseAssets,
+                AssetList: customerWiseAssets,
+                assetList: customerWiseAssets,
+                CustomerAssetList: customerWiseAssets,
+                customerAssetList: customerWiseAssets,
               },
               Math.max((row.srl ?? 1) - 1, 0)
             );
@@ -896,6 +970,9 @@ const Customer = () => {
               ...row.raw,
               ...detailRecord,
               AssetList: assetList,
+              assetList,
+              CustomerAssetList: assetList,
+              customerAssetList: assetList,
             },
             Math.max((row.srl ?? 1) - 1, 0)
           );

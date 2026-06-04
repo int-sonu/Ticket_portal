@@ -160,6 +160,8 @@ type SimpleMasterListProps = {
 
   validateShortName?: boolean;
 
+  useLocalRows?: boolean;
+
   disableEdit?: (
     row: any
   ) => boolean;
@@ -226,6 +228,8 @@ const SimpleMasterList = ({
   useNeutralMessages = false,
 
   validateShortName = hasShortName,
+
+  useLocalRows = true,
 
   disableEdit,
 
@@ -341,6 +345,13 @@ const SimpleMasterList = ({
 
   const allRows = useMemo(
     () => {
+      if (!useLocalRows) {
+        return fetchedRows.map((row, index) => ({
+          ...row,
+          srl: index + 1,
+        }));
+      }
+
       const localRowsById = new Map(
         localRows.map((row) => [
           String(row.id),
@@ -386,6 +397,7 @@ const SimpleMasterList = ({
       deletedRowIds,
       fetchedRows,
       localRows,
+      useLocalRows,
     ]
   );
 
@@ -466,6 +478,12 @@ const SimpleMasterList = ({
       response,
       savedSelectedRow
     ) => {
+      if (!useLocalRows) {
+        setLocalRows([]);
+
+        return;
+      }
+
       const responseData =
         response?.data ??
         response?.result ??
@@ -539,8 +557,38 @@ const SimpleMasterList = ({
     },
   });
 
-  const handleSave = (values: any) => {
-    const trimmedValues = trimFormValues(values);
+  const handleSave = async (values: any) => {
+    let preparedAssetValues: any;
+
+    try {
+      preparedAssetValues = await (form as any).__prepareCustomerAssetsForSave?.();
+    } catch {
+      return;
+    }
+
+    const allFormValues = form.getFieldsValue(true);
+    const assetDraft =
+      preparedAssetValues &&
+      Object.prototype.hasOwnProperty.call(preparedAssetValues, "assetDraft")
+        ? preparedAssetValues.assetDraft
+        : (form as any).__getCustomerAssetDraft?.() ??
+          form.getFieldValue("assetDraft");
+    const preparedAssets =
+      preparedAssetValues?.assets ?? form.getFieldValue("assets");
+    const trimmedValues = trimFormValues({
+      ...allFormValues,
+      ...values,
+      assets: preparedAssets,
+      AssetList: preparedAssets,
+      assetList: preparedAssets,
+      CustomerAssetList: preparedAssets,
+      customerAssetList: preparedAssets,
+      lstAsset: preparedAssets,
+      lstAssets: preparedAssets,
+      lstCustomerAsset: preparedAssets,
+      lstCustomerAssets: preparedAssets,
+      assetDraft,
+    });
 
     const duplicateName = allRows.find((row) =>
       normalizeCompareText(row.id) !== normalizeCompareText(selectedRow?.id) &&

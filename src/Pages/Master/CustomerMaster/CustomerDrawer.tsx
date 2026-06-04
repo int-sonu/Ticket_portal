@@ -17,7 +17,7 @@ import { useMemo, useEffect, useRef, useState } from "react";
 
 import type { MouseEvent } from "react";
 
-import { assetMasterApis, customerApis } from "../../../Axios/MasterApis";
+import { assetMasterApis } from "../../../Axios/MasterApis";
 
 import {
   extractList,
@@ -135,36 +135,10 @@ const mergeAssetLists = (primaryAssets: any[] = [], fallbackAssets: any[] = []) 
   return merged;
 };
 
-const requiredText = (value: any, fallback = "NIL") => {
-  const text = String(value ?? "").trim();
-
-  return text || fallback;
-};
-
 const optionalText = (value: any) => {
   const text = String(value ?? "").trim();
 
   return text || null;
-};
-
-const normalizeSerialNo = (value: any) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase();
-
-const hasDuplicateSerialNo = (assets: any[]) => {
-  const serialNos = new Set<string>();
-
-  for (const asset of assets) {
-    const serialNo = normalizeSerialNo(asset?.serialNo ?? asset?.cSerialNo);
-
-    if (!serialNo) continue;
-    if (serialNos.has(serialNo)) return true;
-
-    serialNos.add(serialNo);
-  }
-
-  return false;
 };
 
 const formatDate = (value: any) =>
@@ -198,14 +172,6 @@ const getAssetMasterId = (asset: any) =>
   asset?.assetMasterId ??
   asset?.nMasterAssetId ??
   asset?.AssetMasterID ??
-  0;
-
-const getCustomerAssetId = (asset: any) =>
-  asset?.nAssetId ??
-  asset?.CustomerAssetId ??
-  asset?.customerAssetId ??
-  asset?.nCustomerAssetId ??
-  asset?.CustomerAssetID ??
   0;
 
 const getResponseDataObjects = (response: any): any[] =>
@@ -243,117 +209,6 @@ const findMatchingItem = (
       (key) => String(item?.[key] ?? "").trim().toLowerCase() === lookup,
     ),
   );
-};
-
-const buildAssetPayload = (assets: any[] = [], customerId?: any) =>
-  assets.map((asset) => {
-    const assetMasterId =
-      getAssetMasterId(asset) ||
-      asset?.AssetId ||
-      asset?.assetId ||
-      0;
-    const customerAssetId = getCustomerAssetId(asset);
-
-    return {
-      ...asset,
-      ...getSessionPayload(),
-      nAssetMasterId: assetMasterId,
-      AssetMasterId: assetMasterId,
-      assetMasterId,
-      AssetId: assetMasterId,
-      assetId: assetMasterId,
-      nAssetId: customerAssetId,
-      nCustomerAssetId: customerAssetId,
-      CustomerAssetId: customerAssetId,
-      customerAssetId,
-      nCustomerId: asset?.nCustomerId || customerId,
-      CustomerId: asset?.CustomerId || customerId,
-      customerId: asset?.customerId || customerId,
-      cAssetName:
-        asset?.name ??
-        asset?.cAssetName ??
-        asset?.cAssetMasterName ??
-        "",
-      cAssetShName:
-        asset?.shortName ??
-        asset?.cAssetShName ??
-        asset?.cAssetMasterShName ??
-        "",
-      cShortName:
-        asset?.shortName ??
-        asset?.cAssetShName ??
-        asset?.cAssetMasterShName ??
-        "",
-      cDepartmentName:
-        asset?.department ??
-        asset?.cDepartmentName ??
-        "",
-      cBrandName:
-        asset?.brand ??
-        asset?.cBrandName ??
-        "",
-      cSerialNo: optionalText(asset?.serialNo ?? asset?.cSerialNo),
-      cAssetDescription:
-        asset?.description ??
-        asset?.cAssetDescription ??
-        "",
-      cDescription:
-        asset?.description ??
-        asset?.cAssetDescription ??
-        "",
-      bAMC: asset?.amc ?? asset?.bAMC ?? false,
-      bUnderAmc: asset?.amc ?? asset?.bUnderAmc ?? false,
-      bWarranty: asset?.warranty ?? asset?.bWarranty ?? false,
-      bUnderWarranty: asset?.warranty ?? asset?.bUnderWarranty ?? false,
-      dExpiryDate:
-        asset?.expiryDate
-          ? formatDate(asset.expiryDate)
-          : formatDate(asset?.dExpiryDate),
-    };
-  });
-
-const buildCustomerUpdatePayload = (
-  values: any,
-  assets: any[],
-  customerId: any,
-) => {
-  const assetPayload = buildAssetPayload(assets, customerId);
-
-  return {
-    ...getSessionPayload(),
-    nCustomerId: customerId,
-    CustomerId: customerId,
-    customerId: customerId,
-    cCustomerName: values.name,
-    cCustomerShName: values.shortName,
-    cCustomerCode: values.shortName,
-    cContactPerson: values.contactPerson,
-    cMobile: requiredText(values.mobile),
-    cPhoneNo: requiredText(values.mobile),
-    CPhoneNo: requiredText(values.mobile),
-    cEmail: values.email,
-    cGSTNo: requiredText(values.gstNo),
-    cGstnNummber: requiredText(values.gstNo),
-    cAddress: requiredText(values.address),
-    cLocation: requiredText(values.cLocation ?? values.address),
-    cLattitude: requiredText(values.cLattitude, "0"),
-    cLatitude: requiredText(values.cLattitude, "0"),
-    cLongitude: requiredText(values.cLongitude, "0"),
-    bAMC: values.amc ?? false,
-    bUnderAmc: values.amc ?? false,
-    bWarranty: values.warranty ?? false,
-    bUnderWarranty: values.warranty ?? false,
-    dExpiryDate: formatDate(values.expiryDate),
-    AssetList: assetPayload,
-    assetList: assetPayload,
-    CustomerAssetList: assetPayload,
-    customerAssetList: assetPayload,
-    lstAsset: assetPayload,
-    lstAssets: assetPayload,
-    lstCustomerAsset: assetPayload,
-    lstCustomerAssets: assetPayload,
-    bActive: values.active ?? true,
-  };
 };
 
 const buildAssetMasterSavePayload = (
@@ -415,7 +270,15 @@ const coordinateText = (latitude: string, longitude: string) =>
 const roundCoordinate = (value: number) => value.toFixed(6);
 
 const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
-  const suggestPayload = useMemo(() => getSessionPayload(), []);
+  const [assetSearch, setAssetSearch] = useState("");
+
+  const suggestPayload = useMemo(
+    () => ({
+      ...getSessionPayload(),
+      cSearch: assetSearch,
+    }),
+    [assetSearch],
+  );
 
   const customerWiseAssetPayload = useMemo(
     () => ({
@@ -538,6 +401,94 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
 
   const watchedLongitude = Form.useWatch("cLongitude", form);
 
+  const syncAssetDraft = (
+    nextAssetValues: any,
+    nextEditingIndex = editingIndex,
+  ) => {
+    const name = String(nextAssetValues.name ?? "").trim();
+
+    if (!name) {
+      form.setFieldsValue({ assetDraft: undefined });
+
+      return;
+    }
+
+    const department = findMatchingItem(
+      departmentList,
+      nextAssetValues.department,
+      ["cDepartmentName", "DepartmentName", "departmentName", "name"],
+    );
+    const brand = findMatchingItem(brandList, nextAssetValues.brand, [
+      "cBrandName",
+      "BrandName",
+      "brandName",
+      "name",
+    ]);
+
+    form.setFieldsValue({
+      assetDraft: {
+      ...nextAssetValues,
+      name,
+      shortName: nextAssetValues.shortName?.trim() ?? "",
+      department: nextAssetValues.department?.trim() ?? "",
+      brand: nextAssetValues.brand?.trim() ?? "",
+      serialNo: nextAssetValues.serialNo?.trim() ?? "",
+      description: nextAssetValues.description?.trim() ?? "",
+      nDepartmentId:
+        nextAssetValues.nDepartmentId ??
+        department?.nDepartmentId ??
+        department?.id,
+      nBrandId: nextAssetValues.nBrandId ?? brand?.nBrandId ?? brand?.id,
+      editingIndex: nextEditingIndex,
+      },
+    });
+  };
+
+  const getCurrentAssetDraft = () => {
+    const name = String(assetValues.name ?? "").trim();
+
+    if (!name) return form.getFieldValue("assetDraft");
+
+    const department = findMatchingItem(departmentList, assetValues.department, [
+      "cDepartmentName",
+      "DepartmentName",
+      "departmentName",
+      "name",
+    ]);
+    const brand = findMatchingItem(brandList, assetValues.brand, [
+      "cBrandName",
+      "BrandName",
+      "brandName",
+      "name",
+    ]);
+
+    return {
+      ...assetValues,
+      name,
+      shortName: assetValues.shortName?.trim() ?? "",
+      department: assetValues.department?.trim() ?? "",
+      brand: assetValues.brand?.trim() ?? "",
+      serialNo: assetValues.serialNo?.trim() ?? "",
+      description: assetValues.description?.trim() ?? "",
+      nDepartmentId:
+        assetValues.nDepartmentId ?? department?.nDepartmentId ?? department?.id,
+      nBrandId: assetValues.nBrandId ?? brand?.nBrandId ?? brand?.id,
+      editingIndex,
+    };
+  };
+
+  useEffect(() => {
+    (form as any).__getCustomerAssetDraft = getCurrentAssetDraft;
+
+    return () => {
+      delete (form as any).__getCustomerAssetDraft;
+    };
+  }, [assetValues, brandList, departmentList, editingIndex, form]);
+
+  useEffect(() => {
+    syncAssetDraft(assetValues);
+  }, [assetValues, brandList, departmentList, editingIndex]);
+
   useEffect(() => {
     if (Array.isArray(watchedAssets)) {
       const savedAssets = recentlySavedAssetsRef.current;
@@ -556,7 +507,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     if (!selectedRow?.id) return;
 
     recentlySavedAssetsRef.current = [];
-    form.setFieldValue("assets", []);
+    form.setFieldsValue({
+      assets: [],
+      assetList: [],
+      AssetList: [],
+      CustomerAssetList: [],
+      customerAssetList: [],
+    });
     setAssetList([]);
 
     const selectedRowAssets = extractAssetList(selectedRow?.raw ?? selectedRow);
@@ -565,7 +522,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
 
     const nextAssets = selectedRowAssets.map(normalizeAssetForDisplay);
 
-    form.setFieldValue("assets", nextAssets);
+    form.setFieldsValue({
+      assets: nextAssets,
+      assetList: nextAssets,
+      AssetList: nextAssets,
+      CustomerAssetList: nextAssets,
+      customerAssetList: nextAssets,
+    });
     setAssetList(nextAssets);
   }, [form, selectedRow]);
 
@@ -582,7 +545,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       if (Array.isArray(currentAssets) && currentAssets.length) {
         const nextAssets = mergeAssetLists(currentAssets, savedAssets);
 
-        form.setFieldValue("assets", nextAssets);
+        form.setFieldsValue({
+          assets: nextAssets,
+          assetList: nextAssets,
+          AssetList: nextAssets,
+          CustomerAssetList: nextAssets,
+          customerAssetList: nextAssets,
+        });
         setAssetList(nextAssets);
 
         return;
@@ -592,7 +561,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
 
       const nextAssets = savedAssets.map(normalizeAssetForDisplay);
 
-      form.setFieldValue("assets", nextAssets);
+      form.setFieldsValue({
+        assets: nextAssets,
+        assetList: nextAssets,
+        AssetList: nextAssets,
+        CustomerAssetList: nextAssets,
+        customerAssetList: nextAssets,
+      });
       setAssetList(nextAssets);
 
       return;
@@ -600,7 +575,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
 
     const nextAssets = mergeAssetLists(fetchedAssets, savedAssets);
 
-    form.setFieldValue("assets", nextAssets);
+    form.setFieldsValue({
+      assets: nextAssets,
+      assetList: nextAssets,
+      AssetList: nextAssets,
+      CustomerAssetList: nextAssets,
+      customerAssetList: nextAssets,
+    });
     setAssetList(nextAssets);
   }, [customerWiseAssetData, form, selectedRow?.id]);
 
@@ -701,13 +682,26 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
   }, [activeTab]);
 
   const handleAssetValueChange = (key: string, value: any) => {
-    setAssetValues((current: any) => ({
-      ...current,
-      [key]: value,
-    }));
+    if (key === "name") {
+      setAssetSearch(String(value ?? ""));
+    }
+
+    setAssetValues((current: any) => {
+      const nextValues = {
+        ...current,
+        [key]: value,
+      };
+
+      syncAssetDraft(nextValues);
+
+      return nextValues;
+    });
   };
 
   const resetAssetForm = () => {
+    setAssetSearch("");
+    form.setFieldsValue({ assetDraft: undefined });
+
     setAssetValues({
       name: "",
       shortName: "",
@@ -789,7 +783,10 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     }
 
     const refreshedAssets = extractList(
-      await assetMasterApis.assetMasterSuggest(getSessionPayload()),
+      await assetMasterApis.assetMasterSuggest({
+        ...getSessionPayload(),
+        cSearch: asset.name ?? asset.cAssetName ?? "",
+      }),
     );
     const savedAsset = findMatchingItem(
       refreshedAssets,
@@ -818,47 +815,86 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     };
   };
 
-  const persistCustomerAssets = async (
-    nextAssets: any[],
-    successMessage: string,
-    shouldRefetch = true,
-  ) => {
-    if (!selectedRow?.id) {
-      message.success(`${successMessage}. Save customer to store asset in DB`);
+  const getAssetsWithCurrentDraft = () => {
+    const currentAssets = Array.isArray(form.getFieldValue("assets"))
+      ? form.getFieldValue("assets")
+      : assetList;
+    const draft = getCurrentAssetDraft();
+    const draftName = String(draft?.name ?? draft?.cAssetName ?? "").trim();
 
-      return true;
-    }
+    if (!draftName) return currentAssets;
 
-    const values = form.getFieldsValue(true);
-    const response = await customerApis.customerUpdateWithAssets(
-      buildCustomerUpdatePayload(values, nextAssets, selectedRow.id),
-    );
+    const editingAssetIndex = Number(draft.editingIndex);
+    const draftAsset = {
+      ...draft,
+      name: draftName,
+      shortName: String(draft.shortName ?? draft.cAssetShName ?? "").trim(),
+      department: String(draft.department ?? draft.cDepartmentName ?? "").trim(),
+      brand: String(draft.brand ?? draft.cBrandName ?? "").trim(),
+      serialNo: String(draft.serialNo ?? draft.cSerialNo ?? "").trim(),
+      description: String(
+        draft.description ?? draft.cAssetDescription ?? "",
+      ).trim(),
+    };
 
-    if (!isApiSuccess(response)) {
-      message.error(getApiMessage(response, "Unable to save asset"));
+    delete draftAsset.editingIndex;
 
-      return false;
-    }
-
-    if (shouldRefetch) {
-      const refetchResult = await refetchCustomerWiseAssets();
-      const dbAssets = extractAssetList(refetchResult.data).map(
-        normalizeAssetForDisplay,
+    if (Number.isInteger(editingAssetIndex) && editingAssetIndex >= 0) {
+      return currentAssets.map((asset: any, index: number) =>
+        index === editingAssetIndex ? { ...asset, ...draftAsset } : asset,
       );
-
-      if (dbAssets.length) {
-        recentlySavedAssetsRef.current = [];
-        form.setFieldValue("assets", dbAssets);
-        setAssetList(dbAssets);
-      }
     }
 
-    message.success(successMessage);
-
-    return true;
+    return [...currentAssets, draftAsset];
   };
 
-  const handleAssetSave = async () => {
+  const prepareCustomerAssetsForSave = async () => {
+    const nextAssets = getAssetsWithCurrentDraft();
+
+    if (!nextAssets.length) {
+      return {
+        assets: [],
+        assetDraft: undefined,
+      };
+    }
+
+    setSavingAssetToDb(true);
+
+    try {
+      const savedAssets = await Promise.all(
+        nextAssets.map((asset: any) => ensureAssetMasterSaved(asset)),
+      );
+      const normalizedAssets = savedAssets.map(normalizeAssetForDisplay);
+
+      form.setFieldsValue({
+        assets: normalizedAssets,
+        assetList: normalizedAssets,
+        AssetList: normalizedAssets,
+        CustomerAssetList: normalizedAssets,
+        customerAssetList: normalizedAssets,
+        assetDraft: undefined,
+      });
+      setAssetList(normalizedAssets);
+      recentlySavedAssetsRef.current = normalizedAssets;
+
+      return {
+        assets: normalizedAssets,
+        assetDraft: undefined,
+      };
+    } finally {
+      setSavingAssetToDb(false);
+    }
+  };
+
+  useEffect(() => {
+    (form as any).__prepareCustomerAssetsForSave = prepareCustomerAssetsForSave;
+
+    return () => {
+      delete (form as any).__prepareCustomerAssetsForSave;
+    };
+  }, [assetList, assetValues, brandList, departmentList, editingIndex, form]);
+
+  const handleAssetSave = () => {
     const name = assetValues.name?.trim();
 
     if (!name) {
@@ -877,81 +913,42 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       description: assetValues.description?.trim() ?? "",
     };
 
-    const serialNo = normalizeSerialNo(updatedAsset.serialNo);
-    const serialExists = serialNo
-      ? assetList.some(
-          (asset, index) =>
-            index !== editingIndex &&
-            normalizeSerialNo(asset?.serialNo ?? asset?.cSerialNo) === serialNo,
-        )
-      : false;
-
-    if (serialExists) {
-      message.error("Serial No already exists for another asset");
-
-      return;
-    }
-
-    let savedAsset = updatedAsset;
-
-    try {
-      setSavingAssetToDb(true);
-      savedAsset = await ensureAssetMasterSaved(updatedAsset);
-    } catch (error) {
-      message.error(getApiMessage(error, "Unable to save asset"));
-      setSavingAssetToDb(false);
-
-      return;
-    }
-
     let nextAssets: any[];
 
     if (editingIndex >= 0) {
       nextAssets = assetList.map((item, idx) =>
         idx === editingIndex
-          ? normalizeAssetForDisplay({ ...item, ...savedAsset })
+          ? normalizeAssetForDisplay({ ...item, ...updatedAsset })
           : item
       );
     } else {
       nextAssets = [
         ...assetList,
-        normalizeAssetForDisplay(savedAsset),
+        normalizeAssetForDisplay(updatedAsset),
       ];
     }
 
-    if (hasDuplicateSerialNo(nextAssets)) {
-      message.error("Serial No already exists for another asset");
-      setSavingAssetToDb(false);
-
-      return;
-    }
-
-    form.setFieldsValue({ assets: nextAssets });
+    form.setFieldsValue({
+      assets: nextAssets,
+      assetList: nextAssets,
+      AssetList: nextAssets,
+      CustomerAssetList: nextAssets,
+      customerAssetList: nextAssets,
+    });
     setAssetList(nextAssets);
     recentlySavedAssetsRef.current = nextAssets;
     resetAssetForm();
     setShowAssetForm(false);
-
-    try {
-      const saved = await persistCustomerAssets(
-        nextAssets,
-        editingIndex >= 0 ? "Asset updated" : "Asset saved",
-      );
-
-      if (!saved) return;
-    } catch (error) {
-      message.error(getApiMessage(error, "Unable to save asset"));
-
-      return;
-    } finally {
-      setSavingAssetToDb(false);
-    }
-
+    message.success(
+      editingIndex >= 0
+        ? "Asset updated. Click Save to update customer"
+        : "Asset added. Click Save to store customer asset"
+    );
   };
 
   const handleAssetEdit = (index: number) => {
     const asset = assetList[index];
-    setAssetValues({
+    const nextAssetValues = {
       ...asset,
       name: asset.name || asset.cAssetName || "",
       shortName: asset.shortName || asset.cAssetShName || "",
@@ -962,7 +959,11 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       amc: asset.amc ?? asset.bUnderAmc ?? asset.bAMC ?? false,
       warranty: asset.warranty ?? asset.bUnderWarranty ?? asset.bWarranty ?? false,
       expiryDate: asset.expiryDate || undefined,
-    });
+    };
+
+    setAssetSearch(asset.name || asset.cAssetName || "");
+    syncAssetDraft(nextAssetValues, index);
+    setAssetValues(nextAssetValues);
     setEditingIndex(index);
     setShowAssetForm(true);
   };
@@ -1369,13 +1370,19 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                         <Checkbox
                           checked={assetValues.amc}
                           onChange={(event) =>
-                            setAssetValues((current: any) => ({
-                              ...current,
-                              amc: event.target.checked,
-                              warranty: event.target.checked
-                                ? false
-                                : current.warranty,
-                            }))
+                            setAssetValues((current: any) => {
+                              const nextValues = {
+                                ...current,
+                                amc: event.target.checked,
+                                warranty: event.target.checked
+                                  ? false
+                                  : current.warranty,
+                              };
+
+                              syncAssetDraft(nextValues);
+
+                              return nextValues;
+                            })
                           }
                         >
                           AMC
@@ -1384,11 +1391,17 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                         <Checkbox
                           checked={assetValues.warranty}
                           onChange={(event) =>
-                            setAssetValues((current: any) => ({
-                              ...current,
-                              warranty: event.target.checked,
-                              amc: event.target.checked ? false : current.amc,
-                            }))
+                            setAssetValues((current: any) => {
+                              const nextValues = {
+                                ...current,
+                                warranty: event.target.checked,
+                                amc: event.target.checked ? false : current.amc,
+                              };
+
+                              syncAssetDraft(nextValues);
+
+                              return nextValues;
+                            })
                           }
                         >
                           Warranty
@@ -1504,6 +1517,54 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       </Form.Item>
 
       <Form.List name="assets">{() => null}</Form.List>
+
+      <Form.Item name={["assetDraft", "name"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "shortName"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "department"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "brand"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "serialNo"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "description"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "amc"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "warranty"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "expiryDate"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "nDepartmentId"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "nBrandId"]} hidden>
+        <Input />
+      </Form.Item>
+
+      <Form.Item name={["assetDraft", "editingIndex"]} hidden>
+        <Input />
+      </Form.Item>
 
       <Form.Item name="cLocation" hidden>
         <Input />
