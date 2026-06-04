@@ -200,10 +200,19 @@ const writePartTaxCache = (
     cache[key] = taxes;
   });
 
-  localStorage.setItem(
-    PART_TAX_CACHE_KEY,
-    JSON.stringify(cache)
-  );
+  try {
+    localStorage.setItem(
+      PART_TAX_CACHE_KEY,
+      JSON.stringify(cache)
+    );
+  } catch (error) {
+    console.warn("Failed to write part tax cache:", error);
+    try {
+      localStorage.removeItem(PART_TAX_CACHE_KEY);
+    } catch {
+      // Ignore
+    }
+  }
 };
 
 const writePartImageCache = (
@@ -222,10 +231,23 @@ const writePartImageCache = (
     cache[key] = image;
   });
 
-  localStorage.setItem(
-    PART_IMAGE_CACHE_KEY,
-    JSON.stringify(cache)
-  );
+  try {
+    localStorage.setItem(
+      PART_IMAGE_CACHE_KEY,
+      JSON.stringify(cache)
+    );
+  } catch (error) {
+    console.warn("Failed to write part image cache (quota exceeded):", error);
+    try {
+      localStorage.removeItem(PART_IMAGE_CACHE_KEY);
+      localStorage.setItem(
+        PART_IMAGE_CACHE_KEY,
+        JSON.stringify({ [keys[0]]: image })
+      );
+    } catch {
+      // Ignore
+    }
+  }
 };
 
 const normalizePartTaxes = (

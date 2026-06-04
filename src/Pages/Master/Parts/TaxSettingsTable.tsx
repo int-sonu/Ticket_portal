@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useState,
 } from "react";
 
 import {
@@ -32,12 +33,12 @@ const getColumnStyle = (viewMode: boolean) => ({
   display: "grid",
 
   gridTemplateColumns: viewMode
-    ? "32px minmax(128px, 1fr) 90px 112px"
-    : "32px minmax(128px, 1fr) 90px 112px 52px 40px",
+    ? "36px minmax(0, 1fr) 92px 112px"
+    : "36px minmax(0, 1fr) 84px 102px 42px 42px",
 
   alignItems: "center",
 
-  gap: "4px",
+  gap: "8px",
 });
 
 const getTaxId = (
@@ -72,6 +73,7 @@ interface TaxSettingsTableProps {
 
 const TaxSettingsTable = ({ viewMode = false }: TaxSettingsTableProps) => {
   const form = Form.useFormInstance();
+  const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
   const payload = useMemo(
     () => ({
       ...getSessionPayload(),
@@ -118,6 +120,17 @@ const TaxSettingsTable = ({ viewMode = false }: TaxSettingsTableProps) => {
     [data]
   );
 
+  const getTaxOptionsForField = (fieldKey: number) => {
+    const term = String(searchTerms[fieldKey] ?? "").trim().toLowerCase();
+
+    if (!term) return taxOptions;
+
+    return taxOptions.filter((option) =>
+      String(option.label).toLowerCase().includes(term) ||
+      String(option.taxName).toLowerCase().includes(term)
+    );
+  };
+
   useEffect(() => {
     if (!taxOptions.length) return;
 
@@ -156,15 +169,27 @@ const TaxSettingsTable = ({ viewMode = false }: TaxSettingsTableProps) => {
             matchedTax.taxName,
           taxRate:
             tax?.taxRate ??
-            matchedTax.taxRate,
+          matchedTax.taxRate,
         };
       }
     );
 
-    form.setFieldValue(
-      "taxes",
-      nextTaxes
-    );
+    const hasChanges = nextTaxes.some((tax, index) => {
+      const currentTax = currentTaxes[index] ?? {};
+
+      return (
+        String(currentTax?.nTaxId ?? "") !== String(tax?.nTaxId ?? "") ||
+        String(currentTax?.taxName ?? "") !== String(tax?.taxName ?? "") ||
+        String(currentTax?.taxRate ?? "") !== String(tax?.taxRate ?? "")
+      );
+    });
+
+    if (hasChanges) {
+      form.setFieldValue(
+        "taxes",
+        nextTaxes
+      );
+    }
   }, [form, taxOptions]);
 
   if (isLoading) {
@@ -190,52 +215,79 @@ const TaxSettingsTable = ({ viewMode = false }: TaxSettingsTableProps) => {
           remove,
         }
       ) => (
-        <div>
-          <div
-            style={getColumnStyle(viewMode)}
-            className="border-b border-slate-300 pb-3 mb-4 text-sm font-medium text-slate-700"
-          >
-            <div>Srl</div>
+        <div className="w-full">
+            <div
+              style={getColumnStyle(viewMode)}
+              className="border-b border-slate-300 pb-3 mb-4 text-xs font-medium text-slate-700"
+            >
+              <div className="border-r border-slate-200 pr-2">Srl</div>
 
-            <div>Tax Name</div>
+              <div className="border-r border-slate-200 pr-2">Tax Name</div>
 
-            <div>Tax Rate</div>
+              <div className="border-r border-slate-200 pr-2 text-center">Tax Rate</div>
 
-            <div>Apply After Disc</div>
+              <div className="border-r border-slate-200 pr-2 text-center">Apply After Disc</div>
 
-            {!viewMode && <div>Delete</div>}
+              {!viewMode && <div className="border-r border-slate-200 pr-2 text-center">Del</div>}
 
-            {!viewMode && <div></div>}
-          </div>
+              {!viewMode && <div className="text-center">Add</div>}
+            </div>
 
-          {fields.map(
-            (
-              field,
-              index
-            ) => (
-              <div
-                key={field.key}
-                style={getColumnStyle(viewMode)}
-                className="mb-4"
-              >
-                <div>
-                  {index + 1}
-                </div>
+            {fields.map((field, index) => {
+              const { key, ...fieldProps } = field as any;
 
-                <Form.Item
-                  {...field}
-                  name={[
-                    field.name,
-                    "nTaxId",
-                  ]}
-                  className="mb-0"
+              return (
+                <div
+                  key={key}
+                  style={getColumnStyle(viewMode)}
+                  className="mb-3"
                 >
+                  <div className="text-xs text-slate-600">{index + 1}</div>
+
+                  <Form.Item
+                    {...fieldProps}
+                    name={[
+                      field.name,
+                      "nTaxId",
+                    ]}
+                    className="mb-0 min-w-0"
+                  >
                   <Select
-                    className="w-full"
-                    popupMatchSelectWidth={180}
-                    showSearch
+                    className="w-full min-w-0"
+                    placement="bottomLeft"
+                    popupMatchSelectWidth={false}
+                    dropdownMatchSelectWidth={false}
+                    showSearch={false}
                     optionFilterProp="label"
-                    options={taxOptions}
+                    dropdownStyle={{ minWidth: 240, maxHeight: 280 }}
+                    getPopupContainer={(trigger) => trigger.parentElement ?? document.body}
+                    dropdownRender={(menu) => (
+                      <div
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                      >
+                        <div className="px-2 pt-2">
+                          <Input.Search
+                            allowClear
+                            size="small"
+                            placeholder="Search"
+                            value={searchTerms[field.key] ?? ""}
+                            onChange={(event) =>
+                              setSearchTerms((current) => ({
+                                ...current,
+                                [field.key]: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="max-h-56 overflow-y-auto py-2">
+                          {menu}
+                        </div>
+                      </div>
+                    )}
+                    options={getTaxOptionsForField(field.key)}
                     disabled={viewMode}
                     onChange={(
                       value,
@@ -273,95 +325,98 @@ const TaxSettingsTable = ({ viewMode = false }: TaxSettingsTableProps) => {
                         ],
                         value
                       );
+                      setSearchTerms((current) => ({
+                        ...current,
+                        [field.key]: "",
+                      }));
                     }}
                   />
-                </Form.Item>
+                  </Form.Item>
 
-                <Form.Item
-                  {...field}
-                  name={[
-                    field.name,
-                    "taxName",
-                  ]}
-                  hidden
-                >
-                  <Input />
-                </Form.Item>
+                  <Form.Item
+                    {...fieldProps}
+                    name={[
+                      field.name,
+                      "taxName",
+                    ]}
+                    hidden
+                  >
+                    <Input />
+                  </Form.Item>
 
-                <Form.Item
-                  {...field}
-                  name={[
-                    field.name,
-                    "taxRate",
-                  ]}
-                  className="mb-0"
-                >
-                  <Input
-                    className="w-full"
-                    min={0}
-                    disabled={viewMode}
-                  />
-                </Form.Item>
+                  <Form.Item
+                    {...fieldProps}
+                    name={[
+                      field.name,
+                      "taxRate",
+                    ]}
+                    className="mb-0"
+                  >
+                    <Input
+                      className="w-full min-w-0"
+                      min={0}
+                      disabled={viewMode}
+                    />
+                  </Form.Item>
 
-                <Form.Item
-                  {...field}
-                  name={[
-                    field.name,
-                    "applyAfterDisc",
-                  ]}
-                  valuePropName="checked"
-                  className="mb-0"
-                >
-                  <Checkbox disabled={viewMode} />
-                </Form.Item>
+                  <Form.Item
+                    {...fieldProps}
+                    name={[
+                      field.name,
+                      "applyAfterDisc",
+                    ]}
+                    valuePropName="checked"
+                    className=" flex items-center justify-center mt-[-80%]"
+                  >
+                    <Checkbox disabled={viewMode} />
+                  </Form.Item>
 
-                {!viewMode && (
-                  <Button
-                    type="text"
-                    danger
-                    className="mb-0 mt-[-10px] mr-122px"
-                    icon={
-                      <DeleteOutlined />
-                    }
-                    onClick={() =>
-                      remove(
-                        field.name
-                      )
-                    }
-                  />
-                )}
+                  {!viewMode && (
+                    <div className="flex items-center justify-center mt-[-80%]">
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => remove(field.name)}
+                      />
+                    </div>
+                  )}
 
-                {!viewMode && (
-                  <Button
-                    type="primary"
-                    className="mb-0 mt-[-10px] mr-122px"
-                    icon={
-                      <PlusOutlined />
-                    }
-                    onClick={() =>
-                      add({
-                        taxRate: 0,
-                        applyAfterDisc: false,
-                      })
-                    }
-                  />
-                )}
-              </div>
-            )
-          )}
+                  {!viewMode && (
+                    <div className="flex items-center justify-center mt-[-80%]">
+                      <Button
+                        type="primary"
+                        size="small"
+                        shape="circle"
+                        icon={<PlusOutlined />}
+                        onClick={() =>
+                          add({
+                            taxRate: 0,
+                            applyAfterDisc: false,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
           {fields.length === 0 && !viewMode && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              disabled={!taxOptions.length}
-              onClick={() =>
-                add({
-                  taxRate: 0,
-                  applyAfterDisc: false,
-                })
-              }
-            />
+            <div className="mt-2 flex justify-start">
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusOutlined />}
+                disabled={!taxOptions.length}
+                onClick={() =>
+                  add({
+                    taxRate: 0,
+                    applyAfterDisc: false,
+                  })
+                }
+              />
+            </div>
           )}
 
           {!taxOptions.length && (

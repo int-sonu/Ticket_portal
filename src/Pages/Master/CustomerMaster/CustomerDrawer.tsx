@@ -12,6 +12,8 @@ import {
 
 import type { FormInstance } from "antd";
 
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+
 
 import { useMemo, useEffect, useRef, useState } from "react";
 
@@ -40,6 +42,7 @@ const defaultLocationQuery = "10.8505,76.2711";
 type CustomerDrawerProps = {
   form: FormInstance;
   selectedRow?: any;
+  viewMode?: boolean;
 };
 
 const getFirstValue = (item: any, keys: string[]) => {
@@ -64,6 +67,7 @@ const toUniqueOptions = (items: any[], keys: string[]) => {
 
   return Array.from(values).map((value) => ({
     value,
+    label: value,
   }));
 };
 
@@ -88,12 +92,30 @@ const extractAssetList = (response: any) => {
 
 const normalizeAssetForDisplay = (asset: any) => ({
   ...asset,
-  name: asset?.cAssetName ?? asset?.name ?? "",
-  shortName: asset?.cAssetShName ?? asset?.shortName ?? "",
-  department: asset?.cDepartmentName ?? asset?.department ?? "",
-  brand: asset?.cBrandName ?? asset?.brand ?? "",
-  serialNo: asset?.cSerialNo ?? asset?.serialNo ?? "",
-  description: asset?.cAssetDescription ?? asset?.description ?? "",
+  name: asset?.name ?? asset?.cAssetName ?? "",
+  shortName: asset?.shortName ?? asset?.cAssetShName ?? "",
+  department:
+    asset?.department ??
+    asset?.departmentLabel ??
+    asset?.cDepartmentName ??
+    "",
+  departmentLabel:
+    asset?.departmentLabel ??
+    asset?.cDepartmentName ??
+    asset?.department ??
+    "",
+  brand:
+    asset?.brand ??
+    asset?.brandLabel ??
+    asset?.cBrandName ??
+    "",
+  brandLabel:
+    asset?.brandLabel ??
+    asset?.cBrandName ??
+    asset?.brand ??
+    "",
+  serialNo: asset?.serialNo ?? asset?.cSerialNo ?? "",
+  description: asset?.description ?? asset?.cAssetDescription ?? "",
 });
 
 const getAssetCompareKey = (asset: any) => {
@@ -269,7 +291,7 @@ const coordinateText = (latitude: string, longitude: string) =>
 
 const roundCoordinate = (value: number) => value.toFixed(6);
 
-const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
+const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerProps) => {
   const [assetSearch, setAssetSearch] = useState("");
 
   const suggestPayload = useMemo(
@@ -351,6 +373,56 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     [brandList, assetSuggestList],
   );
 
+  const resolveDepartmentLabel = (asset: any) => {
+    const direct = String(
+      asset?.department ??
+        asset?.departmentLabel ??
+        asset?.cDepartmentName ??
+        asset?.DepartmentName ??
+        asset?.departmentName ??
+        "",
+    ).trim();
+
+    if (direct) return direct;
+
+    const byId = findMatchingItem(
+      departmentList,
+      asset?.nDepartmentId ?? asset?.DepartmentId ?? asset?.departmentId,
+      ["nDepartmentId", "DepartmentId", "departmentId", "id"],
+    );
+
+    return String(
+      byId?.cDepartmentName ??
+        byId?.DepartmentName ??
+        byId?.departmentName ??
+        byId?.name ??
+        "",
+    ).trim();
+  };
+
+  const resolveBrandLabel = (asset: any) => {
+    const direct = String(
+      asset?.brand ??
+        asset?.brandLabel ??
+        asset?.cBrandName ??
+        asset?.BrandName ??
+        asset?.brandName ??
+        "",
+    ).trim();
+
+    if (direct) return direct;
+
+    const byId = findMatchingItem(
+      brandList,
+      asset?.nBrandId ?? asset?.BrandId ?? asset?.brandId,
+      ["nBrandId", "BrandId", "brandId", "id"],
+    );
+
+    return String(
+      byId?.cBrandName ?? byId?.BrandName ?? byId?.brandName ?? byId?.name ?? "",
+    ).trim();
+  };
+
   // LOCATION SECTION
 
   const [locationOpen, setLocationOpen] = useState(false);
@@ -358,6 +430,9 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
   // ASSET FORM SHOW
 
   const [showAssetForm, setShowAssetForm] = useState(false);
+
+  // true = asset form fields are read-only, showing edit/delete buttons
+  const [assetViewMode, setAssetViewMode] = useState(false);
 
   // -1 = adding new; >= 0 = editing existing at that index
   const [editingIndex, setEditingIndex] = useState(-1);
@@ -372,7 +447,9 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     name: "",
     shortName: "",
     department: "",
+    departmentLabel: "",
     brand: "",
+    brandLabel: "",
     serialNo: "",
     description: "",
     amc: false,
@@ -431,7 +508,15 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       name,
       shortName: nextAssetValues.shortName?.trim() ?? "",
       department: nextAssetValues.department?.trim() ?? "",
+      departmentLabel:
+        nextAssetValues.departmentLabel?.trim() ??
+        nextAssetValues.department?.trim() ??
+        "",
       brand: nextAssetValues.brand?.trim() ?? "",
+      brandLabel:
+        nextAssetValues.brandLabel?.trim() ??
+        nextAssetValues.brand?.trim() ??
+        "",
       serialNo: nextAssetValues.serialNo?.trim() ?? "",
       description: nextAssetValues.description?.trim() ?? "",
       nDepartmentId:
@@ -467,7 +552,15 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       name,
       shortName: assetValues.shortName?.trim() ?? "",
       department: assetValues.department?.trim() ?? "",
+      departmentLabel:
+        assetValues.departmentLabel?.trim() ??
+        assetValues.department?.trim() ??
+        "",
       brand: assetValues.brand?.trim() ?? "",
+      brandLabel:
+        assetValues.brandLabel?.trim() ??
+        assetValues.brand?.trim() ??
+        "",
       serialNo: assetValues.serialNo?.trim() ?? "",
       description: assetValues.description?.trim() ?? "",
       nDepartmentId:
@@ -681,6 +774,11 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     };
   }, [activeTab]);
 
+  useEffect(() => {
+    syncAssetDraft(assetValues, editingIndex);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetValues, editingIndex, departmentList, brandList]);
+
   const handleAssetValueChange = (key: string, value: any) => {
     if (key === "name") {
       setAssetSearch(String(value ?? ""));
@@ -692,7 +790,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
         [key]: value,
       };
 
-      syncAssetDraft(nextValues);
+      if (key === "department") {
+        nextValues.departmentLabel = String(value ?? "").trim();
+      }
+
+      if (key === "brand") {
+        nextValues.brandLabel = String(value ?? "").trim();
+      }
 
       return nextValues;
     });
@@ -706,7 +810,9 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       name: "",
       shortName: "",
       department: "",
+      departmentLabel: "",
       brand: "",
+      brandLabel: "",
       serialNo: "",
       description: "",
       amc: false,
@@ -714,6 +820,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       expiryDate: undefined,
     });
     setEditingIndex(-1);
+    setAssetViewMode(false);
   };
 
   const getExistingAssetMaster = (asset: any) => {
@@ -740,15 +847,25 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
   };
 
   const ensureAssetMasterSaved = async (asset: any) => {
-    if (getAssetMasterId(asset)) return asset;
-
-    const existingAsset = getExistingAssetMaster(asset);
-    const existingAssetId = getAssetMasterId(existingAsset) || getAssetId(existingAsset);
+    const assetId = getAssetMasterId(asset) || getAssetId(asset);
+    const existingAsset = !assetId ? getExistingAssetMaster(asset) : null;
+    const existingAssetId = assetId || getAssetMasterId(existingAsset) || getAssetId(existingAsset);
 
     if (existingAssetId) {
+      const response = await assetMasterApis.assetMasterUpdate({
+        ...buildAssetMasterSavePayload(asset, brandList, departmentList),
+        nAssetMasterId: existingAssetId,
+        AssetMasterId: existingAssetId,
+        assetMasterId: existingAssetId,
+      });
+
+      if (!isApiSuccess(response)) {
+        throw new Error(getApiMessage(response, "Unable to update asset master"));
+      }
+
       return {
         ...asset,
-        ...existingAsset,
+        ...(existingAsset || {}),
         nAssetMasterId: existingAssetId,
         AssetMasterId: existingAssetId,
         assetMasterId: existingAssetId,
@@ -858,32 +975,23 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       };
     }
 
-    setSavingAssetToDb(true);
+    const normalizedAssets = nextAssets.map(normalizeAssetForDisplay);
 
-    try {
-      const savedAssets = await Promise.all(
-        nextAssets.map((asset: any) => ensureAssetMasterSaved(asset)),
-      );
-      const normalizedAssets = savedAssets.map(normalizeAssetForDisplay);
+    form.setFieldsValue({
+      assets: normalizedAssets,
+      assetList: normalizedAssets,
+      AssetList: normalizedAssets,
+      CustomerAssetList: normalizedAssets,
+      customerAssetList: normalizedAssets,
+      assetDraft: undefined,
+    });
+    setAssetList(normalizedAssets);
+    recentlySavedAssetsRef.current = normalizedAssets;
 
-      form.setFieldsValue({
-        assets: normalizedAssets,
-        assetList: normalizedAssets,
-        AssetList: normalizedAssets,
-        CustomerAssetList: normalizedAssets,
-        customerAssetList: normalizedAssets,
-        assetDraft: undefined,
-      });
-      setAssetList(normalizedAssets);
-      recentlySavedAssetsRef.current = normalizedAssets;
-
-      return {
-        assets: normalizedAssets,
-        assetDraft: undefined,
-      };
-    } finally {
-      setSavingAssetToDb(false);
-    }
+    return {
+      assets: normalizedAssets,
+      assetDraft: undefined,
+    };
   };
 
   useEffect(() => {
@@ -907,8 +1015,20 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       ...assetValues,
       name,
       shortName: assetValues.shortName?.trim() ?? "",
-      department: assetValues.department?.trim() ?? "",
-      brand: assetValues.brand?.trim() ?? "",
+      department:
+        String(assetValues.department ?? "").trim() ||
+        resolveDepartmentLabel(assetValues),
+      departmentLabel:
+        String(assetValues.departmentLabel ?? "").trim() ||
+        String(assetValues.department ?? "").trim() ||
+        resolveDepartmentLabel(assetValues),
+      brand:
+        String(assetValues.brand ?? "").trim() ||
+        resolveBrandLabel(assetValues),
+      brandLabel:
+        String(assetValues.brandLabel ?? "").trim() ||
+        String(assetValues.brand ?? "").trim() ||
+        resolveBrandLabel(assetValues),
       serialNo: assetValues.serialNo?.trim() ?? "",
       description: assetValues.description?.trim() ?? "",
     };
@@ -952,8 +1072,10 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       ...asset,
       name: asset.name || asset.cAssetName || "",
       shortName: asset.shortName || asset.cAssetShName || "",
-      department: asset.department || asset.cDepartmentName || "",
-      brand: asset.brand || asset.cBrandName || "",
+      department: resolveDepartmentLabel(asset),
+      departmentLabel: resolveDepartmentLabel(asset),
+      brand: resolveBrandLabel(asset),
+      brandLabel: resolveBrandLabel(asset),
       serialNo: asset.serialNo || asset.cSerialNo || "",
       description: asset.description || asset.cAssetDescription || "",
       amc: asset.amc ?? asset.bUnderAmc ?? asset.bAMC ?? false,
@@ -965,7 +1087,25 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     syncAssetDraft(nextAssetValues, index);
     setAssetValues(nextAssetValues);
     setEditingIndex(index);
+    setAssetViewMode(true);
     setShowAssetForm(true);
+  };
+
+  const handleAssetDelete = (index: number) => {
+    const nextAssets = assetList.filter((_, idx) => idx !== index);
+
+    form.setFieldsValue({
+      assets: nextAssets,
+      assetList: nextAssets,
+      AssetList: nextAssets,
+      CustomerAssetList: nextAssets,
+      customerAssetList: nextAssets,
+    });
+    setAssetList(nextAssets);
+    recentlySavedAssetsRef.current = nextAssets;
+    resetAssetForm();
+    setShowAssetForm(false);
+    message.success("Asset removed. Click Save to update customer");
   };
 
   return (
@@ -1176,6 +1316,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                   <Button
                     htmlType="button"
                     block
+                    disabled={viewMode}
                     className="asset-link-button h-9 border-blue-400 text-blue-500 rounded"
                     onClick={() => {
                       resetAssetForm();
@@ -1196,17 +1337,20 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                       const displayName =
                         asset.name || asset.cAssetName || "";
                       const displayDept =
-                        asset.department || asset.cDepartmentName || "-";
+                        resolveDepartmentLabel(asset) || "-";
                       const displayBrand =
-                        asset.brand || asset.cBrandName || "-";
+                        resolveBrandLabel(asset) || "-";
 
                       return (
                         <button
                           type="button"
                           key={`asset-${index}`}
-                          className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-600 hover:border-blue-300"
-                          title="Click to edit asset"
-                          onClick={() => handleAssetEdit(index)}
+                          className={`w-full rounded border border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-600${
+                            viewMode ? ' cursor-default opacity-80' : ' hover:border-blue-300 cursor-pointer'
+                          }`}
+                          title={viewMode ? undefined : "Click to edit asset"}
+                          onClick={() => !viewMode && handleAssetEdit(index)}
+                          disabled={viewMode}
                         >
                           <p className="mb-2 text-sm font-semibold text-slate-900">
                             {displayName}
@@ -1226,6 +1370,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                   <Button
                     htmlType="button"
                     block
+                    disabled={viewMode}
                     className="asset-link-button mt-2 h-9 border-blue-400 text-blue-500 rounded"
                     onClick={() => {
                       resetAssetForm();
@@ -1244,7 +1389,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
 
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="m-0 text-lg font-medium leading-6 text-slate-900">
-                        {editingIndex >= 0 ? "Edit Asset" : "Asset"}
+                        Asset
                       </h2>
 
                       <button
@@ -1265,6 +1410,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                       <Form.Item label="Name" className="!mb-1">
                         <Input
                           value={assetValues.name}
+                          disabled={assetViewMode}
                           onChange={(event) =>
                             handleAssetValueChange("name", event.target.value)
                           }
@@ -1277,6 +1423,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                         <Form.Item label="Short Name" className="!mb-1">
                           <Input
                             value={assetValues.shortName}
+                            disabled={assetViewMode}
                             onChange={(event) =>
                               handleAssetValueChange(
                                 "shortName",
@@ -1290,6 +1437,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                           <AutoComplete
                             value={assetValues.department}
                             options={departmentOptions}
+                            disabled={assetViewMode}
                             filterOption={(inputValue, option) =>
                               String(option?.value ?? "")
                                 .toLowerCase()
@@ -1300,6 +1448,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                             }
                           >
                             <Input
+                              disabled={assetViewMode}
                               suffix={
                                 <span className="text-lg leading-none text-slate-600">
                                   &gt;
@@ -1317,6 +1466,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                           <AutoComplete
                             value={assetValues.brand}
                             options={brandOptions}
+                            disabled={assetViewMode}
                             filterOption={(inputValue, option) =>
                               String(option?.value ?? "")
                                 .toLowerCase()
@@ -1327,6 +1477,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                             }
                           >
                             <Input
+                              disabled={assetViewMode}
                               suffix={
                                 <span className="text-lg leading-none text-slate-600">
                                   &gt;
@@ -1339,6 +1490,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                         <Form.Item label="Serial No" className="!mb-1">
                           <Input
                             value={assetValues.serialNo}
+                            disabled={assetViewMode}
                             onChange={(event) =>
                               handleAssetValueChange(
                                 "serialNo",
@@ -1355,6 +1507,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                         <Input.TextArea
                           rows={3}
                           value={assetValues.description}
+                          disabled={assetViewMode}
                           onChange={(event) =>
                             handleAssetValueChange(
                               "description",
@@ -1369,6 +1522,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                       <div className="grid grid-cols-[64px_86px_176px] items-end gap-3">
                         <Checkbox
                           checked={assetValues.amc}
+                          disabled={assetViewMode}
                           onChange={(event) =>
                             setAssetValues((current: any) => {
                               const nextValues = {
@@ -1390,6 +1544,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
 
                         <Checkbox
                           checked={assetValues.warranty}
+                          disabled={assetViewMode}
                           onChange={(event) =>
                             setAssetValues((current: any) => {
                               const nextValues = {
@@ -1411,6 +1566,7 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                           <DatePicker
                             className="w-full"
                             format="DD/MM/YYYY"
+                            disabled={assetViewMode}
                             value={assetValues.expiryDate}
                             onChange={(value) =>
                               handleAssetValueChange("expiryDate", value)
@@ -1419,15 +1575,38 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
                         </Form.Item>
                       </div>
 
-                      <Button
-                        htmlType="button"
-                        style={{ marginTop: 16, height: 32, background: '#000', color: '#fff', borderColor: '#000', paddingInline: 20 }}
-                        className="hover:!bg-black hover:!text-white hover:!border-black"
-                        loading={savingAssetToDb}
-                        onClick={handleAssetSave}
-                      >
-                        Save
-                      </Button>
+                      <div className="flex gap-2 mt-4">
+                        {editingIndex >= 0 && (
+                          <>
+                            <Button
+                              htmlType="button"
+                              icon={<EditOutlined />}
+                              style={{ height: 32 }}
+                              onClick={() => setAssetViewMode(false)}
+                            />
+
+                            <Button
+                              htmlType="button"
+                              danger
+                              type="primary"
+                              icon={<DeleteOutlined />}
+                              style={{ height: 32 }}
+                              onClick={() => handleAssetDelete(editingIndex)}
+                            />
+                          </>
+                        )}
+                        {!assetViewMode && (
+                          <Button
+                            htmlType="button"
+                            style={{ height: 32, background: '#000', color: '#fff', borderColor: '#000', paddingInline: 20 }}
+                            className="hover:!bg-black hover:!text-white hover:!border-black"
+                            loading={savingAssetToDb}
+                            onClick={handleAssetSave}
+                          >
+                            Save
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

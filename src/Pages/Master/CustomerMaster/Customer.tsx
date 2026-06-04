@@ -272,6 +272,12 @@ const getCustomerAssets = (raw: any) => {
       asset?.cDepartment ??
       asset?.DepartmentName ??
       "",
+    departmentLabel:
+      asset?.departmentLabel ??
+      asset?.cDepartmentName ??
+      asset?.department ??
+      asset?.departmentName ??
+      "",
     brand:
       asset?.brand ??
       asset?.brandName ??
@@ -279,6 +285,12 @@ const getCustomerAssets = (raw: any) => {
       asset?.cBrandName ??
       asset?.cBrand ??
       asset?.BrandName ??
+      "",
+    brandLabel:
+      asset?.brandLabel ??
+      asset?.cBrandName ??
+      asset?.brand ??
+      asset?.brandName ??
       "",
     serialNo:
       asset?.serialNo ??
@@ -645,6 +657,21 @@ const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
       nCustomerAssetId: customerAssetId,
       CustomerAssetId: customerAssetId,
       customerAssetId: customerAssetId,
+      nDepartmentId:
+        asset?.nDepartmentId ??
+        asset?.DepartmentId ??
+        asset?.departmentId ??
+        0,
+      DepartmentId:
+        asset?.DepartmentId ??
+        asset?.nDepartmentId ??
+        asset?.departmentId ??
+        0,
+      departmentId:
+        asset?.departmentId ??
+        asset?.nDepartmentId ??
+        asset?.DepartmentId ??
+        0,
       nCustomerId: asset?.nCustomerId || customerId,
       CustomerId: asset?.CustomerId || customerId,
       customerId: asset?.customerId || customerId,
@@ -654,11 +681,28 @@ const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
       cAssetShName: shortName,
       cAssetMasterShName: shortName,
       cShortName: shortName,
+      nBrandId:
+        asset?.nBrandId ??
+        asset?.BrandId ??
+        asset?.brandId ??
+        0,
+      BrandId:
+        asset?.BrandId ??
+        asset?.nBrandId ??
+        asset?.brandId ??
+        0,
+      brandId:
+        asset?.brandId ??
+        asset?.nBrandId ??
+        asset?.BrandId ??
+        0,
       cDepartmentName:
+        asset?.departmentLabel ??
         asset?.department ??
         asset?.cDepartmentName ??
         "",
       cBrandName:
+        asset?.brandLabel ??
         asset?.brand ??
         asset?.cBrandName ??
         "",
@@ -692,7 +736,11 @@ const getAssetsWithDraft = (assets: any[] = [], draft: any) => {
     name: String(draft.name ?? draft.cAssetName ?? "").trim(),
     shortName: String(draft.shortName ?? draft.cAssetShName ?? "").trim(),
     department: String(draft.department ?? draft.cDepartmentName ?? "").trim(),
+    departmentLabel: String(
+      draft.departmentLabel ?? draft.department ?? draft.cDepartmentName ?? "",
+    ).trim(),
     brand: String(draft.brand ?? draft.cBrandName ?? "").trim(),
+    brandLabel: String(draft.brandLabel ?? draft.brand ?? draft.cBrandName ?? "").trim(),
     serialNo: String(draft.serialNo ?? draft.cSerialNo ?? "").trim(),
     description: String(
       draft.description ?? draft.cAssetDescription ?? "",
@@ -822,11 +870,7 @@ const buildCustomerPayload = (
         : null,
 
     AssetList:
-      selectedRow ? [] : assetPayload,
-
-    ...(selectedRow
-      ? { CustomerAssetList: assetPayload }
-      : {}),
+      assetPayload,
 
     bActive:
       values.active ?? true,
@@ -983,8 +1027,8 @@ const Customer = () => {
       // CUSTOM DRAWER
 
       renderExtraFields:
-        ({ form, selectedRow }: any) => (
-          <CustomerDrawer form={form} selectedRow={selectedRow} />
+        ({ form, selectedRow, viewMode }: any) => (
+          <CustomerDrawer form={form} selectedRow={selectedRow} viewMode={viewMode} />
         ), 
 
 
