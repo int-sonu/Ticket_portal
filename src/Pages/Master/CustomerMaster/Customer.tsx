@@ -551,6 +551,12 @@ const requiredText = (
   return text || fallback;
 };
 
+const optionalText = (value: any) => {
+  const text = String(value ?? "").trim();
+
+  return text || null;
+};
+
 const toApiDate = (value: any) => {
   if (!value) return null;
   if (value?.format) return value.format("YYYY-MM-DD");
@@ -621,10 +627,7 @@ const buildCustomerAssetsPayload = (assets: any[] = [], customerId?: any) =>
         asset?.brand ??
         asset?.cBrandName ??
         "",
-      cSerialNo:
-        asset?.serialNo ??
-        asset?.cSerialNo ??
-        "",
+      cSerialNo: optionalText(asset?.serialNo ?? asset?.cSerialNo),
       cAssetDescription: description,
       cDescription: description,
       bAMC: amc,

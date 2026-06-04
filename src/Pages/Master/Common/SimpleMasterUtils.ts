@@ -134,15 +134,42 @@ const formatValidationErrors = (errors: any) => {
     .join(', ');
 };
 
+const getDuplicateConstraintMessage = (response: any) => {
+  const messageText = [
+    response?.response?.data?.message,
+    response?.response?.data?.title,
+    response?.response?.data?.detail,
+    response?.data?.message,
+    response?.data?.title,
+    response?.data?.detail,
+    response?.message,
+    response?.detail,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (
+    messageText.includes('duplicate key value') &&
+    messageText.includes('ux_tm_asset_cust_master_serial')
+  ) {
+    return 'Serial No already exists for another asset';
+  }
+
+  return '';
+};
+
 export const getApiMessage = (response: any, fallback: string) => {
   const validationMessage =
     formatValidationErrors(response?.response?.data?.errors) ||
     formatValidationErrors(response?.data?.errors) ||
     formatValidationErrors(response?.errors);
+  const duplicateConstraintMessage = getDuplicateConstraintMessage(response);
   const status = response?.response?.status ?? response?.status;
 
   return (
     validationMessage ||
+    duplicateConstraintMessage ||
     response?.response?.data?.message ||
     response?.response?.data?.title ||
     response?.data?.message ||

@@ -141,6 +141,32 @@ const requiredText = (value: any, fallback = "NIL") => {
   return text || fallback;
 };
 
+const optionalText = (value: any) => {
+  const text = String(value ?? "").trim();
+
+  return text || null;
+};
+
+const normalizeSerialNo = (value: any) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+const hasDuplicateSerialNo = (assets: any[]) => {
+  const serialNos = new Set<string>();
+
+  for (const asset of assets) {
+    const serialNo = normalizeSerialNo(asset?.serialNo ?? asset?.cSerialNo);
+
+    if (!serialNo) continue;
+    if (serialNos.has(serialNo)) return true;
+
+    serialNos.add(serialNo);
+  }
+
+  return false;
+};
+
 const formatDate = (value: any) =>
   {
     if (!value) return null;
@@ -266,10 +292,7 @@ const buildAssetPayload = (assets: any[] = [], customerId?: any) =>
         asset?.brand ??
         asset?.cBrandName ??
         "",
-      cSerialNo:
-        asset?.serialNo ??
-        asset?.cSerialNo ??
-        "",
+      cSerialNo: optionalText(asset?.serialNo ?? asset?.cSerialNo),
       cAssetDescription:
         asset?.description ??
         asset?.cAssetDescription ??
@@ -361,7 +384,7 @@ const buildAssetMasterSavePayload = (
     nBrandId: asset.nBrandId ?? brand?.nBrandId ?? brand?.id,
     cBrandName: asset.brand ?? asset.cBrandName ?? "",
     cBrand: asset.brand ?? asset.cBrandName ?? "",
-    cSerialNo: asset.serialNo ?? asset.cSerialNo ?? "",
+    cSerialNo: optionalText(asset.serialNo ?? asset.cSerialNo),
     cAssetDescription: asset.description ?? asset.cAssetDescription ?? "",
     cDescription: asset.description ?? asset.cAssetDescription ?? "",
     bAMC: asset.amc ?? asset.bAMC ?? false,
@@ -818,7 +841,16 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
     }
 
     if (shouldRefetch) {
-      await refetchCustomerWiseAssets();
+      const refetchResult = await refetchCustomerWiseAssets();
+      const dbAssets = extractAssetList(refetchResult.data).map(
+        normalizeAssetForDisplay,
+      );
+
+      if (dbAssets.length) {
+        recentlySavedAssetsRef.current = [];
+        form.setFieldValue("assets", dbAssets);
+        setAssetList(dbAssets);
+      }
     }
 
     message.success(successMessage);
@@ -845,6 +877,21 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
       description: assetValues.description?.trim() ?? "",
     };
 
+    const serialNo = normalizeSerialNo(updatedAsset.serialNo);
+    const serialExists = serialNo
+      ? assetList.some(
+          (asset, index) =>
+            index !== editingIndex &&
+            normalizeSerialNo(asset?.serialNo ?? asset?.cSerialNo) === serialNo,
+        )
+      : false;
+
+    if (serialExists) {
+      message.error("Serial No already exists for another asset");
+
+      return;
+    }
+
     let savedAsset = updatedAsset;
 
     try {
@@ -870,6 +917,13 @@ const CustomerDrawer = ({ form, selectedRow }: CustomerDrawerProps) => {
         ...assetList,
         normalizeAssetForDisplay(savedAsset),
       ];
+    }
+
+    if (hasDuplicateSerialNo(nextAssets)) {
+      message.error("Serial No already exists for another asset");
+      setSavingAssetToDb(false);
+
+      return;
     }
 
     form.setFieldsValue({ assets: nextAssets });
