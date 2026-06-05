@@ -988,13 +988,17 @@ const Customer = () => {
           const detailRecord = getCustomerViewRecord(response);
 
           if (!detailRecord) {
+            const fallbackAssets = customerWiseAssets.length
+              ? customerWiseAssets
+              : responseAssets;
+
             return mapCustomerRow(
               {
                 ...row.raw,
-                AssetList: customerWiseAssets,
-                assetList: customerWiseAssets,
-                CustomerAssetList: customerWiseAssets,
-                customerAssetList: customerWiseAssets,
+                AssetList: fallbackAssets,
+                assetList: fallbackAssets,
+                CustomerAssetList: fallbackAssets,
+                customerAssetList: fallbackAssets,
               },
               Math.max((row.srl ?? 1) - 1, 0)
             );

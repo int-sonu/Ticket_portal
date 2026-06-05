@@ -400,31 +400,41 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   height: 100%;
   vertical-align: middle;
 }
-
+/*
 .ticket-create-shell {
-  max-height: none;
-  overflow: visible;
-  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 96px);
+  margin-top: -12px;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  zoom: 0.88; /* Zoom out the entire form container to fit content */
-}
+  overflow: hidden;
+} */
 
 .ticket-create-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px 4px;
+  padding: 2px 0px;
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
-.ticket-create-header h1 {
+.ticket-create-header h2 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.ticket-create-form {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 13px;
 }
 
 .ticket-create-form .ant-form-item {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .ticket-create-form .ant-form-item-label {
@@ -432,17 +442,25 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   width: 100%;
 }
 
-.ticket-create-form .ant-form-item-label > label {
+.ant-form-item-label > label {
   width: 100%;
-  font-size: 12px !important;
+  font-size: 11px !important;
+  font-weight: 500;
+  color: #334155 !important;
 }
 
 .ticket-create-form .ant-input,
 .ticket-create-form .ant-picker,
 .ticket-create-form .ant-select-selector {
-  min-height: 24px !important;
-  height: 24px !important;
+  min-height: 28px !important;
+  height: 28px !important;
   font-size: 12px !important;
+  /* background-color: #ffffff !important; */
+}
+
+.ticket-create-form .ant-select-selection-item,
+.ticket-create-form .ant-select-selection-placeholder {
+  line-height: 28px !important;
 }
 
 .ticket-create-form .ant-input-group-addon {
@@ -452,98 +470,54 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-search-button {
-  height: 24px !important;
-  width: 30px !important;
-  border-radius: 0 5px 5px 0 !important;
+  height: 35px !important;
+  width: 36px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
 }
 
 .ticket-create-form textarea.ant-input {
-  min-height: 36px !important;
-  height: 36px !important;
+  min-height: 54px !important;
+  height: 54px !important;
+  font-size: 12px !important;
 }
 
 .ticket-create-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
-  border-top: 1px solid #e5e7eb;
-}
-
-.ticket-create-form .ant-radio-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
+  grid-template-columns: minmax(480px, 0.92fr) minmax(520px, 1.08fr);
+  align-items: stretch;
+  flex: 1;
+  min-height: auto;
+  overflow: hidden;
+  background: #f8fafc;
 }
 
 @media (max-width: 992px) {
   .ticket-create-grid {
     grid-template-columns: 1fr;
   }
-  .ticket-create-left {
-    border-right: none;
-    border-bottom: 1px solid #bfdbfe;
-  }
-}
-
-.ticket-create-left,
-.ticket-create-right {
-  padding: 8px 16px 10px;
-  box-sizing: border-box;
-}
-
-.ticket-create-right {
-  display: flex;
-  min-height: 430px;
-  flex-direction: column;
-}
-
-.ticket-create-left {
-  border-right: 1px solid #bfdbfe;
-}
-
-.ticket-followup-row {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-}
-
-.ticket-followup-picker {
-  width: 100%;
-}
-
-.ticket-followup-row .ant-form-item {
-  margin-bottom: 4px !important;
-}
-
-.ticket-followup-row .ant-checkbox-wrapper {
-  min-height: 24px;
-  align-items: center;
-  white-space: nowrap;
 }
 
 .ticket-right-save {
-  height: 34px !important;
+  height: 36px !important;
   min-width: 74px;
   padding-inline: 22px !important;
   border-radius: 6px !important;
-}
-
-.ticket-band {
-  margin-inline: -16px;
-  padding: 3px 16px;
-  background: #eaf6ff;
-  font-size: 12px;
+  font-size: 13px !important;
 }
 
 .ticket-upload-btn {
   width: 100%;
-  border-color: #0284c7;
-  color: #0284c7;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+  height: 30px !important;
+  border-radius: 6px !important;
 }
 
 .ticket-create-form .ant-upload-wrapper .ant-upload-list-picture-card {
-  gap: 8px;
+  gap: 4px;
 }
 
 .ticket-create-form
@@ -574,9 +548,9 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
 .ticket-quick-call {
   margin-top: 12px;
-  border: 1px solid #bae6fd;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-  background: #eaf6ff;
+  background: transparent;
   padding: 12px 20px;
   color: #475569;
 }
@@ -766,26 +740,73 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .modern-ticket-calendar .ant-picker-panel-container {
-  min-width: 360px;
+  min-width: 352px;
   border-radius: 0;
   overflow: hidden;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+}
+
+.ticket-followup-calendar-shell {
+  width: 352px;
+  background: #ffffff;
+}
+
+.ticket-followup-calendar-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ticket-followup-calendar-title button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 18px;
+  cursor: pointer;
 }
 
 .modern-ticket-calendar .ant-picker-panel {
   border: 0;
 }
 
+.modern-ticket-calendar .ant-picker-date-panel,
+.modern-ticket-calendar .ant-picker-datetime-panel,
+.modern-ticket-calendar .ant-picker-time-panel {
+  width: 100%;
+}
+
+.modern-ticket-calendar .ant-picker-datetime-panel {
+  flex-direction: column;
+  gap: 0;
+}
+
+.modern-ticket-calendar .ant-picker-body {
+  padding: 0 0 2px;
+}
+
 .modern-ticket-calendar .ant-picker-header {
   border-bottom: 0;
-  padding-inline: 12px;
+  height: 40px;
+  padding-inline: 8px;
 }
 
 .modern-ticket-calendar .ant-picker-header button {
-  min-width: 24px;
-  height: 24px;
+  min-width: 26px;
+  height: 26px;
   border: 1px solid #111827;
   border-radius: 999px;
+  color: #111827;
 }
 
 .modern-ticket-calendar .ant-picker-header-view {
@@ -794,13 +815,27 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .modern-ticket-calendar .ant-picker-content th {
-  color: #64748b;
+  height: 24px;
+  color: #111827;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
+}
+
+.modern-ticket-calendar .ant-picker-content {
+  width: 100% !important;
+  margin: 0;
+}
+
+.modern-ticket-calendar .ant-picker-cell {
+  padding: 1px 0;
 }
 
 .modern-ticket-calendar .ant-picker-cell-inner {
+  min-width: 28px !important;
+  height: 28px !important;
+  line-height: 28px !important;
   border-radius: 6px !important;
+  font-size: 12px;
 }
 
 .modern-ticket-calendar
@@ -814,14 +849,43 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   .ant-picker-cell-inner {
   background: #10b981;
   color: #ffffff;
+  border-radius: 999px !important;
 }
 
 .modern-ticket-calendar .ant-picker-time-panel {
   border-top: 0;
+  padding: 0 6px 6px;
+}
+
+.modern-ticket-calendar .ant-picker-time-panel .ant-picker-content {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  height: 58px;
+}
+
+.modern-ticket-calendar .ant-picker-time-panel-column {
+  width: 92px;
+  max-height: 58px;
+  overflow-y: auto;
+  border-inline-start: 0 !important;
+}
+
+.modern-ticket-calendar .ant-picker-time-panel-column::after {
+  height: 0;
+}
+
+.modern-ticket-calendar .ant-picker-time-panel-cell-inner {
+  height: 28px !important;
+  line-height: 28px !important;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
 .modern-ticket-calendar .ant-picker-footer {
   border-top: 0;
+  padding: 0 6px 6px;
 }
 
 .modern-ticket-calendar .ant-picker-now {
@@ -831,6 +895,10 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .modern-ticket-calendar .ant-picker-ok button {
   border-color: #10b981;
   background: #10b981;
+  height: 26px;
+  min-width: 40px;
+  padding-inline: 10px;
+  font-size: 12px;
 }
 
 .modern-ticket-calendar
@@ -841,14 +909,8 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   color: #ffffff;
 }
 
-@media (max-width: 992px) {
-  .ticket-followup-row {
-    grid-template-columns: 1fr;
-  }
-
-  .ticket-right-save {
-    justify-self: end;
-  }
+.modern-ticket-calendar .ant-picker-ranges {
+  padding: 0;
 }
 
 /* :root {

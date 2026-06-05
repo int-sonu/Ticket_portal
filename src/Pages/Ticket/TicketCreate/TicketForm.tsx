@@ -20,7 +20,8 @@ import {
   Upload,
 } from "antd";
 import type { UploadFile } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useTicketAttachments } from "../../../Hooks/Ticket/useTicketAttachments";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
@@ -40,6 +41,7 @@ import {
   getSessionPayload,
 } from "../../Master/Common/SimpleMasterUtils";
 import { useGetServiceTypeDropdown } from "../../Master/ServiceType/Hooks";
+import { useGetTicketSourceDropdown } from "../../Master/TicketSource/Hooks";
 
 const { TextArea } = Input;
 
@@ -161,6 +163,7 @@ const TicketForm = ({
   isEdit = false,
   ticketId,
 }: TicketFormProps) => {
+  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [customerForm] = Form.useForm();
   const [assetForm] = Form.useForm();
@@ -190,6 +193,8 @@ const TicketForm = ({
   const [previewImage, setPreviewImage] =
     useState("");
   const [imageEditorOpen, setImageEditorOpen] =
+    useState(false);
+  const [followupPickerOpen, setFollowupPickerOpen] =
     useState(false);
   const [editorImage, setEditorImage] =
     useState("");
@@ -242,6 +247,8 @@ const TicketForm = ({
     useGetGroupDropdown(sessionPayload);
   const { data: serviceTypeData } =
     useGetServiceTypeDropdown(sessionPayload);
+  const { data: ticketSourceData } =
+    useGetTicketSourceDropdown(sessionPayload);
   const { data: departmentData } =
     useGetCustomerAssetDepartments(
       sessionPayload
@@ -304,6 +311,52 @@ const TicketForm = ({
       ),
     [serviceTypeData]
   );
+
+  const ticketSourceOptions = useMemo(() => {
+    const list = extractList(ticketSourceData);
+    return list.map((item: any, index: number) => {
+      const label =
+        item?.label ??
+        item?.Label ??
+        item?.cTicketSourceName ??
+        item?.cTicketsourceName ??
+        item?.cSourceName ??
+        item?.cName ??
+        item?.name ??
+        `Source ${index + 1}`;
+      const value =
+        item?.value ??
+        item?.Value ??
+        item?.nTicketSourceId ??
+        item?.nTicketsourceId ??
+        item?.nTicketsourceid ??
+        item?.nTicketSourceid ??
+        item?.nSourceId ??
+        item?.nSourceid ??
+        item?.id ??
+        label;
+      return { label, value };
+    });
+  }, [ticketSourceData]);
+
+  const defaultSource = useMemo(() => {
+    if (ticketSourceOptions.length > 0) {
+      const direct = ticketSourceOptions.find(
+        (opt) => String(opt.label).toLowerCase() === "direct"
+      );
+      return direct ? direct.value : ticketSourceOptions[0].value;
+    }
+    return "Direct";
+  }, [ticketSourceOptions]);
+
+  useEffect(() => {
+    if (
+      ticketSourceOptions.length > 0 &&
+      !form.getFieldValue("Source")
+    ) {
+      form.setFieldValue("Source", defaultSource);
+    }
+  }, [defaultSource, form, ticketSourceOptions]);
 
   const departmentOptions = useMemo(
     () => [
@@ -584,35 +637,44 @@ const TicketForm = ({
   };
 
   return (
-    <div className="ticket-create-shell">
+<div className="min-h-screen bg-white">
+        <div className="ticket-create-header">
+        <h2>Create New Ticket</h2>
+        <Button
+          type="text"
+          icon={<CloseOutlined className="text-lg text-slate-500" />}
+          onClick={() => navigate("/tickets")}
+        />
+      </div>
+
       <Form
         form={form}
         layout="vertical"
         requiredMark={false}
         initialValues={{
-          Source: "Direct",
+          Source: initialValues?.Source ?? defaultSource,
           Priority: "Low",
           ...initialValues,
         }}
         className="ticket-create-form"
         onFinish={handleSubmit}
       >
-        <div className="ticket-create-grid">
-          <section className="ticket-create-left">
-            <h2 className="mb-1 text-lg font-semibold text-black">
-              Create New Ticket
-            </h2>
-
-            <div className="ticket-band !mb-1">
+        <div className="ticket-create-grid h-auto min-h-0 overflow-hidden bg-white">
+          <section
+            className="min-h-0 border-r border-slate-200 bg-white overflow-y-auto h-full px-4 pb-3 [scrollbar-width:thin] [scrollbar-color:#94a3b8_#e2e8f0] [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-[#e2e8f0] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-[#e2e8f0] [&::-webkit-scrollbar-thumb]:bg-slate-400"
+          >
+            <div className="-mx-4 mt-1 mb-1 border-y border-slate-200 bg-sky-50 px-4 py-2">
               <Form.Item
-                label="Source"
+                label={<span className="text-[14px] font-medium text-slate-900">Source</span>}
                 name="Source"
                 className="!mb-0"
               >
-                <Radio.Group>
-                  <Radio value="Direct">
-                    Direct
-                  </Radio>
+                <Radio.Group className="flex flex-wrap gap-x-2 gap-y-0.5">
+                  {ticketSourceOptions.map((opt) => (
+                    <Radio key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </Radio>
+                  ))}
                 </Radio.Group>
               </Form.Item>
             </div>
@@ -623,7 +685,7 @@ const TicketForm = ({
                   <span>Customer</span>
                   <button
                     type="button"
-                    className="text-sm font-medium text-sky-700"
+                    className="text-sm font-medium text-sky-700 cursor-pointer"
                     onClick={() =>
                       setCustomerOpen(true)
                     }
@@ -633,14 +695,15 @@ const TicketForm = ({
                 </div>
               }
               name="CustomerId"
-              className="!mb-1"
             >
               <Input
+                onClick={() => setCustomerPickerOpen(true)}
+                onFocus={() => setCustomerPickerOpen(true)}
                 addonAfter={
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
-                    className="ticket-search-button"
+                    className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
                     onClick={() =>
                       setCustomerPickerOpen(true)
                     }
@@ -652,16 +715,14 @@ const TicketForm = ({
             <Form.Item
               label="Contact Person Name"
               name="ContactPerson"
-              className="!mb-1"
             >
               <Input />
             </Form.Item>
 
-            <div className="grid grid-cols-[0.7fr_1.5fr] gap-4">
+            <div className="grid grid-cols-[1fr_1.5fr] gap-4">
               <Form.Item
                 label="Phone Number"
                 name="ContactNo"
-                className="!mb-1"
               >
                 <Input />
               </Form.Item>
@@ -669,7 +730,6 @@ const TicketForm = ({
               <Form.Item
                 label="Email"
                 name="Email"
-                className="!mb-1"
               >
                 <Input />
               </Form.Item>
@@ -678,7 +738,6 @@ const TicketForm = ({
             <Form.Item
               label="Ticket Summary"
               name="IssueSummary"
-              className="!mb-1"
             >
               <Input />
             </Form.Item>
@@ -686,7 +745,6 @@ const TicketForm = ({
             <Form.Item
               label="Description"
               name="Description"
-              className="!mb-1"
             >
               <TextArea rows={2} />
             </Form.Item>
@@ -694,14 +752,13 @@ const TicketForm = ({
             <Form.Item
               label="Asset Name"
               name="AssetName"
-              className="!mb-1"
             >
               <Input
                 addonAfter={
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
-                    className="ticket-search-button"
+                    className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
                     onClick={() =>
                       setAssetPickerOpen(true)
                     }
@@ -710,16 +767,14 @@ const TicketForm = ({
               />
             </Form.Item>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end mb-2">
               <Checkbox
-                checked={false}
-                className="!mb-1"
-                onClick={() => {
-                  form.setFieldValue(
-                    "ItemTakenForRepair",
-                    false
-                  );
-                  setCarryOpen(true);
+                checked={form.getFieldValue("ItemTakenForRepair")}
+                onChange={(e) => {
+                  form.setFieldValue("ItemTakenForRepair", e.target.checked);
+                  if (e.target.checked) {
+                    setCarryOpen(true);
+                  }
                 }}
               >
                 Item Taken For Repair
@@ -729,7 +784,6 @@ const TicketForm = ({
             <Form.Item
               label="Service Type"
               name="ServiceType"
-              className="!mb-1"
             >
               <Select
                 suffixIcon=">"
@@ -737,13 +791,13 @@ const TicketForm = ({
               />
             </Form.Item>
 
-            <div className="ticket-band">
+            <div className="-mx-4 mt-2 mb-2 border-y border-slate-200 bg-sky-50 px-4 py-2 text-[13px]">
               <Form.Item
                 label="Priority"
                 name="Priority"
                 className="!mb-0"
               >
-                <Radio.Group>
+                <Radio.Group className="flex flex-wrap gap-x-2 gap-y-1">
                   {[
                     "Very Low",
                     "Low",
@@ -763,29 +817,46 @@ const TicketForm = ({
             </div>
           </section>
 
-          <section className="ticket-create-right">
-            <div className="ticket-followup-row">
+          <section className="flex h-full flex-col overflow-y-auto bg-white px-4 pb-3">
+            <div className="grid grid-cols-[minmax(190px,1fr)_auto] items-end gap-1.5">
               <Form.Item
                 label="Follow up Date & Time"
                 name="FollowupDate"
-                className="!mb-1"
               >
                 <DatePicker
                   showTime
                   needConfirm
                   inputReadOnly
+                  open={followupPickerOpen}
+                  onOpenChange={setFollowupPickerOpen}
                   placement="bottomLeft"
-                  className="ticket-followup-picker"
+                  className="w-full"
                   format="DD/MM/YYYY hh:mm A"
                   popupClassName="modern-ticket-calendar"
+                  panelRender={(panelNode) => (
+                    <div className="ticket-followup-calendar-shell">
+                      <div className="ticket-followup-calendar-title">
+                        <span>Follow up Date & Time</span>
+                        <button
+                          type="button"
+                          onClick={() => setFollowupPickerOpen(false)}
+                          aria-label="Close calendar"
+                        >
+                          <CloseOutlined />
+                        </button>
+                      </div>
+                      {panelNode}
+                    </div>
+                  )}
                 />
               </Form.Item>
 
               <Form.Item
                 name="OnsiteRequired"
                 valuePropName="checked"
+                className="m-0 min-h-7 self-end"
               >
-                <Checkbox>
+                <Checkbox className="inline-flex items-center whitespace-nowrap">
                   Onsite Required
                 </Checkbox>
               </Form.Item>
@@ -826,11 +897,10 @@ const TicketForm = ({
               />
             </Form.Item>
 
-            <Form.Item label="Upload Files">
+            <Form.Item>
               <Upload
                 beforeUpload={handleUpload as any}
                 fileList={fileList}
-                listType="picture-card"
                 accept=".jpg,.jpeg,.png"
                 onPreview={handlePreview}
                 onRemove={(file) => {
@@ -848,19 +918,14 @@ const TicketForm = ({
                   removeIcon: <DeleteOutlined />,
                 }}
                 maxCount={5}
+                className="w-full"
               >
-                {fileList.length >= 5 ? null : (
-                  <button
-                    type="button"
-                    className="ticket-upload-card"
-                  >
-                    <UploadOutlined />
-                    <span>Upload Files</span>
-                  </button>
-                )}
+                <Button className="ticket-upload-btn flex items-center justify-center gap-2" icon={<UploadOutlined />}>
+                  Upload Files
+                </Button>
               </Upload>
 
-              <p className="text-right text-xs text-slate-500">
+              <p className="text-right text-xs text-slate-500 mt-1">
                 only accept jpeg,png,jpg upto 5MB
               </p>
             </Form.Item>

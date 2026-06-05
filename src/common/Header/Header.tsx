@@ -128,9 +128,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm flex items-center justify-between px-6 z-30 border-b border-gray-100">
+    <header className="fixed top-0 left-0 right-0 h-[38px] bg-white shadow-sm flex items-center justify-between px-5  border-b border-gray-100">
       {/* Left: Hamburger + Company Logo + Name */}
-      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
         <button
           onClick={toggleSidebar}
           className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
@@ -138,7 +138,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
         >
           <MenuOutlined className="text-xl" />
         </button>
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
           <img
             src={logoUrl || CompanyLogo}
             alt="header-logo"

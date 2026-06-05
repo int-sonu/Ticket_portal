@@ -8,7 +8,6 @@ import {
 import {
   useTicketMutations,
 } from "../../../Hooks/Ticket/useTicketMutations";
-
 interface Props {
   data: any[];
   loading: boolean;

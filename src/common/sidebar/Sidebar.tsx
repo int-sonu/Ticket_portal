@@ -141,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
 
   return (
     <aside
-      className={`fixed top-16 left-0 h-[calc(100vh-4rem)] bg-[#1e5b86] text-white flex flex-col transition-all duration-300 z-20 shadow-xl ${
+      className={`fixed top-[58px] left-0 h-[calc(100vh-58px)] bg-[#1e5b86] text-white flex flex-col transition-all duration-300 z-20 shadow-xl ${
         isSidebarOpen ? 'w-64' : 'w-20'
       }`}
     >

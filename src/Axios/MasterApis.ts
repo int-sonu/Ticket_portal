@@ -1272,6 +1272,26 @@ export const ticketSourceApis = {
     return response.data;
   },
 
+  ticketSourceDropDown: async (
+    payload: any
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/TicketSource/TicketSourceDropDown",
+      payload
+    ).catch((error) => {
+      if (error?.response?.status === 404) {
+        return axiosInstance.post(
+          "/Api/V1/TicketSource/TicketSourceList",
+          payload
+        );
+      }
+
+      throw error;
+    });
+
+    return response.data;
+  },
+
   ticketSourceSave: async (
     payload: any
   ) => {

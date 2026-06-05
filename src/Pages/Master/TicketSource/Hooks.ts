@@ -10,6 +10,14 @@ export const useGetTicketSources = (payload: any) => {
   });
 };
 
+export const useGetTicketSourceDropdown = (payload: any) => {
+  return useQuery({
+    queryKey: ["ticket-source-dropdown", payload],
+
+    queryFn: () => ticketSourceApis.ticketSourceDropDown(payload),
+  });
+};
+
 export const useSaveTicketSource = () => {
   const queryClient = useQueryClient();
 

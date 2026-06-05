@@ -96,23 +96,55 @@ const normalizeAssetForDisplay = (asset: any) => ({
   shortName: asset?.shortName ?? asset?.cAssetShName ?? "",
   department:
     asset?.department ??
+    asset?.cDepartment ??
     asset?.departmentLabel ??
     asset?.cDepartmentName ??
+    asset?.Department ??
+    asset?.DepartmentName ??
+    asset?.departmentName ??
     "",
   departmentLabel:
     asset?.departmentLabel ??
+    asset?.cDepartment ??
     asset?.cDepartmentName ??
     asset?.department ??
+    asset?.Department ??
+    asset?.DepartmentName ??
+    asset?.departmentName ??
+    "",
+  departmentName:
+    asset?.departmentName ??
+    asset?.cDepartmentName ??
+    asset?.DepartmentName ??
+    asset?.departmentLabel ??
+    asset?.department ??
+    asset?.cDepartment ??
     "",
   brand:
     asset?.brand ??
+    asset?.cBrand ??
     asset?.brandLabel ??
     asset?.cBrandName ??
+    asset?.Brand ??
+    asset?.BrandName ??
+    asset?.brandName ??
     "",
   brandLabel:
     asset?.brandLabel ??
+    asset?.cBrand ??
     asset?.cBrandName ??
     asset?.brand ??
+    asset?.Brand ??
+    asset?.BrandName ??
+    asset?.brandName ??
+    "",
+  brandName:
+    asset?.brandName ??
+    asset?.cBrandName ??
+    asset?.BrandName ??
+    asset?.brandLabel ??
+    asset?.brand ??
+    asset?.cBrand ??
     "",
   serialNo: asset?.serialNo ?? asset?.cSerialNo ?? "",
   description: asset?.description ?? asset?.cAssetDescription ?? "",
@@ -140,18 +172,30 @@ const getAssetCompareKey = (asset: any) => {
 
 const mergeAssetLists = (primaryAssets: any[] = [], fallbackAssets: any[] = []) => {
   const merged = primaryAssets.map(normalizeAssetForDisplay);
-  const existingKeys = new Set(
-    merged.map(getAssetCompareKey).filter(Boolean),
-  );
+  const indexByKey = new Map<string, number>();
+
+  merged.forEach((asset, index) => {
+    const key = getAssetCompareKey(asset);
+
+    if (key) indexByKey.set(key, index);
+  });
 
   fallbackAssets.map(normalizeAssetForDisplay).forEach((asset) => {
     const key = getAssetCompareKey(asset);
 
-    if (key && existingKeys.has(key)) return;
+    if (key && indexByKey.has(key)) {
+      const index = indexByKey.get(key)!;
+      merged[index] = {
+        ...merged[index],
+        ...asset,
+      };
+
+      return;
+    }
 
     merged.push(asset);
 
-    if (key) existingKeys.add(key);
+    if (key) indexByKey.set(key, merged.length - 1);
   });
 
   return merged;
@@ -376,8 +420,11 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
   const resolveDepartmentLabel = (asset: any) => {
     const direct = String(
       asset?.department ??
+        asset?.cDepartment ??
         asset?.departmentLabel ??
+        asset?.departmentName ??
         asset?.cDepartmentName ??
+        asset?.Department ??
         asset?.DepartmentName ??
         asset?.departmentName ??
         "",
@@ -393,6 +440,7 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
 
     return String(
       byId?.cDepartmentName ??
+        byId?.cDepartment ??
         byId?.DepartmentName ??
         byId?.departmentName ??
         byId?.name ??
@@ -403,8 +451,11 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
   const resolveBrandLabel = (asset: any) => {
     const direct = String(
       asset?.brand ??
+        asset?.cBrand ??
         asset?.brandLabel ??
+        asset?.brandName ??
         asset?.cBrandName ??
+        asset?.Brand ??
         asset?.BrandName ??
         asset?.brandName ??
         "",
@@ -419,7 +470,12 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
     );
 
     return String(
-      byId?.cBrandName ?? byId?.BrandName ?? byId?.brandName ?? byId?.name ?? "",
+      byId?.cBrandName ??
+        byId?.cBrand ??
+        byId?.BrandName ??
+        byId?.brandName ??
+        byId?.name ??
+        "",
     ).trim();
   };
 
@@ -1059,6 +1115,9 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
     recentlySavedAssetsRef.current = nextAssets;
     resetAssetForm();
     setShowAssetForm(false);
+    if (selectedRow?.id) {
+      void refetchCustomerWiseAssets();
+    }
     message.success(
       editingIndex >= 0
         ? "Asset updated. Click Save to update customer"
@@ -1105,6 +1164,9 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
     recentlySavedAssetsRef.current = nextAssets;
     resetAssetForm();
     setShowAssetForm(false);
+    if (selectedRow?.id) {
+      void refetchCustomerWiseAssets();
+    }
     message.success("Asset removed. Click Save to update customer");
   };
 
@@ -1336,10 +1398,42 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
                     {assetList.map((asset: any, index: number) => {
                       const displayName =
                         asset.name || asset.cAssetName || "";
+                      const normalizeCardValue = (value: any) => {
+                        const text = String(value ?? "").trim();
+
+                        if (!text) return "";
+
+                        const blocked = ["NIL", "NULL", "NONE", "0", "-"];
+
+                        return blocked.includes(text.toUpperCase()) ? "" : text;
+                      };
+
                       const displayDept =
-                        resolveDepartmentLabel(asset) || "-";
+                        normalizeCardValue(
+                          asset.departmentName ||
+                          resolveDepartmentLabel(asset) ||
+                          asset.departmentLabel ||
+                          asset.cDepartment ||
+                          asset.cDepartmentName ||
+                          asset.department ||
+                            asset.Department ||
+                            asset.DepartmentName ||
+                            asset.departmentName ||
+                            asset.nDepartmentId,
+                        ) || "-";
                       const displayBrand =
-                        resolveBrandLabel(asset) || "-";
+                        normalizeCardValue(
+                          asset.brandName ||
+                          resolveBrandLabel(asset) ||
+                          asset.brandLabel ||
+                          asset.cBrand ||
+                          asset.cBrandName ||
+                            asset.brand ||
+                            asset.Brand ||
+                            asset.BrandName ||
+                            asset.brandName ||
+                            asset.nBrandId,
+                        ) || "-";
 
                       return (
                         <button
@@ -1356,9 +1450,19 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
                             {displayName}
                           </p>
 
-                          <div className="flex items-center justify-between gap-3">
-                            <p>Department : {displayDept}</p>
-                            <p>Brand : {displayBrand}</p>
+                          <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-500 sm:grid-cols-2 sm:gap-3">
+                            <p className="break-words">
+                              <span className="font-medium text-slate-600">
+                                Department :
+                              </span>{" "}
+                              {displayDept}
+                            </p>
+                            <p className="break-words sm:text-right">
+                              <span className="font-medium text-slate-600">
+                                Brand :
+                              </span>{" "}
+                              {displayBrand}
+                            </p>
                           </div>
                         </button>
                       );
