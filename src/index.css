@@ -400,23 +400,23 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   height: 100%;
   vertical-align: middle;
 }
-/*
 .ticket-create-shell {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 96px);
-  margin-top: -12px;
-  border-radius: 8px;
-  overflow: hidden;
-} */
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow: visible;
+  background: #ffffff;
+}
 
 .ticket-create-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 0px;
+  padding: 0 0 4px;
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: 8px;
 }
 
 .ticket-create-header h2 {
@@ -424,21 +424,25 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   font-size: 18px;
   font-weight: 500;
   color: #0f172a;
+  margin-top: 8px;
 }
 
 .ticket-create-form {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
   font-size: 13px;
+  margin-left: -4px;
 }
 
 .ticket-create-form .ant-form-item {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .ticket-create-form .ant-form-item-label {
-  padding-bottom: 1px !important;
+  padding-bottom: 0 !important;
   width: 100%;
 }
 
@@ -452,15 +456,32 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .ticket-create-form .ant-input,
 .ticket-create-form .ant-picker,
 .ticket-create-form .ant-select-selector {
-  min-height: 28px !important;
-  height: 28px !important;
+  min-height: 26px !important;
+  height: 26px !important;
   font-size: 12px !important;
   /* background-color: #ffffff !important; */
 }
 
 .ticket-create-form .ant-select-selection-item,
 .ticket-create-form .ant-select-selection-placeholder {
-  line-height: 28px !important;
+  line-height: 26px !important;
+}
+
+.ticket-create-form .source-radio-group .ant-radio-inner {
+  border-color: #111827;
+}
+
+.ticket-create-form .source-radio-group .ant-radio-checked .ant-radio-inner {
+  border-color: #111827;
+  background-color: #111827;
+}
+
+.ticket-create-form .source-radio-group .ant-radio:hover .ant-radio-inner,
+.ticket-create-form
+  .source-radio-group
+  .ant-radio-input:focus
+  + .ant-radio-inner {
+  border-color: #111827;
 }
 
 .ticket-create-form .ant-input-group-addon {
@@ -479,19 +500,18 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-create-form textarea.ant-input {
-  min-height: 54px !important;
-  height: 54px !important;
+  min-height: 48px !important;
+  height: 48px !important;
   font-size: 12px !important;
 }
 
 .ticket-create-grid {
   display: grid;
-  grid-template-columns: minmax(480px, 0.92fr) minmax(520px, 1.08fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
   flex: 1;
-  min-height: auto;
-  overflow: hidden;
-  background: #f8fafc;
+  min-height: 0;
+  overflow: visible;
 }
 
 @media (max-width: 992px) {
@@ -571,7 +591,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   display: flex;
   justify-content: flex-end;
   padding: 6px 12px;
-  background: #ffffff;
+  /* background: #ffffff; */
   border-top: 1px solid #e5e7eb;
   margin-top: 0;
   z-index: 10;
@@ -635,11 +655,99 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   margin-bottom: 12px;
 }
 
+.ticket-asset-modal .ant-modal-content {
+  border-radius: 6px;
+}
+
+.ticket-asset-modal .ant-modal-header {
+  margin-bottom: 8px;
+}
+
+.ticket-asset-modal .ant-modal-body {
+  padding-top: 10px;
+}
+
+.ticket-asset-modal .ant-form-item {
+  margin-bottom: 10px;
+}
+
+.ticket-asset-modal .ant-form-item-label {
+  padding-bottom: 2px !important;
+}
+
+.ticket-asset-modal .ant-input,
+.ticket-asset-modal .ant-select-selector,
+.ticket-asset-modal .ant-picker {
+  min-height: 30px !important;
+  height: 30px !important;
+  border-radius: 4px !important;
+  font-size: 12px;
+}
+
+.ticket-asset-modal .ant-input {
+  font-size: 12px;
+}
+
+.ticket-asset-modal .ant-select-selection-item,
+.ticket-asset-modal .ant-select-selection-placeholder {
+  line-height: 28px !important;
+  font-size: 12px;
+}
+
+.ticket-asset-modal .ant-picker-input > input {
+  font-size: 12px;
+}
+
+.ticket-asset-modal .ant-btn {
+  font-size: 12px;
+}
+
+.ticket-asset-modal .ant-checkbox + span,
+.ticket-asset-modal .ant-form-item-label > label {
+  font-size: 12px;
+}
+
+.ticket-asset-save-btn {
+  height: 38px;
+  min-width: 78px;
+  border-color: #10b981 !important;
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-radius: 6px;
+}
+
+.ticket-asset-save-btn:hover,
+.ticket-asset-save-btn:focus {
+  border-color: #059669 !important;
+  background: #059669 !important;
+  color: #ffffff !important;
+}
+
+.ticket-asset-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: #ecfdf5;
+}
+
+.ticket-asset-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: #f0fdf4;
+}
+
+.ticket-asset-select-dropdown .ant-select-item-option-content {
+  font-size: 12px;
+}
+
+.ticket-asset-modal .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: #ecfdf5;
+}
+
+.ticket-asset-modal .ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: #f0fdf4;
+}
+
 .ticket-customer-card {
   display: block;
   width: 100%;
   border: 1px solid #bae6fd;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #eaf6ff;
   padding: 12px 20px;
   text-align: left;
@@ -912,7 +1020,6 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .modern-ticket-calendar .ant-picker-ranges {
   padding: 0;
 }
-
 /* :root {
   --text: #6b6375;
   --text-h: #08060d;

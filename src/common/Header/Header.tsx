@@ -128,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-[38px] bg-white shadow-sm flex items-center justify-between px-5  border-b border-gray-100">
+    <header className="fixed top-0 left-0 right-0 h-[38px] bg-white flex items-center justify-between px-5  border-b border-gray-100">
       {/* Left: Hamburger + Company Logo + Name */}
         <div className="flex items-center gap-3">
         <button

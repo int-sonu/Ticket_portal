@@ -141,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
 
   return (
     <aside
-      className={`fixed top-[58px] left-0 h-[calc(100vh-58px)] bg-[#1e5b86] text-white flex flex-col transition-all duration-300 z-20 shadow-xl ${
+      className={`fixed top-[38px] left-0 h-[calc(100vh-38px)] bg-[#1e5b86] text-white flex flex-col transition-all duration-300 z-20 shadow-xl ${
         isSidebarOpen ? 'w-64' : 'w-20'
       }`}
     >
@@ -200,7 +200,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                     </span>
                     {isSidebarOpen && (
                       <div className="ml-4 flex-1 flex items-center justify-between min-w-0">
-                        <span className="truncate font-medium">{item.name}</span>
+                        <span className="truncate text-[13px] font-medium">{item.name}</span>
                         <svg
                           className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${
                             isOpen ? 'rotate-180' : ''

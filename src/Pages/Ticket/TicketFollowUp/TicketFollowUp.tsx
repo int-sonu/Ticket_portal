@@ -6,6 +6,7 @@ import {
   Input,
   message,
 } from "antd";
+import { useNavigate } from "react-router-dom";
 
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
 
@@ -19,6 +20,7 @@ const TicketFollowUp = ({
   ticketId,
 }: Props) => {
   const [form] = Form.useForm();
+  const navigate = useNavigate();
 
   const { followupSave } =
     useTicketMutations();
@@ -40,6 +42,7 @@ const TicketFollowUp = ({
           );
 
           form.resetFields();
+          navigate(-1);
         },
       }
     );

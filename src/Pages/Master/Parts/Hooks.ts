@@ -14,13 +14,16 @@ export const PARTS_KEYS = {
 
 // GET LIST
 
-export const useGetParts = (payload: PartsPayload) => {
+export const useGetParts = (
+  payload: PartsPayload,
+  enabled = true
+) => {
   return useQuery({
     queryKey: PARTS_KEYS.list(JSON.stringify(payload)),
 
     queryFn: () => partsApis.partsList(payload),
 
-    enabled: !!payload,
+    enabled: enabled && !!payload,
   });
 };
 

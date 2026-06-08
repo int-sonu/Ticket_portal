@@ -1,6 +1,15 @@
+import { useLocation } from "react-router-dom";
+
 import TicketForm from "./TicketForm";
 
 const TicketCreate = () => {
+  const location = useLocation();
+
+  const locationState =
+    (location.state as
+      | { draftValues?: Record<string, any> }
+      | null) ?? {};
+
   const initialValues = {
     CustomerId: null,
     ContactNo: "",
@@ -12,7 +21,10 @@ const TicketCreate = () => {
   return (
     <TicketForm
       initialValues={
-        initialValues
+        {
+          ...initialValues,
+          ...(locationState.draftValues ?? {}),
+        }
       }
       isEdit={false}
     />

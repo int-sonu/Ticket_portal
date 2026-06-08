@@ -185,6 +185,38 @@ export const ticketApis = {
     return response.data;
   },
 
+  customerWiseActiveTicketList: async (
+    payload: TicketPayload
+  ) => {
+    try {
+      const response =
+        await axiosInstance.post(
+          "/Api/V1/Ticket/CustomerWiseActiveTicketList",
+          payload
+        );
+
+      return response.data;
+    } catch (error) {
+      return returnEmptyListOnNoTickets(error);
+    }
+  },
+
+  customerWiseAllTicketList: async (
+    payload: TicketPayload
+  ) => {
+    try {
+      const response =
+        await axiosInstance.post(
+          "/Api/V1/Ticket/CustomerWiseAllTicketList",
+          payload
+        );
+
+      return response.data;
+    } catch (error) {
+      return returnEmptyListOnNoTickets(error);
+    }
+  },
+
   ticketListAgentWise: async (
     payload: TicketPayload
   ) => {

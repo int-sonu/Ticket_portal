@@ -1,8 +1,6 @@
 import {
   CloseOutlined,
   DeleteOutlined,
-  MailFilled,
-  PhoneFilled,
   SearchOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -20,8 +18,12 @@ import {
   Upload,
 } from "antd";
 import type { UploadFile } from "antd";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import EmailIcon from "../../../assets/icons/email-icon.svg";
+import mobileIcon from "../../../assets/icons/mobileicon.svg";
+import { ticketApis } from "../../../Axios/TicketsApi";
 
 import { useTicketAttachments } from "../../../Hooks/Ticket/useTicketAttachments";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
@@ -32,9 +34,10 @@ import {
   useGetCustomerAssetDepartments,
   useGetCustomerBrandOptions,
   useGetCustomerWiseAssets,
-  useGetCustomers,
+  useGetCustomerDropDown,
   useSaveCustomer,
 } from "../../Master/CustomerMaster/Hooks";
+import { useGetParts } from "../../Master/Parts/Hooks";
 import SimpleMasterDrawer from "../../Master/Common/SimpleMasterDrawer";
 import {
   extractList,
@@ -164,18 +167,25 @@ const TicketForm = ({
   ticketId,
 }: TicketFormProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form] = Form.useForm();
   const [customerForm] = Form.useForm();
   const [assetForm] = Form.useForm();
   const [customerOpen, setCustomerOpen] =
     useState(false);
-  const [
-    customerPickerOpen,
-    setCustomerPickerOpen,
-  ] = useState(false);
+  const [customerPickerOpen, setCustomerPickerOpen] =
+    useState(false);
+  const [customerDropdownOpen, setCustomerDropdownOpen] =
+    useState(false);
+  const [customerSearch, setCustomerSearch] =
+    useState("");
   const [assetPickerOpen, setAssetPickerOpen] =
     useState(false);
+  const [assetDropdownOpen, setAssetDropdownOpen] =
+    useState(false);
   const [assetSearch, setAssetSearch] =
+    useState("");
+  const [partsSearch, setPartsSearch] =
     useState("");
   const [assetDepartment, setAssetDepartment] =
     useState("All");
@@ -183,6 +193,8 @@ const TicketForm = ({
     useState("All");
   const [carryOpen, setCarryOpen] =
     useState(false);
+  const [carryActiveTab, setCarryActiveTab] =
+    useState<"asset" | "parts">("asset");
   const [assetOpen, setAssetOpen] =
     useState(false);
   const [fileList, setFileList] = useState<
@@ -200,6 +212,21 @@ const TicketForm = ({
     useState("");
   const [editorFile, setEditorFile] =
     useState<any>(null);
+  const [editorMode, setEditorMode] = useState<
+    "free" | "square"
+  >("free");
+  const editorCanvasRef =
+    useRef<HTMLCanvasElement | null>(null);
+  const editorSourceUrlRef = useRef("");
+  const editorDrawingRef = useRef(false);
+  const editorStartRef = useRef<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const editorSnapshotRef = useRef<ImageData | null>(
+    null
+  );
+  const editorPointerIdRef = useRef<number | null>(null);
 
   const sessionPayload = useMemo(
     () => ({
@@ -214,6 +241,19 @@ const TicketForm = ({
     Form.useWatch("CustomerId", form);
 
   const customerWiseAssetPayload = useMemo(
+    () => ({
+      ...sessionPayload,
+      nCustomerId: selectedCustomerId,
+      CustomerId: selectedCustomerId,
+      customerId: selectedCustomerId,
+      nCustId: selectedCustomerId,
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    [selectedCustomerId, sessionPayload]
+  );
+
+  const partsPayload = useMemo(
     () => ({
       ...sessionPayload,
       nCustomerId: selectedCustomerId,
@@ -242,7 +282,7 @@ const TicketForm = ({
   } = useSaveAssetMaster();
 
   const { data: customerData } =
-    useGetCustomers(sessionPayload);
+    useGetCustomerDropDown(sessionPayload);
   const { data: groupData } =
     useGetGroupDropdown(sessionPayload);
   const { data: serviceTypeData } =
@@ -262,11 +302,97 @@ const TicketForm = ({
     customerWiseAssetPayload,
     !!selectedCustomerId
   );
+  const {
+    data: partsData,
+    isFetching: isFetchingParts,
+  } = useGetParts(partsPayload, carryOpen && !!selectedCustomerId);
 
   const customers = useMemo(
     () => extractList(customerData),
     [customerData]
   );
+  const customerOptions = useMemo(
+    () =>
+      customers.map((customer: any, index: number) => {
+        const name =
+          getFirstValue(customer, [
+            "cCustomerName",
+            "CustomerName",
+            "name",
+          ]) || `Customer ${index + 1}`;
+        const id =
+          getFirstValue(customer, [
+            "nCustomerId",
+            "id",
+          ]) || index + 1;
+
+        return {
+          label: name,
+          value: id,
+          customer,
+        };
+      }),
+    [customers]
+  );
+  const customerLookup = useMemo(
+    () =>
+      new Map(
+        customerOptions.map((option) => [
+          String(option.value),
+          option.customer,
+        ])
+      ),
+    [customerOptions]
+  );
+  const selectedCustomerName = useMemo(() => {
+    if (!selectedCustomerId) return "";
+
+    const customer = customerLookup.get(
+      String(selectedCustomerId)
+    );
+
+    return (
+      getFirstValue(customer, [
+        "cCustomerName",
+        "CustomerName",
+        "name",
+      ]) || ""
+    );
+  }, [customerLookup, selectedCustomerId]);
+  const filteredCustomers = useMemo(() => {
+    const search = customerSearch.trim().toLowerCase();
+    if (!search) return customers;
+
+    return customers.filter((customer: any, index: number) => {
+      const name =
+        getFirstValue(customer, [
+          "cCustomerName",
+          "CustomerName",
+          "name",
+        ]) || `Customer ${index + 1}`;
+      const id =
+        getFirstValue(customer, [
+          "nCustomerId",
+          "id",
+        ]) || index + 1;
+      const email = getFirstValue(customer, [
+        "cEmail",
+        "email",
+      ]);
+      const phone = getFirstValue(customer, [
+        "cMobileNo",
+        "cPhoneNo",
+        "mobile",
+        "phone",
+      ]);
+
+      return [name, id, email, phone]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(search)
+        );
+    });
+  }, [customerSearch, customers]);
 
   const groupOptions = useMemo(
     () =>
@@ -358,6 +484,12 @@ const TicketForm = ({
     }
   }, [defaultSource, form, ticketSourceOptions]);
 
+  useEffect(() => {
+    if (groupOptions.length > 0 && !form.getFieldValue("Group")) {
+      form.setFieldValue("Group", groupOptions[0].value);
+    }
+  }, [form, groupOptions]);
+
   const departmentOptions = useMemo(
     () => [
       { label: "All", value: "All" },
@@ -393,6 +525,10 @@ const TicketForm = ({
   const customerAssets = useMemo(
     () => extractAssetList(customerWiseAssetData),
     [customerWiseAssetData]
+  );
+  const partsList = useMemo(
+    () => extractList(partsData),
+    [partsData]
   );
 
   const filteredCustomerAssets = useMemo(() => {
@@ -445,6 +581,94 @@ const TicketForm = ({
     assetSearch,
     customerAssets,
   ]);
+
+  const filteredParts = useMemo(() => {
+    const search = partsSearch.trim().toLowerCase();
+
+    if (!search) return partsList;
+
+    return partsList.filter((part: any) => {
+      const partName = getFirstValue(part, [
+        "cPartName",
+        "PartName",
+        "name",
+        "partName",
+      ]);
+      const description = getFirstValue(part, [
+        "cPartDescription",
+        "PartDescription",
+        "description",
+      ]);
+      const shortName = getFirstValue(part, [
+        "cPartShName",
+        "nPartShName",
+        "shortName",
+      ]);
+
+      return [partName, description, shortName]
+        .join(" ")
+        .toLowerCase()
+        .includes(search);
+    });
+  }, [partsList, partsSearch]);
+
+  const assetNameValue = Form.useWatch("AssetName", form);
+  const filteredAssetDropdownItems = useMemo(() => {
+    const query = String(assetNameValue ?? "")
+      .trim()
+      .toLowerCase();
+
+    if (!selectedCustomerId) {
+      return [];
+    }
+
+    if (!query) {
+      return customerAssets;
+    }
+
+    return customerAssets.filter((asset: any) => {
+      const assetName = getFirstValue(asset, [
+        "cAssetName",
+        "cAssetMasterName",
+        "AssetName",
+        "assetName",
+        "name",
+      ]);
+      const serialNo = getFirstValue(asset, [
+        "cSerialNo",
+        "SerialNo",
+        "serialNo",
+      ]);
+      const department = getFirstValue(asset, [
+        "nDepartmentId",
+        "cDepartmentName",
+        "DepartmentName",
+        "department",
+      ]);
+      const brand = getFirstValue(asset, [
+        "nBrandId",
+        "cBrandName",
+        "BrandName",
+        "brand",
+      ]);
+
+      return [assetName, serialNo, department, brand]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [assetNameValue, customerAssets, selectedCustomerId]);
+
+  const handleAssetSelect = (
+    assetId: any,
+    assetName: string
+  ) => {
+    form.setFieldsValue({
+      AssetId: assetId,
+      AssetName: assetName,
+    });
+    setAssetDropdownOpen(false);
+  };
 
   const handleUpload = (file: any) => {
     setEditorFile(file);
@@ -613,16 +837,29 @@ const TicketForm = ({
         cSerialNo: values.serialNo,
         cDescription: values.description,
         bAMC: values.amc,
+        bUnderAmc: values.amc,
         bWarranty: values.warranty,
+        bUnderWarranty: values.warranty,
         dExpiryDate:
           values.expiryDate?.format?.(
-            "DD/MM/YYYY"
+            "YYYY-MM-DD"
           ) ?? values.expiryDate,
         bActive: true,
       } as any,
       {
-        onSuccess: () => {
+        onSuccess: (response: any) => {
+          const savedAssetId = getFirstValue(response, [
+            "nAssetId",
+            "AssetId",
+            "id",
+            "assetId",
+          ]);
+
           message.success("Asset saved");
+          form.setFieldsValue({
+            AssetId: savedAssetId,
+            AssetName: values.assetName,
+          });
           setAssetOpen(false);
           assetForm.resetFields();
         },
@@ -636,9 +873,91 @@ const TicketForm = ({
     );
   };
 
+  const handleCustomerSelect = (value: any) => {
+    if (!value) {
+      form.setFieldsValue({
+        CustomerId: undefined,
+        ContactPerson: undefined,
+        ContactNo: undefined,
+        Email: undefined,
+      });
+      return;
+    }
+
+    const customer = customerLookup.get(String(value));
+    if (!customer) {
+      form.setFieldsValue({
+        CustomerId: value,
+      });
+      return;
+    }
+
+    const email = getFirstValue(customer, [
+      "cEmail",
+      "email",
+    ]);
+    const phone = getFirstValue(customer, [
+      "cMobileNo",
+      "cPhoneNo",
+      "mobile",
+      "phone",
+    ]);
+
+    form.setFieldsValue({
+      CustomerId: value,
+      ContactPerson: getFirstValue(customer, [
+        "cContactPerson",
+        "contactPerson",
+      ]),
+      ContactNo: phone,
+      Email: email,
+    });
+  };
+
+  const openCustomerTickets = async (
+    customerId: any,
+    customerName?: string
+  ) => {
+    try {
+      const response = await ticketApis.customerWiseActiveTicketList({
+        ...sessionPayload,
+        CustomerId: customerId,
+        customerId,
+        nCustomerId: customerId,
+        CustomerName: customerName ?? selectedCustomerName,
+        cCustomerName: customerName ?? selectedCustomerName,
+        pageNumber: 1,
+        pageSize: 1000,
+      });
+
+      const rows = extractList(response);
+
+      if (!rows.length) {
+        message.info("No active tickets found for this customer");
+        return;
+      }
+
+      navigate("/tickets/customertickets", {
+        state: {
+          customerId,
+          customerName: customerName ?? selectedCustomerName,
+          ticketRows: rows,
+          draftValues: form.getFieldsValue(true),
+          returnTo: `${location.pathname}${location.search}`,
+        },
+      });
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load customer tickets"
+      );
+    }
+  };
+
   return (
-<div className="min-h-screen bg-white">
-        <div className="ticket-create-header">
+    <div className="ticket-create-shell flex-1 bg-white">
+      <div className="ticket-create-header text-[18px] font-semibold leading-none">
         <h2>Create New Ticket</h2>
         <Button
           type="text"
@@ -654,22 +973,28 @@ const TicketForm = ({
         initialValues={{
           Source: initialValues?.Source ?? defaultSource,
           Priority: "Low",
+          CustomerId: initialValues?.CustomerId,
           ...initialValues,
+          OnsiteRequired: initialValues?.OnsiteRequired ?? false,
         }}
         className="ticket-create-form"
         onFinish={handleSubmit}
       >
-        <div className="ticket-create-grid h-auto min-h-0 overflow-hidden bg-white">
+        <div className="ticket-create-grid min-h-0 overflow-hidden bg-white">
           <section
-            className="min-h-0 border-r border-slate-200 bg-white overflow-y-auto h-full px-4 pb-3 [scrollbar-width:thin] [scrollbar-color:#94a3b8_#e2e8f0] [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-[#e2e8f0] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-[#e2e8f0] [&::-webkit-scrollbar-thumb]:bg-slate-400"
+            className="flex h-full min-h-0 flex-col overflow-visible border-r border-slate-200 bg-white px-4 pb-2"
           >
-            <div className="-mx-4 mt-1 mb-1 border-y border-slate-200 bg-sky-50 px-4 py-2">
+            <div className="-mx-4 mt-0 mb-1 w-[calc(100%+2rem)] bg-sky-50 px-4 pt-0 pb-0">
               <Form.Item
-                label={<span className="text-[14px] font-medium text-slate-900">Source</span>}
+                label={
+                  <span className="text-[18px] font-semibold leading-none text-slate-900">
+                    Source
+                  </span>
+                }
                 name="Source"
-                className="!mb-0"
+                className="!mt-0 !mb-0"
               >
-                <Radio.Group className="flex flex-wrap gap-x-2 gap-y-0.5">
+                <Radio.Group className="source-radio-group flex flex-wrap gap-x-2 gap-y-0.5  text-[12px]">
                   {ticketSourceOptions.map((opt) => (
                     <Radio key={opt.value} value={opt.value}>
                       {opt.label}
@@ -694,22 +1019,72 @@ const TicketForm = ({
                   </button>
                 </div>
               }
-              name="CustomerId"
             >
-              <Input
-                onClick={() => setCustomerPickerOpen(true)}
-                onFocus={() => setCustomerPickerOpen(true)}
-                addonAfter={
-                  <Button
-                    type="primary"
-                    icon={<SearchOutlined />}
-                    className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
-                    onClick={() =>
-                      setCustomerPickerOpen(true)
-                    }
-                  />
-                }
-              />
+              <div className="relative">
+                <Input
+                  value={selectedCustomerName}
+                  readOnly
+                  placeholder="Select customer"
+                  onClick={() =>
+                    setCustomerDropdownOpen(true)
+                  }
+                  onFocus={() =>
+                    setCustomerDropdownOpen(true)
+                  }
+                  addonAfter={
+                    <Button
+                      type="primary"
+                      icon={<SearchOutlined />}
+                      className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
+                      onClick={() => {
+                        setCustomerDropdownOpen(false);
+                        setCustomerPickerOpen(true);
+                      }}
+                    />
+                  }
+                />
+
+                {customerDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border border-slate-200 bg-white shadow-lg">
+                    {filteredCustomers.map(
+                      (customer: any, index: number) => {
+                        const name =
+                          getFirstValue(customer, [
+                            "cCustomerName",
+                            "CustomerName",
+                            "name",
+                          ]) || `Customer ${index + 1}`;
+                        const id =
+                          getFirstValue(customer, [
+                            "nCustomerId",
+                            "id",
+                          ]) || index + 1;
+
+                        return (
+                          <button
+                            type="button"
+                            key={`${id}-${index}`}
+                            className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-sky-50"
+                            onClick={() => {
+                              handleCustomerSelect(id);
+                              setCustomerDropdownOpen(false);
+                              openCustomerTickets(id, name);
+                            }}
+                          >
+                            <span className="font-medium text-slate-900">
+                              {name}
+                            </span>
+                            
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
+              </div>
+            </Form.Item>
+            <Form.Item name="CustomerId" hidden>
+              <Input />
             </Form.Item>
 
             <Form.Item
@@ -750,40 +1125,128 @@ const TicketForm = ({
             </Form.Item>
 
             <Form.Item
-              label="Asset Name"
+              label={
+                <div className="flex w-full items-center justify-between gap-2">
+                  <span>Asset Name</span>
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-blue-600"
+                    onClick={() => {
+                      setAssetDropdownOpen(false);
+                      setAssetPickerOpen(true);
+                    }}
+                  >
+                    Link Asset +
+                  </button>
+                </div>
+              }
               name="AssetName"
             >
-              <Input
-                addonAfter={
-                  <Button
-                    type="primary"
-                    icon={<SearchOutlined />}
-                    className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
-                    onClick={() =>
-                      setAssetPickerOpen(true)
-                    }
-                  />
-                }
-              />
+              <div className="relative">
+                <Input
+                  addonAfter={
+                    <Button
+                      type="primary"
+                      icon={<SearchOutlined />}
+                      className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
+                      onClick={() => {
+                        setAssetDropdownOpen(false);
+                        setAssetPickerOpen(true);
+                      }}
+                    />
+                  }
+                  onFocus={() => setAssetDropdownOpen(true)}
+                  onClick={() => setAssetDropdownOpen(true)}
+                  onChange={() => setAssetDropdownOpen(true)}
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      setAssetDropdownOpen(false);
+                    }, 120);
+                  }}
+                />
+
+                {assetDropdownOpen ? (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border border-slate-200 bg-white shadow-lg">
+                    {!selectedCustomerId ? (
+                      <div className="px-4 py-3 text-center text-sm text-slate-500">
+                        Select a customer to view assets
+                      </div>
+                    ) : filteredAssetDropdownItems.length ? (
+                      filteredAssetDropdownItems.map(
+                        (asset: any, index: number) => {
+                          const assetName =
+                            getFirstValue(asset, [
+                              "cAssetName",
+                              "cAssetMasterName",
+                              "AssetName",
+                              "assetName",
+                              "name",
+                            ]) || "Asset";
+                          const assetId =
+                            getFirstValue(asset, [
+                              "nAssetId",
+                              "nAssetMasterId",
+                              "AssetId",
+                              "assetId",
+                              "id",
+                            ]) || assetName;
+
+                          return (
+                            <button
+                              type="button"
+                              key={`${assetId}-${index}`}
+                            className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-sky-50"
+                              onMouseDown={(event) =>
+                                event.preventDefault()
+                              }
+                              onClick={() =>
+                                handleAssetSelect(assetId, assetName)
+                              }
+                            >
+                              <span className="font-medium text-slate-900">
+                                {assetName}
+                              </span>
+                            </button>
+                          );
+                        }
+                      )
+                    ) : (
+                      <div className="px-4 py-3 text-center text-sm text-slate-500">
+                        No data found
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </Form.Item>
 
-            <div className="flex justify-end mb-2">
+            <Form.Item name="AssetId" hidden>
+              <Input />
+            </Form.Item>
+
+            <div className="flex justify-end mb-[-4px] font-normal text-xs text-slate-500">
               <Checkbox
-                checked={form.getFieldValue("ItemTakenForRepair")}
+                checked={Boolean(form.getFieldValue("ItemTakenForRepair"))}
                 onChange={(e) => {
-                  form.setFieldValue("ItemTakenForRepair", e.target.checked);
-                  if (e.target.checked) {
-                    setCarryOpen(true);
-                  }
+                  form.setFieldValue(
+                    "ItemTakenForRepair",
+                    e.target.checked
+                  );
                 }}
+              />
+              <button
+                type="button"
+                className="ml-2 text-xs text-slate-600"
+                onClick={() => setCarryOpen(true)}
               >
                 Item Taken For Repair
-              </Checkbox>
+              </button>
             </div>
 
             <Form.Item
               label="Service Type"
               name="ServiceType"
+              className="!mt-[-4px]"
             >
               <Select
                 suffixIcon=">"
@@ -791,13 +1254,13 @@ const TicketForm = ({
               />
             </Form.Item>
 
-            <div className="-mx-4 mt-2 mb-2 border-y border-slate-200 bg-sky-50 px-4 py-2 text-[13px]">
+            <div className="-mx-4 mt-2 mb-1 border-y border-slate-200 bg-sky-50 px-5 text-[13px]">
               <Form.Item
                 label="Priority"
                 name="Priority"
                 className="!mb-0"
               >
-                <Radio.Group className="flex flex-wrap gap-x-2 gap-y-1">
+                <Radio.Group className="flex flex-wrap gap-x-2 gap-y-1 ">
                   {[
                     "Very Low",
                     "Low",
@@ -817,7 +1280,7 @@ const TicketForm = ({
             </div>
           </section>
 
-          <section className="flex h-full flex-col overflow-y-auto bg-white px-4 pb-3">
+          <section className="flex h-full min-h-0 flex-col overflow-visible bg-white px-4 pb-3">
             <div className="grid grid-cols-[minmax(190px,1fr)_auto] items-end gap-1.5">
               <Form.Item
                 label="Follow up Date & Time"
@@ -957,7 +1420,7 @@ const TicketForm = ({
               </Button>
             </div>
           </section>
-        </div>
+      </div>
       </Form>
 
       <Modal
@@ -1030,18 +1493,20 @@ const TicketForm = ({
         width={500}
         closeIcon={<CloseOutlined />}
         className="ticket-picker-modal"
-        onCancel={() =>
-          setCustomerPickerOpen(false)
-        }
+        onCancel={() => setCustomerPickerOpen(false)}
       >
         <Input
           prefix={<SearchOutlined />}
           placeholder="Search"
           className="mb-3"
+          value={customerSearch}
+          onChange={(event) =>
+            setCustomerSearch(event.target.value)
+          }
         />
 
         <div className="space-y-3">
-          {customers.map(
+          {filteredCustomers.map(
             (customer: any, index: number) => {
               const name =
                 getFirstValue(customer, [
@@ -1073,20 +1538,8 @@ const TicketForm = ({
                   key={`${id}-${index}`}
                   className="ticket-customer-card"
                   onClick={() => {
-                    form.setFieldsValue({
-                      CustomerId: id,
-                      ContactPerson:
-                        getFirstValue(
-                          customer,
-                          [
-                            "cContactPerson",
-                            "contactPerson",
-                          ]
-                        ),
-                      ContactNo: phone,
-                      Email: email,
-                    });
                     setCustomerPickerOpen(false);
+                    openCustomerTickets(id, name);
                   }}
                 >
                   <div className="flex items-center justify-between border-b border-sky-100 pb-2">
@@ -1098,11 +1551,19 @@ const TicketForm = ({
 
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
                     <span>
-                      <MailFilled className="mr-2 text-black" />
-                      {email || "-"}
+                      <img
+                        src={EmailIcon}
+                        alt="Mail"
+                        className="mr-2 inline-block h-4 w-4 align-middle"
+                      />
+                      {email}
                     </span>
                     <span>
-                      <PhoneFilled className="mr-2 text-black" />
+                      <img
+                        src={mobileIcon}
+                        alt="Mobile"
+                        className="mr-2 inline-block h-4 w-4 align-middle"
+                      />
                       {phone || "-"}
                     </span>
                   </div>
@@ -1135,7 +1596,20 @@ const TicketForm = ({
 
       <Modal
         open={assetPickerOpen}
-        footer={null}
+        footer={
+          <div className="flex justify-end">
+            <Button
+              type="primary"
+              className="bg-emerald-500 border-emerald-500 px-8 hover:!bg-emerald-600"
+              onClick={() => {
+                setAssetPickerOpen(false);
+                setAssetOpen(true);
+              }}
+            >
+              Add New Asset
+            </Button>
+          </div>
+        }
         title="Assets"
         width={500}
         className="ticket-picker-modal"
@@ -1152,20 +1626,8 @@ const TicketForm = ({
             }
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm text-slate-600">
-                Department
-              </label>
-              <Select
-                className="w-full"
-                suffixIcon=">"
-                options={departmentOptions}
-                value={assetDepartment}
-                onChange={setAssetDepartment}
-              />
-            </div>
-
+          <div className="grid grid-cols-1 gap-3 ">
+           
             <div>
               <label className="mb-1 block text-sm text-slate-600">
                 Brand
@@ -1233,7 +1695,6 @@ const TicketForm = ({
                       className="w-full rounded border border-sky-100 bg-white px-3 py-2 text-left text-sm hover:border-sky-300 hover:bg-sky-50"
                       onClick={() => {
                         form.setFieldsValue({
-                          AssetId: assetId,
                           AssetName: assetName,
                         });
                         setAssetPickerOpen(false);
@@ -1243,9 +1704,7 @@ const TicketForm = ({
                         <span className="font-medium text-slate-900">
                           {assetName}
                         </span>
-                        <span className="text-xs text-slate-500">
-                          ID :{assetId}
-                        </span>
+                       
                       </div>
 
                       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-600">
@@ -1274,16 +1733,18 @@ const TicketForm = ({
       <Modal
         open={carryOpen}
         footer={
-          <Button
-            type="primary"
-            className="bg-emerald-500 border-emerald-500 px-8 hover:!bg-emerald-600"
-            onClick={() => {
-              setCarryOpen(false);
-              setAssetOpen(true);
-            }}
-          >
-            Add New
-          </Button>
+          carryActiveTab === "asset" ? (
+            <Button
+              type="primary"
+              className="bg-emerald-500 border-emerald-500 px-8 hover:!bg-emerald-600"
+              onClick={() => {
+                setCarryOpen(false);
+                setAssetOpen(true);
+              }}
+            >
+              Add New
+            </Button>
+          ) : null
         }
         title="Carry In Service"
         width={600}
@@ -1292,7 +1753,12 @@ const TicketForm = ({
         onCancel={() => setCarryOpen(false)}
       >
         <Tabs
-          defaultActiveKey="asset"
+          activeKey={carryActiveTab}
+          onChange={(key) =>
+            setCarryActiveTab(
+              key === "parts" ? "parts" : "asset"
+            )
+          }
           items={[
             {
               key: "asset",
@@ -1302,27 +1768,100 @@ const TicketForm = ({
                   <Input
                     prefix={<SearchOutlined />}
                     placeholder="Search"
+                    value={assetSearch}
+                    onChange={(event) =>
+                      setAssetSearch(event.target.value)
+                    }
                   />
 
                   <div className="grid grid-cols-2 gap-3">
                     <Select
                       placeholder="Department"
+                      showSearch
+                      optionFilterProp="label"
                       suffixIcon=">"
                       options={departmentOptions}
-                      defaultValue="All"
+                      value={assetDepartment}
+                      onChange={setAssetDepartment}
                     />
 
                     <Select
                       placeholder="Brand"
+                      showSearch
+                      optionFilterProp="label"
                       suffixIcon=">"
                       options={brandOptions}
-                      defaultValue="All"
+                      value={assetBrand}
+                      onChange={setAssetBrand}
                     />
                   </div>
 
-                  <div className="py-6 text-center text-slate-500">
-                    No data found
-                  </div>
+                  {!selectedCustomerId ? (
+                    <div className="py-6 text-center text-slate-500">
+                      Select a customer to view assets
+                    </div>
+                  ) : filteredCustomerAssets.length ? (
+                    <div className="space-y-2">
+                      {filteredCustomerAssets.map(
+                        (asset: any, index: number) => {
+                          const assetName =
+                            getFirstValue(asset, [
+                              "cAssetName",
+                              "cAssetMasterName",
+                              "AssetName",
+                              "assetName",
+                              "name",
+                            ]) || "Asset";
+                          const assetId =
+                            getFirstValue(asset, [
+                              "nAssetId",
+                              "nAssetMasterId",
+                              "AssetId",
+                              "assetId",
+                              "id",
+                            ]) || assetName;
+                          const department =
+                            getFirstValue(asset, [
+                              "cDepartmentName",
+                              "DepartmentName",
+                              "department",
+                            ]) || "-";
+                          const brand = getFirstValue(asset, [
+                            "cBrandName",
+                            "BrandName",
+                            "brand",
+                          ]) || "-";
+
+                          return (
+                            <button
+                              type="button"
+                              key={`${assetId}-${index}`}
+                              className="w-full rounded border border-sky-100 bg-white px-3 py-2 text-left text-sm hover:border-sky-300 hover:bg-sky-50"
+                              onClick={() => {
+                                handleAssetSelect(assetId, assetName);
+                                setCarryOpen(false);
+                              }}
+                            >
+                              <div className="flex items-center justify-between border-b border-sky-100 pb-2">
+                                <span className="font-medium text-slate-900">
+                                  {assetName}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-600">
+                                <span>Department : {department}</span>
+                                <span>Brand : {brand}</span>
+                              </div>
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center text-slate-500">
+                      No data found
+                    </div>
+                  )}
                 </div>
               ),
             },
@@ -1330,8 +1869,70 @@ const TicketForm = ({
               key: "parts",
               label: "Parts",
               children: (
-                <div className="py-6 text-center text-slate-500">
-                  No data found
+                <div className="space-y-3">
+                  <Input
+                    prefix={<SearchOutlined />}
+                    placeholder="Search"
+                    value={partsSearch}
+                    onChange={(event) =>
+                      setPartsSearch(event.target.value)
+                    }
+                  />
+
+                  {!selectedCustomerId ? (
+                    <div className="py-6 text-center text-slate-500">
+                      Select a customer to view parts
+                    </div>
+                  ) : isFetchingParts ? (
+                    <div className="py-6 text-center text-slate-500">
+                      Loading parts...
+                    </div>
+                  ) : filteredParts.length ? (
+                    <div className="space-y-2">
+                      {filteredParts.map(
+                        (part: any, index: number) => {
+                          const partName =
+                            getFirstValue(part, [
+                              "cPartName",
+                              "PartName",
+                              "name",
+                              "partName",
+                            ]) || "Part";
+                          const description =
+                            getFirstValue(part, [
+                              "cPartDescription",
+                              "PartDescription",
+                              "description",
+                            ]) || "-";
+
+                          return (
+                            <button
+                              type="button"
+                              key={`${partName}-${index}`}
+                              className="w-full rounded border border-sky-100 bg-white px-3 py-2 text-left text-sm hover:border-sky-300 hover:bg-sky-50"
+                            >
+                              <div className="flex items-center justify-between border-b border-sky-100 pb-2">
+                                <span className="font-medium text-slate-900">
+                                  {partName}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 text-xs text-slate-600">
+                                <span className="font-medium text-slate-500">
+                                  Description :
+                                </span>{" "}
+                                {description}
+                              </div>
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center text-slate-500">
+                      No data found
+                    </div>
+                  )}
                 </div>
               ),
             },
@@ -1342,17 +1943,20 @@ const TicketForm = ({
       <Modal
         open={assetOpen}
         footer={
-          <Button
-            type="primary"
-            loading={isSavingAsset}
-            className="bg-emerald-500 border-emerald-500 px-8 hover:!bg-emerald-600"
-            onClick={saveAssetMaster}
-          >
-            Save
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              type="primary"
+              loading={isSavingAsset}
+              className="ticket-asset-save-btn px-8"
+              onClick={saveAssetMaster}
+            >
+              Save
+            </Button>
+          </div>
         }
-        title="Asset Master"
+        title="Add Asset"
         width={500}
+        className="ticket-asset-modal"
         closeIcon={<CloseOutlined />}
         onCancel={() => setAssetOpen(false)}
       >
@@ -1361,21 +1965,35 @@ const TicketForm = ({
           layout="vertical"
           requiredMark={false}
           initialValues={{
-            amc: false,
+            amc: true,
             warranty: false,
           }}
         >
+          <div className="mb-2 text-xs text-slate-600">
+            Customer : {selectedCustomerName || "-"}
+          </div>
+
           <Form.Item
             name="assetName"
             label="Name"
+            className="mb-2"
           >
             <Input />
           </Form.Item>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Form.Item
               name="shortName"
               label="Short Name"
+              className="mb-2"
+            >
+              <Input />
+            </Form.Item>
+
+            <Form.Item
+              name="serialNo"
+              label="Serial No"
+              className="mb-2"
             >
               <Input />
             </Form.Item>
@@ -1383,41 +2001,45 @@ const TicketForm = ({
             <Form.Item
               name="department"
               label="Department"
+              className="mb-2"
             >
               <Select
+                showSearch
+                optionFilterProp="label"
                 suffixIcon=">"
                 options={departmentOptions}
-              />
-            </Form.Item>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Form.Item name="brand" label="Brand">
-              <Select
-                suffixIcon=">"
-                options={brandOptions}
+                popupClassName="ticket-asset-select-dropdown"
               />
             </Form.Item>
 
             <Form.Item
-              name="serialNo"
-              label="Serial No"
+              name="brand"
+              label="Brand"
+              className="mb-2"
             >
-              <Input />
+              <Select
+                showSearch
+                optionFilterProp="label"
+                suffixIcon=">"
+                options={brandOptions}
+                popupClassName="ticket-asset-select-dropdown"
+              />
             </Form.Item>
           </div>
 
           <Form.Item
             name="description"
             label="Description"
+            className="mb-2"
           >
             <TextArea rows={3} />
           </Form.Item>
 
-          <div className="grid grid-cols-[auto_auto_1fr] items-end gap-4">
+          <div className="grid grid-cols-[auto_auto_1fr] items-end gap-3">
             <Form.Item
               name="amc"
               valuePropName="checked"
+              className="mb-0"
             >
               <Checkbox
                 onChange={(event) => {
@@ -1436,6 +2058,7 @@ const TicketForm = ({
             <Form.Item
               name="warranty"
               valuePropName="checked"
+              className="mb-0"
             >
               <Checkbox
                 onChange={(event) => {
@@ -1454,6 +2077,7 @@ const TicketForm = ({
             <Form.Item
               name="expiryDate"
               label="Expiry Date"
+              className="mb-0"
             >
               <DatePicker
                 className="w-full"

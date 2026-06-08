@@ -15,6 +15,14 @@ export const useGetCustomers = (payload: any) => {
   });
 };
 
+export const useGetCustomerDropDown = (payload: any) => {
+  return useQuery({
+    queryKey: ["customer-dropdown", payload],
+
+    queryFn: () => customerApis.customerDropDown(payload),
+  });
+};
+
 export const useSaveCustomer = () => {
   const queryClient = useQueryClient();
 

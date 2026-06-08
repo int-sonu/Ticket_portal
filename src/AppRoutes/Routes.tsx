@@ -38,6 +38,7 @@ import IssueSummary from "../Pages/Master/IssueSummary/IssueSummary";
 // Ticket Module
 import TicketList from "../Pages/Ticket/TicketList/TicketList";
 import TicketCreate from "../Pages/Ticket/TicketCreate/TicketCreate";
+import CustomerTickets from "../Pages/Ticket/CustomerTickets/CustomerTickets";
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
 
@@ -207,6 +208,11 @@ const Routes: React.FC = () => {
             <Route
               path="/tickets/create"
               element={<TicketCreate />}
+            />
+
+            <Route
+              path="/tickets/customertickets"
+              element={<CustomerTickets />}
             />
 
             <Route
