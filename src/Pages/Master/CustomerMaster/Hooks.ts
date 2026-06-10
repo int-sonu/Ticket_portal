@@ -104,3 +104,9 @@ export const useGetCustomerBrandOptions = (payload: any) => {
     queryFn: () => brandApis.brandDropDown(payload),
   });
 };
+
+export const useCheckAmcExpiry = () => {
+  return useMutation({
+    mutationFn: customerApis.checkAmcExpiry,
+  });
+};

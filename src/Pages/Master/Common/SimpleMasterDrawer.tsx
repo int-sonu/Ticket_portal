@@ -62,6 +62,7 @@ const SimpleMasterDrawer = ({
 }: SimpleMasterDrawerProps) => (
  <Drawer
   open={open}
+  forceRender
   onClose={onClose}
   closable={false}
   title={

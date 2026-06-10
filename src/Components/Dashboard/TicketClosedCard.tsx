@@ -1,5 +1,6 @@
 import resolvedIcon from '../../assets/icons/resolved.svg';
 import unresolvedIcon from '../../assets/icons/unresolved.svg';
+import closedTicketIcon from '../../assets/icons/closedTicketIcon.svg';
 
 interface TicketClosedCardProps {
   closed: number;
@@ -28,7 +29,10 @@ const TicketClosedCard: React.FC<TicketClosedCardProps> = ({
           className="pointer-events-none absolute left-0 top-1/2 h-3 w-1.5 -translate-y-1/2 border-y-[6px] border-l-[6px] border-y-transparent border-l-[#B3E9EA]"
           aria-hidden
         />
-        <p className="text-xs font-medium text-[#4A6B6B]">Closed</p>
+        <div className="flex items-center gap-2">
+          <img src={closedTicketIcon} alt="" className="h-4 w-4 shrink-0" />
+          <p className="text-xs font-medium text-[#4A6B6B]">Closed</p>
+        </div>
         <p className="mt-1 text-3xl font-semibold leading-none text-slate-900">
           {String(closed ?? 0).padStart(2, '0')}
         </p>

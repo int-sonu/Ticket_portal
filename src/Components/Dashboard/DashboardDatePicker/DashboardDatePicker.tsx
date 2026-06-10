@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
+import calendarIcon from '../../../assets/icons/calenderiCon.svg';
 
 interface DashboardDatePickerProps {
   value: Dayjs;
@@ -148,34 +149,11 @@ const DashboardDatePicker: React.FC<DashboardDatePickerProps> = ({
         className="flex items-center gap-2.5 rounded-lg border border-sky-200 bg-white px-3.5 py-1.5 font-medium text-slate-700 shadow-sm transition-all hover:border-sky-300 hover:bg-slate-50 cursor-pointer"
         type="button"
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-slate-600"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
-          <text
-            x="12"
-            y="17"
-            fontSize="7"
-            fontFamily="sans-serif"
-            fontWeight="bold"
-            textAnchor="middle"
-            fill="currentColor"
-            stroke="none"
-          >
-            10
-          </text>
-        </svg>
+        <img
+          src={calendarIcon}
+          alt=""
+          className="h-[18px] w-[18px] shrink-0"
+        />
         <span className="text-sm font-semibold tracking-wide text-slate-600">
           {value.format('DD/MM/YYYY')}
         </span>

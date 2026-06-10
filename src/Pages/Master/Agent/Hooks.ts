@@ -8,6 +8,8 @@ export const AGENT_KEYS = {
   list: (filters: string) => [...AGENT_KEYS.lists(), { filters }] as const,
   dropdown: (filters: string) =>
     [...AGENT_KEYS.all, "dropdown", { filters }] as const,
+  assignList: (filters: string) =>
+    [...AGENT_KEYS.all, "assign-list", { filters }] as const,
   reportTo: (filters: string) =>
     [...AGENT_KEYS.all, "report-to", { filters }] as const,
   details: () => [...AGENT_KEYS.all, "detail"] as const,
@@ -35,6 +37,17 @@ export const useGetAgentDropdown = (payload: AgentPayload) => {
     queryKey: AGENT_KEYS.dropdown(JSON.stringify(payload)),
     queryFn: () => agentApis.agentDropDown(payload),
     enabled: !!payload,
+  });
+};
+
+export const useGetAssignAgentList = (
+  payload: AgentPayload,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: AGENT_KEYS.assignList(JSON.stringify(payload)),
+    queryFn: () => agentApis.assignAgentList(payload),
+    enabled: enabled && !!payload?.nGroupId,
   });
 };
 

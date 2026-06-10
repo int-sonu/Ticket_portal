@@ -217,6 +217,22 @@ export const ticketApis = {
     }
   },
 
+  assignAgentTicketList: async (
+    payload: TicketPayload
+  ) => {
+    try {
+      const response =
+        await axiosInstance.post(
+          "/Api/V1/Ticket/AssignAgentTicketList",
+          payload
+        );
+
+      return response.data;
+    } catch (error) {
+      return returnEmptyListOnNoTickets(error);
+    }
+  },
+
   ticketListAgentWise: async (
     payload: TicketPayload
   ) => {

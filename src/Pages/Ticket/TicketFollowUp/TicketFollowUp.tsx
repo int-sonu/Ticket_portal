@@ -31,6 +31,7 @@ const TicketFollowUp = ({
     followupSave.mutate(
       {
         TicketId: ticketId,
+        dDate: values.FollowupDate,
         FollowupDate:
           values.FollowupDate,
         Remarks: values.Remarks,
