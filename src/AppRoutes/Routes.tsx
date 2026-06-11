@@ -42,6 +42,7 @@ import CustomerTickets from "../Pages/Ticket/CustomerTickets/CustomerTickets";
 import AssignAgentTickets from "../Pages/Ticket/AssignAgentTickets/AssignAgentTickets";
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
+import TicketView from "../Pages/Ticket/TicketView/TicketView";
 
 const Routes: React.FC = () => {
   return (
@@ -144,6 +145,10 @@ const Routes: React.FC = () => {
             />
 
             <Route path="/tickets/edit/:id" element={<TicketCreate />} />
+
+            <Route path="/tickets/view" element={<TicketView />} />
+
+            <Route path="/tickets/view/:id" element={<TicketView />} />
 
             <Route path="/tickets/history/:id" element={<TicketHistory />} />
 

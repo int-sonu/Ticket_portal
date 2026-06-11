@@ -19,12 +19,12 @@ function AntTable<T extends object>({
   ...props 
 }: AntTableProps<T>) {
   const tableScroll = disableHorizontalScroll
-    ? { y: '100%', ...scroll }
-    : { y: '100%', x: 'max-content', ...scroll };
+    ? scroll
+    : { x: 'max-content', ...scroll };
 
   return (
     <div className={`w-full flex flex-col h-full min-h-0 bg-white rounded-lg shadow-sm ${className}`}>
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-visible">
         <Table<T>
           pagination={false}
           size="middle"

@@ -13,10 +13,10 @@ const MainLayout: React.FC = () => {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-gray-50 font-sans">
       <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-      <div className="flex min-h-0 flex-1 pt-[16px]">
+      <div className="relative z-0 flex min-h-0 flex-1 pt-[38px]">
         <Sidebar isSidebarOpen={isSidebarOpen} />
         <main
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-4 transition-all duration-300"
+          className="relative z-0 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 pb-4 pt-0 transition-all duration-300"
           style={{ marginLeft: isSidebarOpen ? '16rem' : '5rem' }}
         >
           <Outlet />

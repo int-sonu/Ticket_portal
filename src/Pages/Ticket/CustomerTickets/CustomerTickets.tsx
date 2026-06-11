@@ -17,8 +17,8 @@ import {
 import { useCustomerWiseActiveTicketList } from "../../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import AntTable from "../../../ui/Table/AntTable";
-import CustomPagination from "../../../ui/Table/CustomPagination";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
+import TicketModulePagination from "../Common/TicketModulePagination";
 import "../TicketList/TicketList.css";
 
 interface CustomerTicketsLocationState {
@@ -305,6 +305,20 @@ const CustomerTickets = () => {
     navigate(-1);
   };
 
+  const openTicketView = (record: any) => {
+    const ticketId = getTicketIdValue(record);
+
+    if (!ticketId) {
+      return;
+    }
+
+    navigate(`/tickets/view/${ticketId}`, {
+      state: {
+        selectedRow: record,
+      },
+    });
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -407,10 +421,10 @@ const CustomerTickets = () => {
                 minWidth: 70,
               }}
               disabled={!ticketId}
-              onClick={() =>
-                ticketId &&
-                navigate(`/tickets/followup/${ticketId}`)
-              }
+              onClick={(event) => {
+                event.stopPropagation();
+                openTicketView(record);
+              }}
             >
               FollowUp
             </Button>
@@ -426,7 +440,8 @@ const CustomerTickets = () => {
     : "Customer Tickets";
 
   return (
-    <Card
+    <>
+      <Card
       bordered={false}
       bodyStyle={{
         background: "#ffffff",
@@ -438,15 +453,15 @@ const CustomerTickets = () => {
         minHeight: 0,
         boxSizing: "border-box",
       }}
-      style={{
-        background: "#ffffff",
-        width: "100%",
-        height: "calc(100vh - 96px)",
-        minHeight: "calc(100vh - 96px)",
-        borderRadius: 8,
-        overflow: "hidden",
-      }}
-    >
+        style={{
+          background: "#ffffff",
+          width: "100%",
+          height: "calc(100vh - 96px)",
+          minHeight: "calc(100vh - 96px)",
+          borderRadius: 8,
+        overflow: "visible",
+        }}
+      >
       <div
         style={{
           display: "flex",
@@ -506,7 +521,7 @@ const CustomerTickets = () => {
           </Space>
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "visible" }}>
           <AntTable
             className="ticket-list-table"
             rowKey={(record) =>
@@ -523,7 +538,11 @@ const CustomerTickets = () => {
             loading={isFetching}
             size="small"
             disableHorizontalScroll
-            scroll={{ y: "100%" }}
+            scroll={undefined}
+            onRow={(record) => ({
+              onClick: () => openTicketView(record),
+              style: { cursor: "pointer" },
+            })}
             locale={{
               emptyText: isError ? (
                 <Empty description="Unable to load customer tickets" />
@@ -535,34 +554,32 @@ const CustomerTickets = () => {
           />
         </div>
 
-        <div className="mt-auto flex flex-col gap-2 pt-2">
-          <div className="flex justify-end">
-            <Button
-              type="primary"
-              style={{
-                minWidth: 78,
-                height: 38,
-                background: "#22c55e",
-                borderColor: "#22c55e",
-              }}
-              onClick={goBackWithDraft}
-            >
-              Skip
-            </Button>
-          </div>
-
-          <div className="rounded-lg border border-slate-200 bg-white">
-            <CustomPagination
-              current={safeCurrentPage}
-              pageSize={pageSize}
-              total={totalRows}
-              onChange={handlePageChange}
-              onShowSizeChange={handlePageChange}
-            />
-          </div>
+        <div className="mt-auto flex justify-end pt-2">
+          <Button
+            type="primary"
+            style={{
+              minWidth: 78,
+              height: 38,
+              background: "#22c55e",
+              borderColor: "#22c55e",
+            }}
+            onClick={goBackWithDraft}
+          >
+            Skip
+          </Button>
         </div>
       </div>
-    </Card>
+      </Card>
+
+      <TicketModulePagination
+        className="mt-3"
+        current={safeCurrentPage}
+        pageSize={pageSize}
+        total={totalRows}
+        onChange={handlePageChange}
+        onShowSizeChange={handlePageChange}
+      />
+    </>
   );
 };
 

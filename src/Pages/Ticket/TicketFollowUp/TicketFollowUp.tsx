@@ -6,14 +6,14 @@ import {
   Input,
   message,
 } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
 
 const { TextArea } = Input;
 
 interface Props {
-  ticketId: number;
+  ticketId?: number;
 }
 
 const TicketFollowUp = ({
@@ -21,6 +21,10 @@ const TicketFollowUp = ({
 }: Props) => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const params = useParams();
+  const resolvedTicketId = Number(
+    ticketId ?? params.id ?? 0
+  );
 
   const { followupSave } =
     useTicketMutations();
@@ -30,12 +34,12 @@ const TicketFollowUp = ({
   ) => {
     followupSave.mutate(
       {
-        TicketId: ticketId,
+        TicketId: resolvedTicketId,
         dDate: values.FollowupDate,
         FollowupDate:
           values.FollowupDate,
         Remarks: values.Remarks,
-      },
+      } as any,
       {
         onSuccess: () => {
           message.success(

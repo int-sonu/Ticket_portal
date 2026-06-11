@@ -6,8 +6,8 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAssignAgentTicketList } from "../../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import AntTable from "../../../ui/Table/AntTable";
-import CustomPagination from "../../../ui/Table/CustomPagination";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
+import TicketModulePagination from "../Common/TicketModulePagination";
 import "../TicketList/TicketList.css";
 
 interface AssignAgentTicketsLocationState {
@@ -236,6 +236,7 @@ const AssignAgentTickets = () => {
   );
 
   return (
+    <>
     <Card
       bordered={false}
       bodyStyle={{
@@ -323,23 +324,23 @@ const AssignAgentTickets = () => {
         />
       </div>
 
-      <div className="mt-auto pt-2">
-        <CustomPagination
-          current={safeCurrentPage}
-          pageSize={pageSize}
-          total={filteredRows.length}
-          onChange={(page, size) => {
-            setCurrentPage(page);
-            setPageSize(size);
-          }}
-          onShowSizeChange={(page, size) => {
-            setCurrentPage(page);
-            setPageSize(size);
-          }}
-          showSizeChanger
-        />
-      </div>
     </Card>
+    <TicketModulePagination
+      className="mt-3"
+      current={safeCurrentPage}
+      pageSize={pageSize}
+      total={filteredRows.length}
+      onChange={(page, size) => {
+        setCurrentPage(page);
+        setPageSize(size);
+      }}
+      onShowSizeChange={(page, size) => {
+        setCurrentPage(page);
+        setPageSize(size);
+      }}
+      showSizeChanger
+    />
+    </>
   );
 };
 

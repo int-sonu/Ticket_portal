@@ -13,13 +13,18 @@ const methodFromAllowHeader = (allowHeader?: string): HttpMethod | undefined => 
 };
 
 const sendPayload = async (method: HttpMethod, url: string, payload: any) => {
-  if (method === 'delete') {
-    return axiosInstance.delete(url, {
-      data: payload,
-    });
+  switch (method) {
+    case 'post':
+      return axiosInstance.post(url, payload);
+    case 'put':
+      return axiosInstance.put(url, payload);
+    case 'delete':
+      return axiosInstance.delete(url, {
+        data: payload,
+      });
+    default:
+      return axiosInstance.post(url, payload);
   }
-
-  return axiosInstance[method](url, payload);
 };
 
 const sendWithMethodFallback = async (

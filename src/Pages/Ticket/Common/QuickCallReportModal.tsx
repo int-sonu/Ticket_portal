@@ -1,145 +1,292 @@
-import {
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Select,
-  message,
-} from "antd";
+import { Form, Input, message } from "antd";
+import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
+import RightSideDrawer from "../../../ui/Drawer/RightSideDrawer";
+import type { FormInstance } from "antd";
 
 const { TextArea } = Input;
+
+const requiredTicketFields = [
+  { name: "CustomerId", label: "Customer" },
+  { name: "ContactPerson", label: "Contact Person" },
+  { name: "ContactNo", label: "Contact Number" },
+  { name: "Email", label: "Email" },
+  { name: "IssueSummary", label: "Issue Summary" },
+  { name: "Description", label: "Description" },
+  { name: "FollowupDate", label: "Follow up Date & Time" },
+  { name: "Group", label: "Group" },
+  { name: "AssignToAgent", label: "Assign To Agent" },
+  { name: "AssetId", label: "Asset" },
+  { name: "Source", label: "Source" },
+  { name: "Priority", label: "Priority" },
+];
+
+const requiredQuickCallFields = [
+  { name: "Summary", label: "Summary" },
+  { name: "Comment", label: "Comment" },
+];
+
+const isEmptyValue = (value: any) =>
+  value === undefined ||
+  value === null ||
+  value === "" ||
+  (Array.isArray(value) && value.length === 0);
 
 interface QuickCallReportModalProps {
   open: boolean;
   onClose: () => void;
   ticketId: number;
+  ticketForm: FormInstance;
+  selectedCustomerName?: string;
+  sessionPayload: Record<string, any>;
+  assignedAgentDetails?: any[];
 }
 
 const QuickCallReportModal = ({
   open,
   onClose,
   ticketId,
+  ticketForm,
+  selectedCustomerName,
+  sessionPayload,
+  assignedAgentDetails = [],
 }: QuickCallReportModalProps) => {
   const [form] = Form.useForm();
+  const navigate = useNavigate();
+  const { quickCallReportSave } = useTicketMutations();
 
-  const { quickCallReportSave } =
-    useTicketMutations();
+  const priorityValueMap: Record<string, number> = {
+    "Very Low": 1,
+    Low: 1,
+    Medium: 2,
+    High: 3,
+    "Very High": 4,
+  };
 
-  const handleSubmit = (
-    values: any
-  ) => {
-    quickCallReportSave.mutate(
-      {
-        TicketId: ticketId,
-        CallStatus:
-          values.CallStatus,
-        CallDuration:
-          values.CallDuration,
-        Remarks: values.Remarks,
-      },
-      {
-        onSuccess: () => {
-          message.success(
-            "Call Report Saved Successfully"
-          );
+  const normalizedAssignedAgents = assignedAgentDetails
+    .map((agent: any) => ({
+      nAgentId: Number(
+        agent?.nAgentId ??
+          agent?.agentId ??
+          agent?.id ??
+          agent?.value ??
+          0
+      ),
+      nRole: Number(agent?.nRole ?? 0),
+    }))
+    .filter((agent: any) => agent.nAgentId > 0);
 
-          form.resetFields();
+  const handleSubmit = async (values: any) => {
+    const modalValues = form.getFieldsValue(true);
+    const ticketValues = ticketForm.getFieldsValue(true);
 
-          onClose();
-        },
-      }
+    const missingFields = [
+      ...requiredTicketFields.filter(
+        ({ name }) => isEmptyValue(ticketValues?.[name])
+      ),
+      ...requiredQuickCallFields.filter(
+        ({ name }) => isEmptyValue(modalValues?.[name])
+      ),
+    ];
+
+    const sessionMissingFields = [
+      isEmptyValue(sessionPayload.nCompanyId) ? "Company" : "",
+      isEmptyValue(sessionPayload.cSchemaName) ? "Schema Name" : "",
+      isEmptyValue(sessionPayload.cDbName) ? "Database Name" : "",
+    ].filter(Boolean);
+
+    const assignedAgentMissing =
+      normalizedAssignedAgents.length === 0 ? ["Assign To Agent"] : [];
+
+    const allMissingFields = [
+      ...missingFields.map((field) => field.label),
+      ...sessionMissingFields,
+      ...assignedAgentMissing,
+    ];
+
+    if (allMissingFields.length > 0) {
+      message.error(
+        `Please fill the required fields before saving: ${allMissingFields.join(", ")}`
+      );
+      return;
+    }
+
+    await ticketForm.validateFields(
+      requiredTicketFields.map((field) => field.name)
     );
+
+    const followupValue = ticketValues.FollowupDate;
+    const normalizedFollowupDate = dayjs.isDayjs(followupValue)
+      ? followupValue.format("YYYY-MM-DD HH:mm:ss")
+      : followupValue;
+
+    const saveData = {
+      nCustomerId:
+        Number(
+          ticketValues.CustomerId ??
+            ticketValues.nCustomerId ??
+            sessionPayload.nCustomerId ??
+            0
+        ) || 0,
+      cCustomerName:
+        selectedCustomerName ??
+        ticketValues.CustomerName ??
+        ticketValues.cCustomerName ??
+        "",
+      nSourceId:
+        Number(
+          ticketValues.Source ??
+            ticketValues.SourceId ??
+            ticketValues.nSourceId ??
+            sessionPayload.nSourceId ??
+            0
+        ) || 0,
+      cContactPerson: ticketValues.ContactPerson ?? "",
+      cContactNumber: ticketValues.ContactNo ?? ticketValues.ContactNumber ?? "",
+      cEmail: ticketValues.Email ?? "",
+      cTicketSummary:
+        ticketValues.IssueSummary ?? ticketValues.TicketSummary ?? "",
+      cDescription: ticketValues.Description ?? "",
+      cAssignedId: normalizedAssignedAgents,
+      nTicketStatus:
+        Number(
+          ticketValues.TicketStatus ??
+            ticketValues.nTicketStatus ??
+            sessionPayload.nTicketStatus ??
+            5
+        ) || 5,
+      nAssetId:
+        Number(
+          ticketValues.AssetId ??
+            ticketValues.nAssetId ??
+            sessionPayload.nAssetId ??
+            0
+        ) || 0,
+      nPriority:
+        Number(
+          ticketValues.nPriority ??
+            sessionPayload.nPriority ??
+            priorityValueMap[String(ticketValues.Priority ?? "")] ??
+            1
+        ) || 1,
+      nGroupId:
+        Number(
+          ticketValues.Group ??
+            ticketValues.GroupId ??
+            ticketValues.nGroupId ??
+            sessionPayload.nGroupId ??
+            0
+        ) || 0,
+      bOnSite: Boolean(ticketValues.OnsiteRequired ?? ticketValues.bOnSite),
+      dFollowupDate: normalizedFollowupDate ?? "",
+      cCallSummary: values.Summary ?? "",
+      cCallComment: values.Comment ?? "",
+      nCreatedBy:
+        Number(sessionPayload.nCreatedBy ?? sessionPayload.nUserId ?? 0) || 0,
+      nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
+      cSchemaName: sessionPayload.cSchemaName ?? "",
+      cDbName: sessionPayload.cDbName ?? sessionPayload.dbName ?? "",
+    };
+
+    const payload = {
+      ...saveData,
+      saveData,
+      TicketId: ticketId,
+      nTicketId: ticketId,
+      pageNumber: 1,
+      pageSize: 1000,
+    };
+
+    quickCallReportSave.mutate(payload, {
+      onSuccess: (response: any) => {
+        message.success(
+          response?.message ||
+            response?.data?.message ||
+            "Call Report Saved Successfully"
+        );
+        form.resetFields();
+        onClose();
+        navigate("/tickets");
+      },
+      onError: (error: any) => {
+        message.error(
+          error?.response?.data?.message ||
+            error?.response?.data?.title ||
+            error?.message ||
+            "Unable to save quick call report"
+        );
+      },
+    });
+  };
+
+  const handleSaveClick = () => {
+    form.submit();
   };
 
   return (
-    <Modal
+    <RightSideDrawer
       title="Quick Call Report"
       open={open}
-      onCancel={onClose}
-      footer={null}
-      destroyOnClose
+      onClose={onClose}
+      width={500}
+      className="quick-call-drawer"
+      footer={
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleSaveClick}
+            disabled={quickCallReportSave.isPending}
+            className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {quickCallReportSave.isPending ? "Saving..." : "Save"}
+          </button>
+        </div>
+      }
     >
       <Form
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        onFinishFailed={() => {
+          message.error("Please enter Summary and Comment before saving.");
+        }}
+        className="quick-call-report-form"
       >
-        <Form.Item
-          label="Call Status"
-          name="CallStatus"
-          rules={[
-            {
-              required: true,
-              message:
-                "Please Select Call Status",
-            },
-          ]}
-        >
-          <Select
-            options={[
+        <div className="quick-call-report-body">
+          <div className="quick-call-report-note">
+            Add a <strong>Summary</strong> and <strong>Comment</strong>, then click the <strong>Save</strong> button to close the ticket.
+          </div>
+
+          <Form.Item
+            label="Summary"
+            name="Summary"
+            rules={[
               {
-                label:
-                  "Connected",
-                value:
-                  "Connected",
-              },
-              {
-                label:
-                  "Not Connected",
-                value:
-                  "NotConnected",
-              },
-              {
-                label:
-                  "Busy",
-                value: "Busy",
-              },
-              {
-                label:
-                  "Switched Off",
-                value:
-                  "SwitchedOff",
+                required: true,
+                message: "Please enter Summary",
               },
             ]}
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="Call Duration (Minutes)"
-          name="CallDuration"
-        >
-          <InputNumber
-            min={0}
-            style={{
-              width: "100%",
-            }}
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="Remarks"
-          name="Remarks"
-        >
-          <TextArea rows={4} />
-        </Form.Item>
-
-        <Form.Item>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={
-              quickCallReportSave.isPending
-            }
-            block
           >
-            Save Report
-          </Button>
-        </Form.Item>
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            label="Comment"
+            name="Comment"
+            rules={[
+              {
+                required: true,
+                message: "Please enter Comment",
+              },
+            ]}
+          >
+            <TextArea rows={4} />
+          </Form.Item>
+        </div>
       </Form>
-    </Modal>
+    </RightSideDrawer>
   );
 };
 

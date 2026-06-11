@@ -24,9 +24,6 @@ import type { UploadFile } from "antd";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import DatePickerModule from "react-multi-date-picker";
-import DateObjectModule from "react-date-object";
-import TimePickerModule from "react-multi-date-picker/plugins/time_picker";
 import EmailIcon from "../../../assets/icons/email-icon.svg";
 import closedTicketIcon from "../../../assets/icons/closedTicketIcon.svg";
 import mobileIcon from "../../../assets/icons/mobileicon.svg";
@@ -40,6 +37,8 @@ import {
 import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
 import { useSaveAssetMaster } from "../../Master/AssetMaster/Hooks";
 import CustomerDrawer from "../../Master/CustomerMaster/CustomerDrawer";
+import QuickCallReportModal from "../Common/QuickCallReportModal";
+import FollowupDateTimePicker from "../Common/FollowupDateTimePicker";
 import {
   useGetCustomerAssetDepartments,
   useGetCustomerBrandOptions,
@@ -83,7 +82,6 @@ const getFirstValue = (
 
   return "";
 };
-const [quickCallOpen, setQuickCallOpen] = useState(false);
 const toSelectOptions = (
   items: any[],
   labelKeys: string[],
@@ -133,26 +131,6 @@ const formatRequestDate = (date: Date) => {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}/${month}/${day}`;
-};
-
-const MultiDatePicker =
-  (DatePickerModule as any).default ?? DatePickerModule;
-
-const FollowupTimePicker =
-  (TimePickerModule as any).default ?? TimePickerModule;
-
-const DateObject =
-  (DateObjectModule as any).default ?? DateObjectModule;
-
-const toDateObject = (value: any) => {
-  if (!value) return null;
-  if (value instanceof DateObject) return value;
-
-  if (typeof value?.format === "function") {
-    return new DateObject(value.format("YYYY-MM-DD HH:mm:ss"));
-  }
-
-  return new DateObject(value);
 };
 
 const searchOptions = (
@@ -280,6 +258,8 @@ const TicketForm = ({
     useState("All");
   const [carryOpen, setCarryOpen] =
     useState(false);
+  const [quickCallOpen, setQuickCallOpen] =
+    useState(false);
   const [carryActiveTab, setCarryActiveTab] =
     useState<"asset" | "parts">("asset");
   const [repairAssets, setRepairAssets] =
@@ -314,8 +294,6 @@ const TicketForm = ({
   const [previewImage, setPreviewImage] =
     useState("");
   const [imageEditorOpen, setImageEditorOpen] =
-    useState(false);
-  const [followupPickerOpen, setFollowupPickerOpen] =
     useState(false);
   const [groupSearch, setGroupSearch] =
     useState("");
@@ -552,6 +530,12 @@ const TicketForm = ({
 
   const selectedCustomerId =
     Form.useWatch("CustomerId", form);
+  const watchedContactPerson = Form.useWatch("ContactPerson", form);
+  const watchedContactNo = Form.useWatch("ContactNo", form);
+  const watchedEmail = Form.useWatch("Email", form);
+  const watchedIssueSummary = Form.useWatch("IssueSummary", form);
+  const watchedDescription = Form.useWatch("Description", form);
+  const watchedFollowupDate = Form.useWatch("FollowupDate", form);
 
   const customerWiseAssetPayload = useMemo(
     () => ({
@@ -884,6 +868,16 @@ const TicketForm = ({
   );
   const selectedAssignAgentId =
     Form.useWatch("AssignToAgent", form);
+  const canSaveTicket =
+    Boolean(selectedCustomerId) &&
+    Boolean(watchedContactPerson?.toString().trim()) &&
+    Boolean(watchedContactNo?.toString().trim()) &&
+    Boolean(watchedEmail?.toString().trim()) &&
+    Boolean(watchedIssueSummary?.toString().trim()) &&
+    Boolean(watchedDescription?.toString().trim()) &&
+    Boolean(watchedFollowupDate) &&
+    Boolean(watchedGroup) &&
+    Boolean(selectedAssignAgentId);
   const selectedAssignAgentName = useMemo(() => {
     if (
       selectedAssignAgentId === undefined ||
@@ -915,6 +909,60 @@ const TicketForm = ({
       ]) ?? ""
     );
   }, [assignAgents, selectedAssignAgentId]);
+  const selectedAssignAgentDetails = useMemo(() => {
+    if (
+      selectedAssignAgentId === undefined ||
+      selectedAssignAgentId === null ||
+      selectedAssignAgentId === ""
+    ) {
+      return [];
+    }
+
+    const match = assignAgents.find((agent: any) => {
+      const agentId = getFirstValue(agent, [
+        "nAgentId",
+        "agentId",
+        "id",
+        "value",
+      ]);
+
+      return String(agentId ?? "") === String(selectedAssignAgentId);
+    });
+
+    if (!match) {
+      return [
+        {
+          nAgentId: Number(selectedAssignAgentId),
+          cAgentName: selectedAssignAgentName,
+          cAgentshName: "",
+          nType: 0,
+        },
+      ];
+    }
+
+    return [
+      {
+        ...match,
+        nAgentId:
+          getFirstValue(match, ["nAgentId", "agentId", "id", "value"]) ??
+          Number(selectedAssignAgentId),
+        cAgentName:
+          getFirstValue(match, [
+            "cAgentName",
+            "agentName",
+            "name",
+          ]) ?? selectedAssignAgentName,
+        cAgentshName: getFirstValue(match, [
+          "cAgentshName",
+          "shortName",
+        ]) ?? "",
+      },
+    ];
+  }, [
+    assignAgents,
+    selectedAssignAgentId,
+    selectedAssignAgentName,
+  ]);
   const pendingAssignAgentNames = useMemo(
     () =>
       pendingAssignAgentIds
@@ -1630,11 +1678,11 @@ const TicketForm = ({
       TicketId: ticketId,
       dDate:
         values.FollowupDate?.format?.(
-          "DD/MM/YYYY hh:mm A"
+          "YYYY-MM-DD HH:mm:ss"
         ) ?? values.FollowupDate,
       FollowupDate:
         values.FollowupDate?.format?.(
-          "DD/MM/YYYY hh:mm A"
+          "YYYY-MM-DD HH:mm:ss"
         ) ?? values.FollowupDate,
     };
 
@@ -1916,11 +1964,11 @@ const TicketForm = ({
         className="ticket-create-form"
         onFinish={handleSubmit}
       >
-        <div className="ticket-create-grid min-h-0 overflow-hidden bg-white">
+        <div className="ticket-create-grid min-h-0 overflow-visible bg-white">
           <section
-            className="flex h-full min-h-0 flex-col overflow-visible border-r border-slate-200 bg-white px-4 pb-2"
+            className="flex min-h-0 flex-col overflow-visible border-r border-slate-200 bg-white px-4 pb-2 lg:h-full"
           >
-            <div className="-mx-4 mt-0 mb-1 w-[calc(100%+2rem)] bg-sky-50 px-4 pt-0 pb-0">
+            <div className="-mx-4 mt-0 mb-1 w-[calc(100%+2rem)] bg-sky-50 px-4 pt-0 pb-0 sm:mx-0 sm:w-full">
               <Form.Item
                 label={
                   <span className="text-[18px] font-semibold leading-none text-slate-900">
@@ -2271,34 +2319,13 @@ const TicketForm = ({
             </div>
           </section>
 
-          <section className="flex h-full min-h-0 flex-col overflow-visible bg-white px-4 pb-3">
-            <div className="grid grid-cols-[minmax(190px,1fr)_auto] items-end gap-1.5">
+          <section className="flex min-h-0 flex-col overflow-visible bg-white px-4 pb-3 lg:h-full">
+            <div className="grid grid-cols-1 items-start gap-1.5 sm:grid-cols-[minmax(190px,1fr)_auto] sm:items-end">
               <Form.Item
                 label="Follow up Date & Time"
                 name="FollowupDate"
-                getValueProps={(value) => ({
-                  value: toDateObject(value),
-                })}
               >
-                <MultiDatePicker
-                  onOpen={() =>
-                    setFollowupPickerOpen(true)
-                  }
-                  onClose={() =>
-                    setFollowupPickerOpen(false)
-                  }
-                  className="w-full ticket-followup-rmdp"
-                  containerClassName="ticket-followup-rmdp-container"
-                  format="DD/MM/YYYY hh:mm A"
-                  calendarPosition="bottom-left"
-                  plugins={[
-                    <FollowupTimePicker
-                      key="followup-time-picker"
-                      position="bottom"
-                      hideSeconds
-                    />,
-                  ]}
-                />
+                <FollowupDateTimePicker />
               </Form.Item>
 
               <Form.Item
@@ -2607,21 +2634,18 @@ const TicketForm = ({
   </p>
 </Form.Item>
 
-            <div className="ticket-quick-call">
-              <p>
-                If you want to close your ticket
-                now, click{" "}
-                <b>Quick Call Report</b> to
-                proceed.
+            <div className="ticket-quick-call mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+              <p className="mb-2 text-[12px] text-slate-600">
+                If you want to close your ticket now, click{" "}
+                <b>Quick Call Report</b> to proceed.
               </p>
-
-            <Button
-  type="primary"
-  block
-  onClick={() => setQuickCallOpen(true)}
->
-  Quick Call Report
-</Button>
+              <Button
+                type="primary"
+                block
+                onClick={() => setQuickCallOpen(true)}
+              >
+                Quick Call Report
+              </Button>
             </div>
 
             <div className="ticket-right-actions">
@@ -2629,6 +2653,11 @@ const TicketForm = ({
                 type="primary"
                 htmlType="submit"
                 loading={
+                  createTicket.isPending ||
+                  updateTicket.isPending
+                }
+                disabled={
+                  !canSaveTicket ||
                   createTicket.isPending ||
                   updateTicket.isPending
                 }
@@ -2640,6 +2669,16 @@ const TicketForm = ({
           </section>
       </div>
       </Form>
+
+      <QuickCallReportModal
+        open={quickCallOpen}
+        onClose={() => setQuickCallOpen(false)}
+        ticketId={Number(ticketId ?? 0)}
+        ticketForm={form}
+        selectedCustomerName={selectedCustomerName}
+        sessionPayload={sessionPayload}
+        assignedAgentDetails={selectedAssignAgentDetails}
+      />
 
       <Modal
         open={leaderPickerOpen}

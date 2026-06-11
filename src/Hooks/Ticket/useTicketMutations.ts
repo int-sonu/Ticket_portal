@@ -122,5 +122,6 @@ export const useTicketMutations = () => {
     updateTicketStatus,
 
     quickCallReportSave,
+
   };
 };

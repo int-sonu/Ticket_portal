@@ -21,16 +21,18 @@ const sendPayload = async (
   url: string,
   payload: any
 ) => {
-  if (method === "delete") {
-    return axiosInstance.delete(url, {
-      data: payload,
-    });
+  switch (method) {
+    case "post":
+      return axiosInstance.post(url, payload);
+    case "put":
+      return axiosInstance.put(url, payload);
+    case "delete":
+      return axiosInstance.delete(url, {
+        data: payload,
+      });
+    default:
+      return axiosInstance.post(url, payload);
   }
-
-  return axiosInstance[method](
-    url,
-    payload
-  );
 };
 
 const sendWithMethodFallback = async (
@@ -317,6 +319,18 @@ export const ticketApis = {
         payload,
         ["post"]
       );
+
+    return response.data;
+  },
+
+  ticketQuickCallReportSave: async (
+    payload: TicketPayload
+  ) => {
+    const response = await sendWithMethodFallback(
+      "post",
+      "/Api/V1/Ticket/TicketQuickCallReportSave",
+      payload
+    );
 
     return response.data;
   },

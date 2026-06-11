@@ -17,6 +17,7 @@ import tabIcon from "../../../assets/icons/tabIcon.svg";
 import tabIconActive from "../../../assets/icons/tabIconActive.svg";
 import searchFilterIcon from "../../../assets/icons/searchFilterIcon.svg";
 import AntTable from "../../../ui/Table/AntTable";
+import TicketModulePagination from "../Common/TicketModulePagination";
 import "./TicketList.css";
 
 import {
@@ -773,6 +774,7 @@ const TicketList = () => {
   };
 
   return (
+    <>
     <Card
       bordered={false}
       bodyStyle={{
@@ -888,17 +890,21 @@ const TicketList = () => {
             size="small"
             disableHorizontalScroll
             scroll={{ y: "100%" }}
-            paginationProps={{
-              current: safeCurrentPage,
-              pageSize,
-              total: totalRows,
-              onChange: handlePageChange,
-              onShowSizeChange: handlePageChange,
-            }}
+            showPagination={false}
           />
         </div>
       </div>
     </Card>
+    <TicketModulePagination
+      className="mt-3"
+      current={safeCurrentPage}
+      pageSize={pageSize}
+      total={totalRows}
+      onChange={handlePageChange}
+      onShowSizeChange={handlePageChange}
+      showSizeChanger
+    />
+    </>
   );
 };
 
