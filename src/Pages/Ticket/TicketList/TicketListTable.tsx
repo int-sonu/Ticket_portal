@@ -4,6 +4,7 @@ import {
   Button,
   Popconfirm,
 } from "antd";
+import { useNavigate } from "react-router-dom";
 
 import {
   useTicketMutations,
@@ -18,6 +19,7 @@ const TicketListTable = ({
   data,
   loading,
 }: Props) => {
+  const navigate = useNavigate();
   const { deleteTicket } =
     useTicketMutations();
 
@@ -29,6 +31,9 @@ const TicketListTable = ({
         record.TicketId,
     });
   };
+
+  const getTicketId = (record: any) =>
+    record?.TicketId ?? record?.nTicketId ?? record?.ticketId ?? 0;
 
   const columns = [
     {
@@ -66,45 +71,70 @@ const TicketListTable = ({
       render: (
         _: any,
         record: any
-      ) => (
-        <Space>
-          <Button size="small">
-            View
-          </Button>
+      ) => {
+        const ticketId = getTicketId(record);
 
-          <Button size="small">
-            Edit
-          </Button>
-
-          <Button size="small">
-            Assign
-          </Button>
-
-          <Button size="small">
-            Share
-          </Button>
-
-          <Button size="small">
-            Transfer
-          </Button>
-
-          <Popconfirm
-            title="Delete Ticket?"
-            onConfirm={() =>
-              handleDelete(
-                record
-              )
-            }
-          >
+        return (
+          <Space>
             <Button
-              danger
               size="small"
+              disabled={!ticketId}
+              onClick={() =>
+                navigate(`/tickets/view/${ticketId}`, {
+                  state: {
+                    selectedRow: record,
+                  },
+                })
+              }
             >
-              Delete
+              View
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+
+            <Button
+              size="small"
+              disabled={!ticketId}
+              onClick={() =>
+                navigate(`/tickets/view/${ticketId}`, {
+                  state: {
+                    selectedRow: record,
+                    openQuickCall: true,
+                    quickCallTicketValues: record,
+                  },
+                })
+              }
+            >
+              Quick Call
+            </Button>
+
+            <Button size="small">
+              Edit
+            </Button>
+
+            <Button size="small">
+              Assign
+            </Button>
+
+            <Button size="small">
+              Share
+            </Button>
+
+            <Button size="small">
+              Transfer
+            </Button>
+
+            <Popconfirm
+              title="Delete Ticket?"
+              onConfirm={() =>
+                handleDelete(record)
+              }
+            >
+              <Button danger size="small">
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 

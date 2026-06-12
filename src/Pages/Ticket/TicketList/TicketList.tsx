@@ -10,13 +10,14 @@ import {
 
 import { SearchOutlined } from "@ant-design/icons";
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import tabIcon from "../../../assets/icons/tabIcon.svg";
 import tabIconActive from "../../../assets/icons/tabIconActive.svg";
 import searchFilterIcon from "../../../assets/icons/searchFilterIcon.svg";
 import AntTable from "../../../ui/Table/AntTable";
+import QuickCallReportModal from "../Common/QuickCallReportModal";
 import TicketModulePagination from "../Common/TicketModulePagination";
 import "./TicketList.css";
 
@@ -256,6 +257,11 @@ const getTicketIdValue = (record: any) =>
 
 const TicketList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = (location.state as Record<string, any> | null) ?? {};
+  const [quickCallOpen, setQuickCallOpen] = useState(
+    Boolean(locationState.openQuickCall)
+  );
 
   const [activeTab, setActiveTab] = useState("ONGOING");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -267,6 +273,21 @@ const TicketList = () => {
   const [pageSize, setPageSize] = useState(10);
 
   const basePayload = getRequestPayload();
+  const quickCallTicketValues =
+    locationState.quickCallTicketValues ?? locationState.selectedRow ?? {};
+  const quickCallTicketId = Number(
+    locationState.savedTicketId ??
+      quickCallTicketValues.nTicketId ??
+      quickCallTicketValues.TicketId ??
+      quickCallTicketValues.ticketId ??
+      0
+  );
+
+  useEffect(() => {
+    if (locationState.openQuickCall) {
+      setQuickCallOpen(true);
+    }
+  }, [locationState.openQuickCall, quickCallTicketId]);
 
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -903,6 +924,17 @@ const TicketList = () => {
       onChange={handlePageChange}
       onShowSizeChange={handlePageChange}
       showSizeChanger
+    />
+    <QuickCallReportModal
+      open={quickCallOpen}
+      onClose={() => {
+        setQuickCallOpen(false);
+        navigate("/tickets", { replace: true, state: {} });
+      }}
+      ticketId={quickCallTicketId}
+      ticketValues={quickCallTicketValues}
+      sessionPayload={basePayload}
+      assignedAgentDetails={quickCallTicketValues.cAssignedId ?? []}
     />
     </>
   );

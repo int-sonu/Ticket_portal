@@ -4,11 +4,16 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTicketView } from "../../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
+import QuickCallReportModal from "../Common/QuickCallReportModal";
 import TicketPageShell from "../Common/TicketPageShell";
 import TicketOverviewSection from "./TicketOverviewSection";
-
+import shareIcon from "../../../assets/icons/shareIcon.svg";
+import closeblack from "../../../assets/icons/close-black.svg";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
+  quickCallTicketValues?: Record<string, any> | null;
+  assignedAgentDetails?: any[];
+  openQuickCall?: boolean;
 };
 
 const getFieldValue = (record: any, keys: string[]) => {
@@ -42,7 +47,6 @@ const formatDisplayValue = (value: any): string => {
   if (typeof value === "object") {
     return (
       value?.name ??
-      value?.Name ??
       value?.label ??
       value?.Label ??
       value?.title ??
@@ -54,8 +58,7 @@ const formatDisplayValue = (value: any): string => {
       value?.cName ??
       value?.cTitle ??
       value?.cDescription ??
-      value?.description ??
-      value?.Description ??
+     
       ""
     );
   }
@@ -135,9 +138,11 @@ const getTicketStatusValue = (record: any) =>
     "cTicketStatus",
     "cTicketStatusName",
     "cTicketStatusDesc",
+    "cDescription",
     "TicketStatusDesc",
     "cStatusDesc",
     "StatusDesc",
+    "cViewSummary",
     "cStatusDescription",
     "StatusDescription",
     "TicketStatusDescription",
@@ -159,10 +164,12 @@ const getTicketStatusValue = (record: any) =>
     "statusName",
     "StatusName",
     "cStatusName",
+    "cDescription",
     "cTicketStatusName",
     "cTicketStatus",
     "cTicketStatusDesc",
     "StatusDesc",
+    "cViewSummary",
     "StatusDescription",
     "TicketStatusDescription",
     "value",
@@ -177,6 +184,7 @@ const getTicketStatusValue = (record: any) =>
     "cTicketStatusName",
     "cTicketStatus",
     "cTicketStatusDesc",
+    "cDescription",
     "StatusDesc",
     "StatusDescription",
     "TicketStatusDescription",
@@ -193,6 +201,7 @@ const getTicketStatusValue = (record: any) =>
     "cTicketStatus",
     "cTicketStatusDesc",
     "StatusDesc",
+    "cDescription",
     "StatusDescription",
     "TicketStatusDescription",
     "value",
@@ -239,10 +248,18 @@ const pickAttachments = (record: any) => {
     record?.FileList,
     record?.AttachmentList,
     record?.HistoryAttachments,
+    record?.Images,
+    record?.ImageList,
+    record?.Photos,
+    record?.PhotoList,
     record?.data?.Attachments,
     record?.data?.TicketAttachments,
     record?.data?.Files,
     record?.data?.FileList,
+    record?.data?.Images,
+    record?.data?.ImageList,
+    record?.data?.Photos,
+    record?.data?.PhotoList,
   ];
 
   for (const candidate of candidates) {
@@ -254,6 +271,40 @@ const pickAttachments = (record: any) => {
   return [];
 };
 
+const pickAssignedAgents = (record: any) => {
+  const raw = [
+    record?.cAssignedId,
+    record?.assignedAgentDetails,
+    record?.AssignedAgentDetails,
+    record?.assignedAgents,
+    record?.AssignedAgents,
+    record?.AssignToAgent,
+    record?.assignToAgent,
+    record?.AgentId,
+    record?.agentId,
+    record?.nAgentId,
+  ].find((value) => value !== undefined && value !== null && value !== "");
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map((agent: any) => ({
+        nAgentId: Number(
+          agent?.nAgentId ??
+            agent?.agentId ??
+            agent?.id ??
+            agent?.value ??
+            agent ??
+            0
+        ),
+        nRole: Number(agent?.nRole ?? 0),
+      }))
+      .filter((agent: any) => agent.nAgentId > 0);
+  }
+
+  const parsed = typeof raw === "string" ? Number(raw) : Number(raw ?? 0);
+  return parsed > 0 ? [{ nAgentId: parsed, nRole: 0 }] : [];
+};
+
 const TicketView = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -261,6 +312,12 @@ const TicketView = () => {
 
   const state = (location.state as TicketViewState | null) ?? {};
   const selectedRow = state.selectedRow ?? {};
+  const [activeTab, setActiveTab] = useState<"details" | "history" | "files">(
+    "details"
+  );
+  const [quickCallOpen, setQuickCallOpen] = useState(
+    Boolean(state.openQuickCall)
+  );
   const [tick, setTick] = useState(() => Date.now());
 
   useEffect(() => {
@@ -275,6 +332,10 @@ const TicketView = () => {
       selectedRow?.ticketId ??
       0
   );
+
+  useEffect(() => {
+    setActiveTab(state.openQuickCall ? "history" : "details");
+  }, [state.openQuickCall, ticketId]);
 
   const payload = useMemo(
     () => ({
@@ -296,6 +357,10 @@ const TicketView = () => {
     [selectedRow, ticketData]
   );
   const attachments = useMemo(() => pickAttachments(resolvedRecord), [resolvedRecord]);
+  const assignedAgentDetails = useMemo(
+    () => state.assignedAgentDetails ?? pickAssignedAgents(resolvedRecord),
+    [resolvedRecord, state.assignedAgentDetails]
+  );
 
   const ticketNo = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -315,10 +380,18 @@ const TicketView = () => {
       "cTicketSummary",
       "Summary",
       "cSummary",
+      "ViewSummary",
+      "cViewSummary",
     ])
   );
   const description = formatDisplayValue(
-    getFieldValue(resolvedRecord, ["Description", "cDescription"])
+    getFieldValue(resolvedRecord, [
+      "cDescription",
+      "Description",
+      "TicketDescription",
+      "cTicketDescription",
+      "DescriptionText",
+    ])
   );
   const createdDateValue = getFieldValue(resolvedRecord, [
     "CreatedDate",
@@ -372,7 +445,7 @@ const TicketView = () => {
     ])
   );
   const address = formatDisplayValue(
-    getFieldValue(resolvedRecord, ["Address", "cAddress"])
+    getFieldValue(resolvedRecord, ["Address", "cCustomerAddress"])
   );
   const assetName = formatDisplayValue(
     getFieldValue(resolvedRecord, ["AssetName", "cAssetName", "Asset"])
@@ -395,12 +468,7 @@ const TicketView = () => {
             aria-label="Share"
             className="rounded-full p-1 text-slate-700 hover:bg-slate-100"
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
-              <path d="M15 8a3 3 0 1 0-2.83-4H12a3 3 0 0 0 0 6" />
-              <path d="M6 14a3 3 0 1 0 2.83 4H9a3 3 0 0 0 0-6" />
-              <path d="M18 14a3 3 0 1 0 2.83 4H21a3 3 0 0 0 0-6" />
-              <path d="M8.8 15.1 15.2 18.9M15.2 5.1 8.8 8.9" />
-            </svg>
+            <img src={shareIcon} alt="" className="h-5 w-5" />
           </button>
           <button
             type="button"
@@ -408,12 +476,15 @@ const TicketView = () => {
             aria-label="Close"
             className="rounded-full px-2 py-1 text-2xl leading-none text-slate-900 hover:bg-slate-100"
           >
-            ×
+            <img src={closeblack} alt="" className="h-4 w-4" />
           </button>
         </div>
 
         <TicketOverviewSection
+          ticketId={ticketId}
           isLoading={isLoading}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           ticketNo={ticketNo}
           customerName={customerName}
           summary={summary}
@@ -431,6 +502,15 @@ const TicketView = () => {
           contactNumber={contactNumber}
           email={email}
           attachments={attachments}
+        />
+        <QuickCallReportModal
+          open={quickCallOpen}
+          onClose={() => setQuickCallOpen(false)}
+          ticketId={ticketId}
+          ticketValues={resolvedRecord}
+          selectedCustomerName={customerName}
+          sessionPayload={getRequestPayload()}
+          assignedAgentDetails={assignedAgentDetails}
         />
       </div>
     </TicketPageShell>

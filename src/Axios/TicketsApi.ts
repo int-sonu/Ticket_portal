@@ -360,5 +360,29 @@ export const ticketApis = {
 
     return response.data;
   },
+
+  ticketHistory: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/TicketHistory",
+        payload
+      );
+
+    return response.data;
+  },
+
+  ticketHistoryAttachment: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/TicketHistoryAttachment",
+        payload
+      );
+
+    return response.data;
+  },
 };
 

@@ -37,7 +37,6 @@ import {
 import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
 import { useSaveAssetMaster } from "../../Master/AssetMaster/Hooks";
 import CustomerDrawer from "../../Master/CustomerMaster/CustomerDrawer";
-import QuickCallReportModal from "../Common/QuickCallReportModal";
 import FollowupDateTimePicker from "../Common/FollowupDateTimePicker";
 import {
   useGetCustomerAssetDepartments,
@@ -257,8 +256,6 @@ const TicketForm = ({
   const [assetBrand, setAssetBrand] =
     useState("All");
   const [carryOpen, setCarryOpen] =
-    useState(false);
-  const [quickCallOpen, setQuickCallOpen] =
     useState(false);
   const [carryActiveTab, setCarryActiveTab] =
     useState<"asset" | "parts">("asset");
@@ -1672,18 +1669,47 @@ const TicketForm = ({
   };
 
   const handleSubmit = (values: any) => {
+    const normalizedFollowupDate = values.FollowupDate?.format?.(
+      "YYYY-MM-DD HH:mm:ss"
+    ) ?? values.FollowupDate;
+
     const payload = {
       ...sessionPayload,
       ...values,
+      nCustomerId:
+        Number(values.CustomerId ?? selectedCustomerId ?? 0) || 0,
+      cCustomerName: selectedCustomerName ?? values.CustomerName ?? "",
+      nSourceId:
+        Number(values.Source ?? values.SourceId ?? sessionPayload.nSourceId ?? 0) || 0,
+      cContactPerson: values.ContactPerson ?? "",
+      cContactNumber: values.ContactNo ?? values.ContactNumber ?? "",
+      cEmail: values.Email ?? "",
+      cTicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
+      cDescription: values.Description ?? "",
+      cAssignedId: selectedAssignAgentDetails,
+      nTicketStatus:
+        Number(
+          values.TicketStatus ??
+            values.nTicketStatus ??
+            sessionPayload.nTicketStatus ??
+            5
+        ) || 5,
+      nAssetId:
+        Number(values.AssetId ?? values.nAssetId ?? sessionPayload.nAssetId ?? 0) || 0,
+      nPriority:
+        Number(
+          values.nPriority ??
+            sessionPayload.nPriority ??
+            values.Priority ??
+            1
+        ) || 1,
+      nGroupId:
+        Number(values.Group ?? values.GroupId ?? values.nGroupId ?? sessionPayload.nGroupId ?? 0) || 0,
+      bOnSite: Boolean(values.OnsiteRequired ?? values.bOnSite),
+      dFollowupDate: normalizedFollowupDate ?? "",
       TicketId: ticketId,
-      dDate:
-        values.FollowupDate?.format?.(
-          "YYYY-MM-DD HH:mm:ss"
-        ) ?? values.FollowupDate,
-      FollowupDate:
-        values.FollowupDate?.format?.(
-          "YYYY-MM-DD HH:mm:ss"
-        ) ?? values.FollowupDate,
+      dDate: normalizedFollowupDate,
+      FollowupDate: normalizedFollowupDate,
     };
 
     const mutation = isEdit
@@ -1700,6 +1726,7 @@ const TicketForm = ({
             ? "Ticket updated"
             : "Ticket created"
         );
+        navigate("/tickets");
       },
       onError: (error: any) =>
         message.error(
@@ -2019,7 +2046,7 @@ const TicketForm = ({
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
-                    className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
+                    className="ticket-search-button !h-8 !w-8 !rounded-l-none !rounded-r-md"
                     onClick={() => {
                       setCustomerDropdownOpen(false);
                       setCustomerPickerOpen(true);
@@ -2133,7 +2160,7 @@ const TicketForm = ({
                     <Button
                       type="primary"
                       icon={<SearchOutlined />}
-                      className="ticket-search-button !h-7 !w-9 !rounded-l-none !rounded-r-md"
+                      className="ticket-search-button !h-8 !w-10 !rounded-l-none !rounded-r-md"
                       onClick={() => {
                         setAssetDropdownOpen(false);
                         setAssetPickerTarget("ticket");
@@ -2165,7 +2192,7 @@ const TicketForm = ({
                       </div>
                     ) : filteredAssetDropdownItems.length ? (
                       filteredAssetDropdownItems.map(
-                        (asset: any, index: number) => {
+                        (asset: any, index: number) =>{
                           const assetName =
                             getFirstValue(asset, [
                               "cAssetName",
@@ -2319,7 +2346,7 @@ const TicketForm = ({
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-col overflow-visible bg-white px-4 pb-3 lg:h-full">
+          <section className="flex min-h-0 flex-col overflow-visible bg-white px-4 pb-2 lg:h-2px">
             <div className="grid grid-cols-1 items-start gap-1.5 sm:grid-cols-[minmax(190px,1fr)_auto] sm:items-end">
               <Form.Item
                 label="Follow up Date & Time"
@@ -2636,8 +2663,7 @@ const TicketForm = ({
 
             <div className="ticket-quick-call mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
               <p className="mb-2 text-[12px] text-slate-600">
-                If you want to close your ticket now, click{" "}
-                <b>Quick Call Report</b> to proceed.
+                Quick Call Report will save the ticket and the call report together.
               </p>
               <Button
                 type="primary"
@@ -2669,16 +2695,6 @@ const TicketForm = ({
           </section>
       </div>
       </Form>
-
-      <QuickCallReportModal
-        open={quickCallOpen}
-        onClose={() => setQuickCallOpen(false)}
-        ticketId={Number(ticketId ?? 0)}
-        ticketForm={form}
-        selectedCustomerName={selectedCustomerName}
-        sessionPayload={sessionPayload}
-        assignedAgentDetails={selectedAssignAgentDetails}
-      />
 
       <Modal
         open={leaderPickerOpen}
@@ -3515,10 +3531,12 @@ const TicketForm = ({
             <div className="relative">
               <Input
                 value={String(assetForm.getFieldValue("assetName") ?? "")}
-               
-              
-                  
-        
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  assetForm.setFieldValue("assetName", nextValue);
+                  setAssetFormSearch(nextValue);
+                  setAssetFormDropdownOpen(true);
+                }}
               />
 
               {assetFormDropdownOpen ? (

@@ -491,8 +491,8 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-search-button {
-  height: 32px !important;
-  width: 34px !important;
+  height: 34px !important;
+  width: 40px !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -531,12 +531,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-upload-btn {
-  width: 100%;
-  min-width: 190px;
+  width: 405%;
+  min-width: 0;
   border-color: #0284c7 !important;
   color: #0284c7 !important;
-  height: 30px !important;
-  border-radius: 6px !important;
+  height: 32px !important;
+  border-radius: 3px !important;
+  display: flex;
 }
 
 .ticket-create-form .ant-upload-wrapper .ant-upload-list-picture-card {
@@ -623,24 +624,45 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   cursor: pointer;
 }
 
-.ticket-quick-call {
-  margin-top: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: transparent;
-  padding: 12px 20px;
-  color: #475569;
-}
-
-.ticket-quick-call p {
-  margin-bottom: 10px;
-}
-
 .ticket-right-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: auto;
-  padding-top: 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.ticket-quick-call-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.ticket-quick-call-copy {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  text-align: right;
+}
+
+.ticket-quick-call-button {
+  min-width: 180px;
+  height: 38px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.ticket-quick-call-button:disabled,
+.ticket-quick-call-button.ant-btn-disabled {
+  opacity: 1 !important;
+  color: #ffffff !important;
+  background: #0284c7 !important;
+  border-color: #0284c7 !important;
+  cursor: not-allowed !important;
 }
 
 .ticket-create-footer {
@@ -1103,7 +1125,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-followup-rmdp-container {
-  width: 100%;
+  width: 50%;
 }
 
 .ticket-followup-rmdp-container .rmdp-wrapper {
@@ -1394,6 +1416,24 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
     overflow: visible;
   }
 
+  .ticket-right-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ticket-quick-call-card {
+    align-items: stretch;
+  }
+
+  .ticket-quick-call-copy {
+    text-align: left;
+  }
+
+  .ticket-quick-call-button,
+  .ticket-right-save {
+    width: 100%;
+  }
+
   .ticket-create-form .ant-form-item-label > label {
     font-size: 10px !important;
   }
@@ -1421,17 +1461,17 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   }
 
   .ticket-search-button {
-    width: 30px !important;
+    width: 36px !important;
   }
 }
 
 .followup-date-input {
-  height: 40px;
-  border-radius: 8px;
+  height: 33px;
+  border-radius: 4px;
 }
 
 .followup-date-trigger {
-  width: 100%;
+  width: 44%;
   cursor: pointer;
 }
 

@@ -38,7 +38,8 @@ interface QuickCallReportModalProps {
   open: boolean;
   onClose: () => void;
   ticketId: number;
-  ticketForm: FormInstance;
+  ticketForm?: FormInstance;
+  ticketValues?: Record<string, any>;
   selectedCustomerName?: string;
   sessionPayload: Record<string, any>;
   assignedAgentDetails?: any[];
@@ -49,6 +50,7 @@ const QuickCallReportModal = ({
   onClose,
   ticketId,
   ticketForm,
+  ticketValues: ticketValuesProp,
   selectedCustomerName,
   sessionPayload,
   assignedAgentDetails = [],
@@ -78,9 +80,54 @@ const QuickCallReportModal = ({
     }))
     .filter((agent: any) => agent.nAgentId > 0);
 
+  const normalizeAssignedAgentsFromTicket = (ticket: Record<string, any>) => {
+    const raw = [
+      ticket?.cAssignedId,
+      ticket?.assignedAgentDetails,
+      ticket?.AssignedAgentDetails,
+      ticket?.assignedAgents,
+      ticket?.AssignedAgents,
+      ticket?.AssignToAgent,
+      ticket?.assignToAgent,
+      ticket?.AgentId,
+      ticket?.agentId,
+      ticket?.nAgentId,
+    ].find(
+      (value) => value !== undefined && value !== null && value !== ""
+    );
+
+    if (Array.isArray(raw)) {
+      return raw
+        .map((agent: any) => ({
+          nAgentId: Number(
+            agent?.nAgentId ??
+              agent?.agentId ??
+              agent?.id ??
+              agent?.value ??
+              agent ??
+              0
+          ),
+          nRole: Number(agent?.nRole ?? 0),
+        }))
+        .filter((agent: any) => agent.nAgentId > 0);
+    }
+
+    const parsed = typeof raw === "string" ? Number(raw) : Number(raw ?? 0);
+    return parsed > 0 ? [{ nAgentId: parsed, nRole: 0 }] : [];
+  };
+
+  const resolvedTicketId = Number(
+    ticketId ??
+      ticketValuesProp?.nTicketId ??
+      ticketValuesProp?.TicketId ??
+      ticketValuesProp?.ticketId ??
+      0
+  ) || 0;
+
   const handleSubmit = async (values: any) => {
     const modalValues = form.getFieldsValue(true);
-    const ticketValues = ticketForm.getFieldsValue(true);
+    const ticketValues =
+      ticketForm?.getFieldsValue(true) ?? ticketValuesProp ?? {};
 
     const missingFields = [
       ...requiredTicketFields.filter(
@@ -113,112 +160,106 @@ const QuickCallReportModal = ({
       return;
     }
 
-    await ticketForm.validateFields(
-      requiredTicketFields.map((field) => field.name)
-    );
+    if (ticketForm) {
+      await ticketForm.validateFields(
+        requiredTicketFields.map((field) => field.name)
+      );
+    }
 
     const followupValue = ticketValues.FollowupDate;
     const normalizedFollowupDate = dayjs.isDayjs(followupValue)
       ? followupValue.format("YYYY-MM-DD HH:mm:ss")
       : followupValue;
 
-    const saveData = {
-      nCustomerId:
-        Number(
-          ticketValues.CustomerId ??
-            ticketValues.nCustomerId ??
-            sessionPayload.nCustomerId ??
-            0
-        ) || 0,
-      cCustomerName:
-        selectedCustomerName ??
-        ticketValues.CustomerName ??
-        ticketValues.cCustomerName ??
-        "",
-      nSourceId:
-        Number(
-          ticketValues.Source ??
-            ticketValues.SourceId ??
-            ticketValues.nSourceId ??
-            sessionPayload.nSourceId ??
-            0
-        ) || 0,
-      cContactPerson: ticketValues.ContactPerson ?? "",
-      cContactNumber: ticketValues.ContactNo ?? ticketValues.ContactNumber ?? "",
-      cEmail: ticketValues.Email ?? "",
-      cTicketSummary:
-        ticketValues.IssueSummary ?? ticketValues.TicketSummary ?? "",
-      cDescription: ticketValues.Description ?? "",
-      cAssignedId: normalizedAssignedAgents,
-      nTicketStatus:
-        Number(
-          ticketValues.TicketStatus ??
-            ticketValues.nTicketStatus ??
-            sessionPayload.nTicketStatus ??
-            5
-        ) || 5,
-      nAssetId:
-        Number(
-          ticketValues.AssetId ??
-            ticketValues.nAssetId ??
-            sessionPayload.nAssetId ??
-            0
-        ) || 0,
-      nPriority:
-        Number(
-          ticketValues.nPriority ??
-            sessionPayload.nPriority ??
-            priorityValueMap[String(ticketValues.Priority ?? "")] ??
-            1
-        ) || 1,
-      nGroupId:
-        Number(
-          ticketValues.Group ??
-            ticketValues.GroupId ??
-            ticketValues.nGroupId ??
-            sessionPayload.nGroupId ??
-            0
-        ) || 0,
-      bOnSite: Boolean(ticketValues.OnsiteRequired ?? ticketValues.bOnSite),
-      dFollowupDate: normalizedFollowupDate ?? "",
-      cCallSummary: values.Summary ?? "",
-      cCallComment: values.Comment ?? "",
-      nCreatedBy:
-        Number(sessionPayload.nCreatedBy ?? sessionPayload.nUserId ?? 0) || 0,
-      nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
-      cSchemaName: sessionPayload.cSchemaName ?? "",
-      cDbName: sessionPayload.cDbName ?? sessionPayload.dbName ?? "",
-    };
+    try {
+      await quickCallReportSave.mutateAsync(
+        {
+          nCustomerId:
+            Number(
+              ticketValues.CustomerId ??
+                ticketValues.nCustomerId ??
+                sessionPayload.nCustomerId ??
+                0
+            ) || 0,
+          cCustomerName:
+            selectedCustomerName ??
+            ticketValues.CustomerName ??
+            ticketValues.cCustomerName ??
+            "",
+          nSourceId:
+            Number(
+              ticketValues.Source ??
+                ticketValues.SourceId ??
+                ticketValues.nSourceId ??
+                sessionPayload.nSourceId ??
+                0
+            ) || 0,
+          cContactPerson: ticketValues.ContactPerson ?? "",
+          cContactNumber:
+            ticketValues.ContactNo ?? ticketValues.ContactNumber ?? "",
+          cEmail: ticketValues.Email ?? "",
+          cTicketSummary:
+            ticketValues.IssueSummary ?? ticketValues.TicketSummary ?? "",
+          cDescription: ticketValues.Description ?? "",
+          cAssignedId:
+            normalizedAssignedAgents.length > 0
+              ? normalizedAssignedAgents
+              : normalizeAssignedAgentsFromTicket(ticketValues),
+          nTicketStatus:
+            Number(
+              ticketValues.TicketStatus ??
+                ticketValues.nTicketStatus ??
+                sessionPayload.nTicketStatus ??
+                5
+            ) || 5,
+          nAssetId:
+            Number(
+              ticketValues.AssetId ??
+                ticketValues.nAssetId ??
+                sessionPayload.nAssetId ??
+                0
+            ) || 0,
+          nPriority:
+            Number(
+              ticketValues.nPriority ??
+                sessionPayload.nPriority ??
+                priorityValueMap[String(ticketValues.Priority ?? "")] ??
+                1
+            ) || 1,
+          nGroupId:
+            Number(
+              ticketValues.Group ??
+                ticketValues.GroupId ??
+                ticketValues.nGroupId ??
+                sessionPayload.nGroupId ??
+                0
+            ) || 0,
+          bOnSite: Boolean(ticketValues.OnsiteRequired ?? ticketValues.bOnSite),
+          dFollowupDate: normalizedFollowupDate ?? "",
+          nTicketId: resolvedTicketId,
+          cCallSummary: values.Summary ?? "",
+          cCallComment: values.Comment ?? "",
+          nCreatedBy:
+            Number(sessionPayload.nCreatedBy ?? sessionPayload.nUserId ?? 0) ||
+            0,
+          nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
+          cSchemaName: sessionPayload.cSchemaName ?? "",
+          cDbName: sessionPayload.cDbName ?? sessionPayload.dbName ?? "",
+        } as any
+      );
 
-    const payload = {
-      ...saveData,
-      saveData,
-      TicketId: ticketId,
-      nTicketId: ticketId,
-      pageNumber: 1,
-      pageSize: 1000,
-    };
-
-    quickCallReportSave.mutate(payload, {
-      onSuccess: (response: any) => {
-        message.success(
-          response?.message ||
-            response?.data?.message ||
-            "Call Report Saved Successfully"
-        );
-        form.resetFields();
-        onClose();
-        navigate("/tickets");
-      },
-      onError: (error: any) => {
-        message.error(
-          error?.response?.data?.message ||
-            error?.response?.data?.title ||
-            error?.message ||
-            "Unable to save quick call report"
-        );
-      },
-    });
+      message.success("Call Report Saved Successfully");
+      form.resetFields();
+      onClose();
+      navigate("/tickets");
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.title ||
+          error?.message ||
+          "Unable to save quick call report"
+      );
+    }
   };
 
   const handleSaveClick = () => {
@@ -235,11 +276,11 @@ const QuickCallReportModal = ({
       footer={
         <div className="flex items-center justify-end gap-3">
           <button
-            type="button"
-            onClick={handleSaveClick}
-            disabled={quickCallReportSave.isPending}
-            className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-          >
+          type="button"
+          onClick={handleSaveClick}
+          disabled={quickCallReportSave.isPending}
+          className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-70"
+        >
             {quickCallReportSave.isPending ? "Saving..." : "Save"}
           </button>
         </div>
