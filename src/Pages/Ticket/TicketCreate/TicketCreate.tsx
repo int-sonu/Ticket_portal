@@ -7,7 +7,7 @@ const TicketCreate = () => {
 
   const locationState =
     (location.state as
-      | { draftValues?: Record<string, any> }
+      | { draftValues?: Record<string, any>; followupSourceTicket?: any }
       | null) ?? {};
 
   const initialValues = {
@@ -26,6 +26,7 @@ const TicketCreate = () => {
           ...(locationState.draftValues ?? {}),
         }
       }
+      followupSourceTicket={locationState.followupSourceTicket}
       isEdit={false}
     />
   );

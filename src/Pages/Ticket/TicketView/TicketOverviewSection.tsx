@@ -4,7 +4,7 @@ import { useRef } from "react";
 import addressIcon from "../../../assets/icons/AddressIcon.svg";
 import assetIcon from "../../../assets/icons/Asseticon.svg";
 import groupIcon from "../../../assets/icons/GroupIcon.svg";
-import shareIcon from "../../../assets/icons/shareIcon.svg";
+import phoneIcon from "../../../assets/icons/PhoneIcon.svg";
 import serviceTypeIcon from "../../../assets/icons/servicetypeicon.svg";
 import ticketSmallIcon from "../../../assets/icons/ticketSmallIcon.svg";
 import calendarIcon from "../../../assets/icons/calenderiCon.svg";
@@ -32,6 +32,8 @@ type TicketOverviewSectionProps = {
   contactNumber: string;
   email: string;
   attachments: any[];
+  createdByTeam?: string;
+  onFollowUpClick?: () => void;
 };
 
 const TicketOverviewSection = ({
@@ -56,28 +58,121 @@ const TicketOverviewSection = ({
   contactNumber,
   email,
   attachments,
+  createdByTeam,
+  onFollowUpClick,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
 
   const scrollFiles = (direction: "left" | "right") => {
     const el = filesRef.current;
     if (!el) return;
-    const amount = 220;
-    el.scrollBy({ left: direction === "left" ? -amount : amount, behavior: "smooth" });
+    el.scrollBy({ left: direction === "left" ? -220 : 220, behavior: "smooth" });
   };
 
   const leftRows = [
-    { label: "Address", value: address, icon: addressIcon },
-    { label: "Asset", value: assetName, icon: assetIcon },
-    { label: "Ticket Source", value: source || "N/A", icon: ticketSmallIcon },
-    { label: "Service Type", value: serviceType || "N/A", icon: serviceTypeIcon },
-    { label: "Group", value: group || "N/A", icon: groupIcon },
-    { label: "Follow Up", value: followupDate || "N/A", icon: calendarIcon },
+    { label: "Address",      value: address,             icon: addressIcon },
+    { label: "Asset",        value: assetName,           icon: assetIcon },
+    { label: "Ticket Source",value: source || "N/A",     icon: ticketSmallIcon },
+    { label: "Service Type", value: serviceType || "N/A",icon: serviceTypeIcon },
+    { label: "Group",        value: group || "N/A",      icon: groupIcon },
+    { label: "Follow Up",    value: followupDate || "N/A",icon: calendarIcon },
   ];
+
+  /* ── Files carousel — shared between Details tab & Files tab ── */
+  const FilesSection = () => (
+    <div className="mt-1">
+      <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
+        <div className="border-b border-slate-200 px-4 py-2">
+          <div className="text-sm font-semibold text-slate-900">Files</div>
+        </div>
+        <div className="px-3 py-3 sm:px-4">
+          {attachments.length > 0 ? (
+            <div className="relative">
+              {/* Left arrow */}
+              <button
+                type="button"
+                onClick={() => scrollFiles("left")}
+                aria-label="Scroll files left"
+                className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 px-2 py-1 text-2xl leading-none text-slate-500 shadow-sm hover:bg-white"
+              >
+                ‹
+              </button>
+
+              {/* Single-row horizontal scroll */}
+              <div
+                ref={filesRef}
+                className="flex gap-3 overflow-x-auto scroll-smooth px-7 pb-1"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {attachments.map((file: any, index: number) => {
+                  const preview =
+                    file?.url ??
+                    file?.Url ??
+                    file?.thumbUrl ??
+                    file?.ThumbUrl ??
+                    file?.cFilePath ??
+                    file?.cUrl ??
+                    file?.fileUrl ??
+                    file?.FileUrl ??
+                    file?.path ??
+                    file?.Path ??
+                    file?.Location ??
+                    file?.location ??
+                    "";
+                  const caption =
+                    file?.name ??
+                    file?.FileName ??
+                    file?.cFileName ??
+                    file?.cDocumentName ??
+                    `File ${index + 1}`;
+
+                  return (
+                    <div
+                      key={file?.uid ?? file?.id ?? `${caption}-${index}`}
+                      className="h-[116px] w-[116px] shrink-0 overflow-hidden rounded-sm border border-slate-200 bg-white"
+                    >
+                      {preview ? (
+                        <Image
+                          src={preview}
+                          alt={caption}
+                          width={116}
+                          height={116}
+                          className="h-[116px] w-[116px] rounded-sm object-cover"
+                          preview={{ mask: false }}
+                        />
+                      ) : (
+                        <div className="flex h-[116px] items-center justify-center bg-slate-100 text-xs text-slate-500">
+                          No preview
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Right arrow */}
+              <button
+                type="button"
+                onClick={() => scrollFiles("right")}
+                aria-label="Scroll files right"
+                className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 px-2 py-1 text-2xl leading-none text-slate-500 shadow-sm hover:bg-white"
+              >
+                ›
+              </button>
+            </div>
+          ) : (
+            <Empty description="No files found" />
+          )}
+        </div>
+      </Card>
+    </div>
+  );
 
   return (
     <Spin spinning={isLoading}>
       <div className="px-4 pb-3 sm:px-4 sm:pb-4">
+
+        {/* ── Tab Bar ── */}
         <div className="sticky top-0 z-30 flex items-end gap-3 border border-slate-200 border-b-0 bg-white rounded-tl-2xl shadow-[0_1px_0_rgba(226,232,240,1)]">
           <button
             type="button"
@@ -114,6 +209,7 @@ const TicketOverviewSection = ({
           </button>
         </div>
 
+        {/* ── Ticket Header Card (always visible on every tab) ── */}
         <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
           <div className="px-3 pt-1.5 sm:px-4">
             <div className="flex items-start justify-between gap-4">
@@ -122,9 +218,7 @@ const TicketOverviewSection = ({
                   Ticket No : {ticketNo || "N/A"}
                 </div>
                 <div className="text-base text-slate-900">{customerName || "-"}</div>
-                <div className="text-sm text-slate-600">
-                  Ticket Summary : {summary || "-"}
-                </div>
+                <div className="text-sm text-slate-600">{summary || "-"}</div>
                 <div className="text-sm text-slate-700">
                   Description : {description || "-"}
                 </div>
@@ -135,163 +229,117 @@ const TicketOverviewSection = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-y border-slate-200 bg-slate-100/80 px-3 py-2 sm:px-4">
-            {priority ? (
-              <span className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600">
-                {priority}
-              </span>
-            ) : null}
-            {status ? (
-              <span className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-600">
-                {status}
-              </span>
-            ) : null}
-            {ticketAge ? (
-              <span className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-600">
-                {ticketAge}
+          {/* Status / badges bar */}
+          <div className="flex flex-wrap items-center gap-2 border-y border-slate-200 bg-slate-100/80 px-3 py-2 sm:px-4">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              {priority ? (
+                <span className="flex items-center gap-1 rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600">
+                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                  {priority}
+                </span>
+              ) : null}
+              {status ? (
+                <span className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-600">
+                  {status}
+                </span>
+              ) : null}
+              {ticketAge ? (
+                <span className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-600">
+                  {ticketAge}
+                </span>
+              ) : null}
+            </div>
+            {createdByTeam ? (
+              <span className="whitespace-nowrap text-xs text-slate-500">
+                Ticket Created by {createdByTeam}
               </span>
             ) : null}
           </div>
-
-          
         </Card>
 
+        {/* ── Tab Content ── */}
         {activeTab === "details" ? (
-          <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
-          <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-            <div className="grid gap-1 px-3 py-2 sm:px-4">
-              {leftRows.map((item) => (
-                <div
-                  key={item.label}
-                  className="grid grid-cols-[150px_minmax(0,1fr)] items-center gap-2 rounded-md px-2 py-1 even:bg-slate-50"
-                >
-                  <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-                    <img src={item.icon} alt="" className="h-3.5 w-3.5 shrink-0" />
-                    <span>{item.label} :</span>
-                  </div>
-                  <div className="break-words text-sm text-slate-800">
-                    {item.value || "N/A"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <>
+            {/* Two-column: Address details (left) + Contacts (right) */}
+            <div className="mt-3 grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
 
-          <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-            <div className="px-3 py-2 sm:px-4">
-              <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
-                <div className="min-w-0">
-                  <div className="text-base font-semibold text-slate-900">
-                    {customerName || "-"}
+              {/* Left: field rows + Files */}
+              <div className="flex flex-col gap-3">
+                <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1 px-3 py-2 sm:px-4">
+                    {leftRows.map((item) => (
+                      <div
+                        key={item.label}
+                        className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                          <img src={item.icon} alt="" className="h-3.5 w-3.5 shrink-0" />
+                          <span>{item.label} :</span>
+                        </div>
+                        <div className="break-words text-sm text-slate-800">
+                          {item.value || "N/A"}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="mt-0.5 text-sm text-slate-600">
-                    {contactNumber || "-"}
-                  </div>
-                  <div className="text-sm text-slate-600">{email || "-"}</div>
-                </div>
+                </Card>
 
-                <button
-                  type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
-                  aria-label="Share ticket"
-                >
-                  <img src={shareIcon} alt="" className="h-5 w-5" />
-                </button>
+                {/* Files section — left column only */}
+                <FilesSection />
               </div>
+
+              {/* Right: Contacts */}
+              <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
+                <div className="px-3 py-2 sm:px-4">
+                  <div className="mb-2 text-sm font-semibold text-slate-900">Contacts</div>
+                  <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
+                    <div className="min-w-0">
+                      <div className="text-base font-semibold text-slate-900">
+                        {customerName || "-"}
+                      </div>
+                      <div className="mt-0.5 text-sm text-slate-600">
+                        {contactNumber || "-"}
+                      </div>
+                      <div className="text-sm text-slate-600">{email || "-"}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                      aria-label="Call contact"
+                    >
+                      <img
+                        src={phoneIcon}
+                        alt=""
+                        className="h-5 w-5"
+                        style={{ filter: "invert(1) brightness(10)" }}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </Card>
             </div>
-          </Card>
-          </div>
+
+            {/* FollowUp button — bottom-right, inside the details panel */}
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={onFollowUpClick}
+                className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-600 active:bg-emerald-700 transition-colors"
+              >
+                FollowUp
+              </button>
+            </div>
+          </>
         ) : activeTab === "history" ? (
-          <div className="relative z-10 mt-0.5">
+          <div className="relative z-10 mt-0.5 flex-1 overflow-y-auto">
             <TicketHistory ticketId={ticketId} />
           </div>
         ) : (
-          <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-            <div className="border-b border-slate-200 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-900">Files</div>
-            </div>
-            <div className="px-3 py-3 sm:px-4">
-              {attachments.length > 0 ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => scrollFiles("left")}
-                    aria-label="Scroll files left"
-                    className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 px-2 py-1 text-2xl leading-none text-slate-500 shadow-sm hover:bg-white"
-                  >
-                    ‹
-                  </button>
-                  <div
-                    ref={filesRef}
-                    className="grid overflow-x-auto scroll-smooth px-7 pb-0.5"
-                    style={{
-                      gridAutoFlow: "column",
-                      gridTemplateRows: "repeat(2, 116px)",
-                      gridAutoColumns: "116px",
-                      gap: "12px",
-                    }}
-                  >
-                    {attachments.map((file: any, index: number) => {
-                      const preview =
-                        file?.url ??
-                        file?.Url ??
-                        file?.thumbUrl ??
-                        file?.ThumbUrl ??
-                        file?.cFilePath ??
-                        file?.cUrl ??
-                        file?.fileUrl ??
-                        file?.FileUrl ??
-                        file?.path ??
-                        file?.Path ??
-                        file?.Location ??
-                        file?.location ??
-                        "";
-                      const caption =
-                        file?.name ??
-                        file?.FileName ??
-                        file?.cFileName ??
-                        file?.cDocumentName ??
-                        `File ${index + 1}`;
-
-                      return (
-                        <div
-                          key={file?.uid ?? file?.id ?? `${caption}-${index}`}
-                          className="h-[116px] w-[116px] shrink-0 overflow-hidden rounded-sm border border-slate-200 bg-white"
-                        >
-                          {preview ? (
-                            <Image
-                              src={preview}
-                              alt={caption}
-                              width={116}
-                              height={116}
-                              className="h-[116px] w-[116px] rounded-sm object-cover"
-                              preview={{ mask: false }}
-                            />
-                          ) : (
-                            <div className="flex h-[116px] items-center justify-center bg-slate-100 text-xs text-slate-500">
-                              No preview
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => scrollFiles("right")}
-                    aria-label="Scroll files right"
-                    className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 px-2 py-1 text-2xl leading-none text-slate-500 shadow-sm hover:bg-white"
-                  >
-                    ›
-                  </button>
-                </div>
-              ) : (
-                <Empty description="No files found" />
-              )}
-            </div>
-          </Card>
+          /* Files tab — also shows the same carousel */
+          <div className="flex-1 overflow-y-auto">
+            <FilesSection />
+          </div>
         )}
-
       </div>
     </Spin>
   );

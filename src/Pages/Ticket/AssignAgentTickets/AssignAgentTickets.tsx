@@ -313,6 +313,25 @@ const AssignAgentTickets = () => {
           size="small"
           disableHorizontalScroll
           scroll={{ y: "100%" }}
+          onRow={(record) => ({
+            onClick: () => {
+              const ticketId = getFieldValue(record, [
+                "TicketId",
+                "nTicketId",
+                "TicketNo",
+                "nTicketNo",
+                "id",
+              ]);
+              if (ticketId) {
+                navigate(`/tickets/view/${ticketId}`, {
+                  state: {
+                    selectedRow: record,
+                  },
+                });
+              }
+            },
+            style: { cursor: "pointer" },
+          })}
           locale={{
             emptyText: isError ? (
               <Empty description="Unable to load tickets" />

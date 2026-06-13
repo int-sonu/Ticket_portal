@@ -61,6 +61,7 @@ type TicketFormProps = {
   initialValues?: Record<string, any>;
   isEdit?: boolean;
   ticketId?: string | number;
+  followupSourceTicket?: any;
 };
 
 const getFirstValue = (
@@ -223,10 +224,12 @@ const TicketForm = ({
   initialValues,
   isEdit = false,
   ticketId,
+  followupSourceTicket,
 }: TicketFormProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [form] = Form.useForm();
+  const [showFollowupBanner, setShowFollowupBanner] = useState(!!followupSourceTicket);
   const [customerForm] = Form.useForm();
   const [assetForm] = Form.useForm();
   const [customerOpen, setCustomerOpen] =
@@ -283,9 +286,16 @@ const TicketForm = ({
     });
   const [assetOpen, setAssetOpen] =
     useState(false);
-  const [fileList, setFileList] = useState<
-    UploadFile[]
-  >([]);
+  const [fileList, setFileList] = useState<UploadFile[]>(() => {
+    if (!initialValues?.files || !Array.isArray(initialValues.files)) return [];
+    return initialValues.files.map((file: any, index: number) => ({
+      uid: file.uid || file.nAttachementId || `file-${index}`,
+      name: file.name || file.FileName || file.cFileName || `attachment-${index}`,
+      status: "done",
+      url: file.url || file.cUrl || file.fileUrl || "",
+      thumbUrl: file.thumbUrl || file.cUrl || file.fileUrl || "",
+    })) as UploadFile[];
+  });
   const [previewOpen, setPreviewOpen] =
     useState(false);
   const [previewImage, setPreviewImage] =
@@ -1968,6 +1978,33 @@ const TicketForm = ({
 
   return (
     <div className="ticket-create-shell flex-1 bg-white">
+      {showFollowupBanner && followupSourceTicket && (
+        <div className="flex items-start justify-between bg-sky-50 px-4 py-3 text-[13px] font-medium text-slate-800 shadow-[inset_0_-1px_0_0_#e2e8f0]">
+          <div className="flex flex-col gap-1">
+            <div className="text-[14px] font-semibold text-sky-900">
+              Follow-up for Ticket #{followupSourceTicket.nTicketId || followupSourceTicket.ticketId || followupSourceTicket.TicketId}
+            </div>
+            {followupSourceTicket.summary && (
+              <div>
+                <span className="text-slate-500">Original Summary:</span> {followupSourceTicket.summary}
+              </div>
+            )}
+            {followupSourceTicket.description && (
+              <div>
+                <span className="text-slate-500">Original Description:</span> {followupSourceTicket.description}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFollowupBanner(false)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-sky-100 hover:text-slate-800"
+          >
+            <CloseOutlined className="text-[12px]" />
+          </button>
+        </div>
+      )}
+
       <div className="ticket-create-header text-[18px] font-semibold leading-none">
         <h2>Create New Ticket</h2>
         <Button
@@ -2042,11 +2079,11 @@ const TicketForm = ({
                   onFocus={() =>
                     setCustomerDropdownOpen(true)
                   }
-                suffix={
+                addonAfter={
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
-                    className="ticket-search-button !h-8 !w-8 !rounded-l-none !rounded-r-md"
+                    className="ticket-search-button !h-full border-0 !rounded-l-none !rounded-r-md m-0"
                     onClick={() => {
                       setCustomerDropdownOpen(false);
                       setCustomerPickerOpen(true);
@@ -2156,11 +2193,11 @@ const TicketForm = ({
               <div className="relative">
                 <Input
                   value={String(form.getFieldValue("AssetName") ?? "")}
-                  suffix={
+                  addonAfter={
                     <Button
                       type="primary"
                       icon={<SearchOutlined />}
-                      className="ticket-search-button !h-8 !w-10 !rounded-l-none !rounded-r-md"
+                      className="ticket-search-button !h-full border-0 !rounded-l-none !rounded-r-md m-0"
                       onClick={() => {
                         setAssetDropdownOpen(false);
                         setAssetPickerTarget("ticket");
@@ -2347,10 +2384,11 @@ const TicketForm = ({
           </section>
 
           <section className="flex min-h-0 flex-col overflow-visible bg-white px-4 pb-2 lg:h-2px">
-            <div className="grid grid-cols-1 items-start gap-1.5 sm:grid-cols-[minmax(190px,1fr)_auto] sm:items-end">
+            <div className="flex flex-row items-end gap-2">
               <Form.Item
                 label="Follow up Date & Time"
                 name="FollowupDate"
+                className="flex-1 max-w-[240px]"
               >
                 <FollowupDateTimePicker />
               </Form.Item>
@@ -2358,7 +2396,7 @@ const TicketForm = ({
               <Form.Item
                 name="OnsiteRequired"
                 valuePropName="checked"
-                className="m-0 min-h-7 self-end"
+                className="mb-0 pb-1.5"
               >
                 <Checkbox className="inline-flex items-center whitespace-nowrap">
                   Onsite Required
@@ -2640,14 +2678,15 @@ const TicketForm = ({
 
           <button
             type="button"
-            className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-500 shadow-md hover:bg-red-50"
-            onClick={() =>
+            className="absolute right-1 bottom-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-500 shadow-md hover:bg-red-50"
+            onClick={(e) => {
+              e.stopPropagation();
               setFileList((current) =>
                 current.filter(
                   (item) => item.uid !== file.uid
                 )
-              )
-            }
+              );
+            }}
           >
             <DeleteOutlined />
           </button>
@@ -2660,19 +2699,6 @@ const TicketForm = ({
     only accept jpeg,png,jpg upto 5MB
   </p>
 </Form.Item>
-
-            <div className="ticket-quick-call mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
-              <p className="mb-2 text-[12px] text-slate-600">
-                Quick Call Report will save the ticket and the call report together.
-              </p>
-              <Button
-                type="primary"
-                block
-                onClick={() => setQuickCallOpen(true)}
-              >
-                Quick Call Report
-              </Button>
-            </div>
 
             <div className="ticket-right-actions">
               <Button

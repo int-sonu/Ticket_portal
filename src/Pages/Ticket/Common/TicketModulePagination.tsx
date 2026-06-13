@@ -53,16 +53,19 @@ const TicketModulePagination = ({
   };
 
   return (
-    <div className={`sticky bottom-0 z-30 w-full ${className}`.trim()}>
+    <div className={className || "w-full"}>
       <div className="overflow-x-auto">
-        <div className="flex min-w-[720px] items-center justify-between gap-4 rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+        <div className="flex w-full min-w-[800px] items-center justify-between gap-4 rounded-xl border border-sky-200 bg-white px-0 py-3 text-sm text-slate-700 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
           <div className="whitespace-nowrap">
             Showing {start}-{end} of {total} entries
           </div>
 
           <div className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap">
             <Button disabled={isFirstPage} onClick={() => changePage(1)}>
-              Prev
+              &lt;&lt; Prev
+            </Button>
+            <Button disabled={isFirstPage} onClick={() => changePage(current - 1)}>
+              &lt; Prev
             </Button>
 
             {pages.map((page, index) =>
@@ -83,7 +86,10 @@ const TicketModulePagination = ({
             )}
 
             <Button disabled={isLastPage} onClick={() => changePage(current + 1)}>
-              Next
+              Next &gt;
+            </Button>
+            <Button disabled={isLastPage} onClick={() => changePage(maxPage)}>
+              Next &gt;&gt;
             </Button>
           </div>
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useTicketView } from "../../../Hooks/Ticket/useTicketQueries";
+import { getApiImageBaseUrl } from "../../../Axios/config";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import QuickCallReportModal from "../Common/QuickCallReportModal";
@@ -9,6 +10,7 @@ import TicketPageShell from "../Common/TicketPageShell";
 import TicketOverviewSection from "./TicketOverviewSection";
 import shareIcon from "../../../assets/icons/shareIcon.svg";
 import closeblack from "../../../assets/icons/close-black.svg";
+import FollowupModal from "../Common/FollowupModal";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
   quickCallTicketValues?: Record<string, any> | null;
@@ -234,37 +236,74 @@ const pickRecord = (response: any) => {
   const rows = extractList(response);
 
   if (rows.length > 0) return rows[0];
-  if (response?.Data && !Array.isArray(response.Data)) return response.Data;
-  if (response?.data && !Array.isArray(response.data)) return response.data;
+
+  const dataObj = response?.Data ?? response?.data ?? response;
+
+  if (dataObj && typeof dataObj === "object" && !Array.isArray(dataObj)) {
+    // Handle both TicketSummary (object) and ticketSummary (array)
+    const summaryObj =
+      dataObj.TicketSummary ??
+      (Array.isArray(dataObj.ticketSummary) ? dataObj.ticketSummary[0] : dataObj.ticketSummary) ??
+      null;
+
+    if (summaryObj) {
+      return {
+        ...summaryObj,  // cDescription, cTicketSummary, etc. from summary
+        ...dataObj,     // root fields overwrite (nCustomerId, attachments, etc.)
+      };
+    }
+    return dataObj;
+  }
 
   return response ?? {};
 };
 
+/** Resolve a potentially-relative image path to a full URL */
+const resolveImageUrl = (path: string): string => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  try {
+    const base = getApiImageBaseUrl().replace(/\/$/, "");
+    return `${base}/${path.replace(/^\//, "")}`;
+  } catch {
+    return path;
+  }
+};
+
 const pickAttachments = (record: any) => {
+  // API returns lowercase 'attachments' — add both cases
   const candidates = [
+    record?.attachments,
     record?.Attachments,
     record?.TicketAttachments,
+    record?.ticketAttachments,
     record?.Files,
+    record?.files,
     record?.FileList,
+    record?.fileList,
     record?.AttachmentList,
-    record?.HistoryAttachments,
+    record?.attachmentList,
     record?.Images,
+    record?.images,
     record?.ImageList,
+    record?.imageList,
     record?.Photos,
-    record?.PhotoList,
+    record?.photos,
+    record?.data?.attachments,
     record?.data?.Attachments,
-    record?.data?.TicketAttachments,
     record?.data?.Files,
-    record?.data?.FileList,
+    record?.data?.files,
     record?.data?.Images,
-    record?.data?.ImageList,
-    record?.data?.Photos,
-    record?.data?.PhotoList,
+    record?.data?.images,
   ];
 
   for (const candidate of candidates) {
     if (Array.isArray(candidate) && candidate.length > 0) {
-      return candidate;
+      // Resolve relative URLs for each attachment
+      return candidate.map((file: any) => ({
+        ...file,
+        cUrl: resolveImageUrl(file?.cUrl ?? file?.cFilePath ?? file?.url ?? file?.path ?? ""),
+      }));
     }
   }
 
@@ -319,6 +358,8 @@ const TicketView = () => {
     Boolean(state.openQuickCall)
   );
   const [tick, setTick] = useState(() => Date.now());
+  const [followupOpen, setFollowupOpen] = useState(false);
+  const [followupCustomerId, setFollowupCustomerId] = useState<number>(0);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 60_000);
@@ -458,10 +499,21 @@ const TicketView = () => {
     ])
   );
   const email = formatDisplayValue(getFieldValue(resolvedRecord, ["cEmail", "Email"]));
+  const createdByTeam = formatDisplayValue(
+    getFieldValue(resolvedRecord, [
+      "TeamName",
+      "cTeamName",
+      "CreatedByTeam",
+      "cCreatedByTeam",
+      "GroupName",
+      "cGroupName",
+    ])
+  );
 
   return (
-    <TicketPageShell>
-      <div className="relative w-full rounded-xl border border-slate-200 shadow-sm">
+    <TicketPageShell contentClassName="p-4 relative">
+      {/* absolute inset-4 forces this div to fill the padded area exactly, without expanding */}
+      <div className="absolute inset-4 flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
         <div className="flex items-center justify-end gap-3 px-2 pt-0.5">
           <button
             type="button"
@@ -480,6 +532,8 @@ const TicketView = () => {
           </button>
         </div>
 
+        {/* flex-1 min-h-0 lets the section grow AND enables internal overflow-y:auto */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <TicketOverviewSection
           ticketId={ticketId}
           isLoading={isLoading}
@@ -502,7 +556,33 @@ const TicketView = () => {
           contactNumber={contactNumber}
           email={email}
           attachments={attachments}
+          createdByTeam={createdByTeam}
+          onFollowUpClick={() => {
+            navigate("/tickets/create", {
+              state: {
+                followupSourceTicket: {
+                  nTicketId: ticketId,
+                  cViewSummary: summary || description || "Follow up ticket",
+                  summary: summary,
+                  description: description,
+                },
+                draftValues: {
+                  CustomerId: getFieldValue(resolvedRecord, ["nCustomerId", "CustomerId", "customerId"]),
+                  ContactNo: contactNumber,
+                  Email: email,
+                  Priority: priority || "Low",
+                  Group: getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]) === 0 ? undefined : getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]),
+                  ServiceType: getFieldValue(resolvedRecord, ["nServiceTypeId", "ServiceTypeId"]) === 0 ? undefined : getFieldValue(resolvedRecord, ["nServiceTypeId", "ServiceTypeId"]),
+                  Source: getFieldValue(resolvedRecord, ["nTicketSourceId", "TicketSourceId"]),
+                  AssetId: getFieldValue(resolvedRecord, ["nAssetId", "AssetId"]),
+                  AssetName: assetName,
+                  files: attachments,
+                }
+              }
+            });
+          }}
         />
+        </div>
         <QuickCallReportModal
           open={quickCallOpen}
           onClose={() => setQuickCallOpen(false)}

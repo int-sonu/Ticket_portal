@@ -505,12 +505,9 @@ const TicketList = () => {
     <div
       className="ticket-filter-panel"
       style={{
-        width: 354,
+        width: 320,
         borderRadius: 8,
-        background: "#ffffff",
-        boxShadow: "0 12px 32px rgba(15, 23, 42, 0.18)",
-        border: "1px solid #eef2f7",
-        padding: "18px 20px",
+        padding: "1px 20px",
       }}
     >
       <div
@@ -801,10 +798,10 @@ const TicketList = () => {
       bodyStyle={{
         background: "#ffffff",
         borderRadius: 8,
-        height: "100%",
+        padding: 14,
         display: "flex",
         flexDirection: "column",
-        padding: 14,
+        height: "100%",
       }}
       style={{
         borderRadius: 8,
@@ -815,8 +812,6 @@ const TicketList = () => {
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 10,
-          minHeight: 0,
           height: "100%",
         }}
       >
@@ -895,11 +890,11 @@ const TicketList = () => {
           </Space>
         </div>
 
-        <Space wrap style={{ gap: 8 }}>
+        <Space wrap style={{ gap: 8, marginBottom: 12 }}>
           {ticketTabs.map((tab) => renderTabButton(tab.key, tab.label))}
         </Space>
 
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ width: "100%", flex: 1, minHeight: 0 }}>
           <AntTable
             className="ticket-list-table"
             rowKey={(record) =>
@@ -910,21 +905,37 @@ const TicketList = () => {
             loading={getTableLoading()}
             size="small"
             disableHorizontalScroll
-            scroll={{ y: "100%" }}
+            scroll={{ y: "calc(100vh - 230px)" }}
             showPagination={false}
+            onRow={(record) => ({
+              onClick: () => {
+                const ticketId = getTicketIdValue(record);
+                if (ticketId) {
+                  navigate(`/tickets/view/${ticketId}`, {
+                    state: {
+                      selectedRow: record,
+                    },
+                  });
+                }
+              },
+              style: { cursor: "pointer" },
+            })}
           />
         </div>
       </div>
     </Card>
-    <TicketModulePagination
-      className="mt-3"
-      current={safeCurrentPage}
-      pageSize={pageSize}
-      total={totalRows}
-      onChange={handlePageChange}
-      onShowSizeChange={handlePageChange}
-      showSizeChanger
-    />
+
+    <div className="w-full mt-2">
+      <TicketModulePagination
+        current={safeCurrentPage}
+        pageSize={pageSize}
+        total={totalRows}
+        onChange={handlePageChange}
+        onShowSizeChange={handlePageChange}
+        showSizeChanger
+      />
+    </div>
+
     <QuickCallReportModal
       open={quickCallOpen}
       onClose={() => {
