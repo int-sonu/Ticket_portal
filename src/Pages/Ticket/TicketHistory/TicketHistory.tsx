@@ -207,7 +207,8 @@ const TicketHistory = ({ ticketId }: Props) => {
                     <div className="relative flex justify-center">
                       
                       <img src={clockgrey} alt="Time" className="h-6 w-6" />
-                      {/* <span className="mt-1.5 h-3 w-3 rounded-full border-2 border-teal-500 bg-white" /> */}
+                      {/* <span className="mt-1.5 h-3
+                       w-3 rounded-full border-2 border-teal-500 bg-white" /> */}
                       {index !== historyItems.length - 1 ? (
                         <span className="absolute top-6 h-full border-l-2 border-dotted border-gray-400" />
                       ) : null}

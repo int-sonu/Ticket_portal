@@ -35,6 +35,21 @@ const TicketListTable = ({
   const getTicketId = (record: any) =>
     record?.TicketId ?? record?.nTicketId ?? record?.ticketId ?? 0;
 
+  const isOngoingTicket = (record: any) =>
+    String(
+      record?.Status ??
+        record?.StatusName ??
+        record?.cStatus ??
+        record?.cStatusName ??
+        record?.TicketStatus ??
+        record?.TicketStatusName ??
+        record?.cCurrentStatus ??
+        record?.cCurrentStatusName ??
+        ""
+    )
+      .toLowerCase()
+      .includes("ongoing");
+
   const columns = [
     {
       title: "Ticket No",
@@ -80,11 +95,16 @@ const TicketListTable = ({
               size="small"
               disabled={!ticketId}
               onClick={() =>
-                navigate(`/tickets/view/${ticketId}`, {
+                navigate(
+                  isOngoingTicket(record)
+                    ? `/tickets/view/${ticketId}`
+                    : `/tickets/followup/${ticketId}`,
+                  {
                   state: {
                     selectedRow: record,
                   },
-                })
+                  }
+                )
               }
             >
               View
@@ -94,13 +114,18 @@ const TicketListTable = ({
               size="small"
               disabled={!ticketId}
               onClick={() =>
-                navigate(`/tickets/view/${ticketId}`, {
+                navigate(
+                  isOngoingTicket(record)
+                    ? `/tickets/view/${ticketId}`
+                    : `/tickets/followup/${ticketId}`,
+                  {
                   state: {
                     selectedRow: record,
                     openQuickCall: true,
                     quickCallTicketValues: record,
                   },
-                })
+                  }
+                )
               }
             >
               Quick Call

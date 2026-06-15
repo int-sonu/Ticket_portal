@@ -33,7 +33,16 @@ type TicketOverviewSectionProps = {
   email: string;
   attachments: any[];
   createdByTeam?: string;
+  alternativeContacts?: any[];
   onFollowUpClick?: () => void;
+  showFilesInDetails?: boolean;
+  showFilesTab?: boolean;
+  extraRows?: Array<{
+    label: string;
+    value: string;
+    icon?: string;
+  }>;
+  showFollowUpAction?: boolean;
 };
 
 const TicketOverviewSection = ({
@@ -59,7 +68,12 @@ const TicketOverviewSection = ({
   email,
   attachments,
   createdByTeam,
+  alternativeContacts = [],
   onFollowUpClick,
+  showFilesInDetails = true,
+  showFilesTab = true,
+  extraRows = [],
+  showFollowUpAction = true,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
 
@@ -77,6 +91,26 @@ const TicketOverviewSection = ({
     { label: "Group",        value: group || "N/A",      icon: groupIcon },
     { label: "Follow Up",    value: followupDate || "N/A",icon: calendarIcon },
   ];
+
+  const detailRows = [...leftRows, ...extraRows];
+
+  const getContactValue = (item: any, keys: string[]) => {
+    for (const key of keys) {
+      if (item?.[key] !== undefined && item?.[key] !== null && item?.[key] !== "") {
+        return item[key];
+      }
+    }
+
+    const matchedKey = Object.keys(item || {}).find((field) =>
+      keys.some((key) => key.toLowerCase() === field.toLowerCase())
+    );
+
+    return matchedKey ? item?.[matchedKey] : "";
+  };
+
+  const alternativeContactList = Array.isArray(alternativeContacts)
+    ? alternativeContacts
+    : [];
 
   /* ── Files carousel — shared between Details tab & Files tab ── */
   const FilesSection = () => (
@@ -170,10 +204,10 @@ const TicketOverviewSection = ({
 
   return (
     <Spin spinning={isLoading}>
-      <div className="px-4 pb-3 sm:px-4 sm:pb-4">
+      <div className="relative z-10 flex h-full min-h-0 flex-col px-4 pb-3 sm:px-4 sm:pb-4">
 
         {/* ── Tab Bar ── */}
-        <div className="sticky top-0 z-30 flex items-end gap-3 border border-slate-200 border-b-0 bg-white rounded-tl-2xl shadow-[0_1px_0_rgba(226,232,240,1)]">
+        <div className="sticky top-0 z-40 flex items-end gap-3 border border-slate-200 border-b-0 bg-white rounded-tl-2xl shadow-[0_1px_0_rgba(226,232,240,1)]">
           <button
             type="button"
             onClick={() => onTabChange("details")}
@@ -196,17 +230,19 @@ const TicketOverviewSection = ({
           >
             History
           </button>
-          <button
-            type="button"
-            onClick={() => onTabChange("files")}
-            className={`rounded-t-sm px-4 py-1.5 text-sm font-semibold ${
-              activeTab === "files"
-                ? "bg-sky-500 text-white"
-                : "text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            Files
-          </button>
+          {showFilesTab ? (
+            <button
+              type="button"
+              onClick={() => onTabChange("files")}
+              className={`rounded-t-sm px-4 py-1.5 text-sm font-semibold ${
+                activeTab === "files"
+                  ? "bg-sky-500 text-white"
+                  : "text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              Files
+            </button>
+          ) : null}
         </div>
 
         {/* ── Ticket Header Card (always visible on every tab) ── */}
@@ -258,6 +294,10 @@ const TicketOverviewSection = ({
         </Card>
 
         {/* ── Tab Content ── */}
+        <div
+          className="ticket-overview-scrollbar mt-3 min-h-0 flex-1 overflow-y-scroll pr-1"
+          style={{ scrollbarGutter: "stable", scrollbarWidth: "thin" }}
+        >
         {activeTab === "details" ? (
           <>
             {/* Two-column: Address details (left) + Contacts (right) */}
@@ -267,13 +307,15 @@ const TicketOverviewSection = ({
               <div className="flex flex-col gap-3">
                 <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1 px-3 py-2 sm:px-4">
-                    {leftRows.map((item) => (
+                    {detailRows.map((item) => (
                       <div
                         key={item.label}
                         className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-1.5"
                       >
                         <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-                          <img src={item.icon} alt="" className="h-3.5 w-3.5 shrink-0" />
+                          {item.icon ? (
+                            <img src={item.icon} alt="" className="h-3.5 w-3.5 shrink-0" />
+                          ) : null}
                           <span>{item.label} :</span>
                         </div>
                         <div className="break-words text-sm text-slate-800">
@@ -285,61 +327,133 @@ const TicketOverviewSection = ({
                 </Card>
 
                 {/* Files section — left column only */}
-                <FilesSection />
+                {showFilesInDetails ? <FilesSection /> : null}
               </div>
 
               {/* Right: Contacts */}
-              <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-                <div className="px-3 py-2 sm:px-4">
-                  <div className="mb-2 text-sm font-semibold text-slate-900">Contacts</div>
-                  <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
-                    <div className="min-w-0">
-                      <div className="text-base font-semibold text-slate-900">
-                        {customerName || "-"}
+              <div className="flex flex-col gap-3">
+                <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
+                  <div className="px-3 py-2 sm:px-4">
+                    <div className="mb-2 text-sm font-semibold text-slate-900">Contacts</div>
+                    <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
+                      <div className="min-w-0">
+                        <div className="text-base font-semibold text-slate-900">
+                          {customerName || "-"}
+                        </div>
+                        <div className="mt-0.5 text-sm text-slate-600">
+                          {contactNumber || "-"}
+                        </div>
+                        <div className="text-sm text-slate-600">{email || "-"}</div>
                       </div>
-                      <div className="mt-0.5 text-sm text-slate-600">
-                        {contactNumber || "-"}
-                      </div>
-                      <div className="text-sm text-slate-600">{email || "-"}</div>
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                        aria-label="Call contact"
+                      >
+                        <img
+                          src={phoneIcon}
+                          alt=""
+                          className="h-5 w-5"
+                          style={{ filter: "invert(1) brightness(10)" }}
+                        />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
-                      aria-label="Call contact"
-                    >
-                      <img
-                        src={phoneIcon}
-                        alt=""
-                        className="h-5 w-5"
-                        style={{ filter: "invert(1) brightness(10)" }}
-                      />
-                    </button>
                   </div>
-                </div>
-              </Card>
+                </Card>
+
+                <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
+                  <div className="px-3 py-2 sm:px-4">
+                    <div className="mb-2 text-sm font-semibold text-slate-900">
+                      Alternative Contacts
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {alternativeContactList.length ? (
+                        alternativeContactList.map((contact: any, index: number) => {
+                          const altName =
+                            getContactValue(contact, [
+                              "cCustomerName",
+                              "CustomerName",
+                              "cContactName",
+                              "ContactName",
+                              "cContactPerson",
+                              "ContactPerson",
+                              "name",
+                            ]) || `Contact ${index + 1}`;
+                          const altPhone =
+                            getContactValue(contact, [
+                              "cContactNumber",
+                              "ContactNumber",
+                              "cPhoneNo",
+                              "PhoneNo",
+                              "mobile",
+                              "Mobile",
+                            ]) || "-";
+                          const altEmail =
+                            getContactValue(contact, ["cEmail", "Email", "email"]) || "-";
+
+                          return (
+                            <div
+                              key={`${altName}-${index}`}
+                              className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-base font-semibold text-slate-900">
+                                  {altName}
+                                </div>
+                                <div className="mt-0.5 text-sm text-slate-600">
+                                  {altPhone}
+                                </div>
+                                <div className="text-sm text-slate-600">{altEmail}</div>
+                              </div>
+                              <button
+                                type="button"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                                aria-label="Call alternative contact"
+                              >
+                                <img
+                                  src={phoneIcon}
+                                  alt=""
+                                  className="h-5 w-5"
+                                  style={{ filter: "invert(1) brightness(10)" }}
+                                />
+                              </button>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                          No alternative contacts found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </div>
             </div>
 
-            {/* FollowUp button — bottom-right, inside the details panel */}
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={onFollowUpClick}
-                className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-600 active:bg-emerald-700 transition-colors"
-              >
-                FollowUp
-              </button>
-            </div>
+            {showFollowUpAction ? (
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={onFollowUpClick}
+                  className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-600 active:bg-emerald-700 transition-colors"
+                >
+                  FollowUp
+                </button>
+              </div>
+            ) : null}
           </>
         ) : activeTab === "history" ? (
-          <div className="relative z-10 mt-0.5 flex-1 overflow-y-auto">
+          <div className="relative z-10 mt-0.5">
             <TicketHistory ticketId={ticketId} />
           </div>
         ) : (
           /* Files tab — also shows the same carousel */
-          <div className="flex-1 overflow-y-auto">
+          <div>
             <FilesSection />
           </div>
         )}
+        </div>
       </div>
     </Spin>
   );

@@ -53,6 +53,7 @@ import {
   extractList,
   getSessionPayload,
 } from "../../Master/Common/SimpleMasterUtils";
+import QuickCallReportModal from "../Common/QuickCallReportModal";
 import { useGetServiceTypeDropdown } from "../../Master/ServiceType/Hooks";
 import { useGetTicketSourceDropdown } from "../../Master/TicketSource/Hooks";
 
@@ -229,7 +230,9 @@ const TicketForm = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [form] = Form.useForm();
+  const [quickCallOpen, setQuickCallOpen] = useState(false);
   const [showFollowupBanner, setShowFollowupBanner] = useState(!!followupSourceTicket);
+  const showQuickCall = !followupSourceTicket;
   const [customerForm] = Form.useForm();
   const [assetForm] = Form.useForm();
   const [customerOpen, setCustomerOpen] =
@@ -1977,9 +1980,9 @@ const TicketForm = ({
   };
 
   return (
-    <div className="ticket-create-shell flex-1 bg-white">
+    <div className="ticket-create-shell flex-1">
       {showFollowupBanner && followupSourceTicket && (
-        <div className="flex items-start justify-between bg-sky-50 px-4 py-3 text-[13px] font-medium text-slate-800 shadow-[inset_0_-1px_0_0_#e2e8f0]">
+        <div className="flex items-start justify-between  px-4 py-3 text-[13px] font-medium text-slate-800 shadow-[inset_0_-1px_0_0_#e2e8f0]">
           <div className="flex flex-col gap-1">
             <div className="text-[14px] font-semibold text-sky-900">
               Follow-up for Ticket #{followupSourceTicket.nTicketId || followupSourceTicket.ticketId || followupSourceTicket.TicketId}
@@ -2028,9 +2031,9 @@ const TicketForm = ({
         className="ticket-create-form"
         onFinish={handleSubmit}
       >
-        <div className="ticket-create-grid min-h-0 overflow-visible bg-white">
+        <div className="ticket-create-grid min-h-0 overflow-visible">
           <section
-            className="flex min-h-0 flex-col overflow-visible border-r border-slate-200 bg-white px-4 pb-2 lg:h-full"
+            className="flex min-h-0 flex-col overflow-visible border-r border-slate-200 px-4 pb-2 lg:h-full"
           >
             <div className="-mx-4 mt-0 mb-1 w-[calc(100%+2rem)] bg-sky-50 px-4 pt-0 pb-0 sm:mx-0 sm:w-full">
               <Form.Item
@@ -2042,7 +2045,7 @@ const TicketForm = ({
                 name="Source"
                 className="!mt-0 !mb-0"
               >
-                <Radio.Group className="source-radio-group flex flex-wrap gap-x-2 gap-y-0.5  text-[12px]">
+                <Radio.Group className="source-radio-group flex flex-wrap gap-x-2 gap-y-0.5 text-[12px]">
                   {ticketSourceOptions.map((opt) => (
                     <Radio key={opt.value} value={opt.value}>
                       {opt.label}
@@ -2083,7 +2086,7 @@ const TicketForm = ({
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
-                    className="ticket-search-button !h-full border-0 !rounded-l-none !rounded-r-md m-0"
+                    className="ticket-search-button !h-full !w-10 border-0 !rounded-l-none !rounded-r-md m-0"
                     onClick={() => {
                       setCustomerDropdownOpen(false);
                       setCustomerPickerOpen(true);
@@ -2197,7 +2200,7 @@ const TicketForm = ({
                     <Button
                       type="primary"
                       icon={<SearchOutlined />}
-                      className="ticket-search-button !h-full border-0 !rounded-l-none !rounded-r-md m-0"
+                      className="ticket-search-button !h-full !w-10 border-0 !rounded-l-none !rounded-r-md m-0"
                       onClick={() => {
                         setAssetDropdownOpen(false);
                         setAssetPickerTarget("ticket");
@@ -2363,7 +2366,7 @@ const TicketForm = ({
                 name="Priority"
                 className="!mb-0"
               >
-                <Radio.Group className="flex flex-wrap gap-x-2 gap-y-1 ">
+                <Radio.Group className="priority-radio-group flex flex-wrap gap-x-2 gap-y-1">
                   {[
                     "Very Low",
                     "Low",
@@ -2700,6 +2703,21 @@ const TicketForm = ({
   </p>
 </Form.Item>
 
+            {showQuickCall && (
+              <div className="ticket-quick-call mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+                <p className="mb-2 text-[12px] text-slate-600">
+                  Quick Call Report will save the ticket and the call report together.
+                </p>
+                <Button
+                  type="primary"
+                  block
+                  onClick={() => setQuickCallOpen(true)}
+                >
+                  Quick Call Report
+                </Button>
+              </div>
+            )}
+
             <div className="ticket-right-actions">
               <Button
                 type="primary"
@@ -2721,6 +2739,19 @@ const TicketForm = ({
           </section>
       </div>
       </Form>
+
+      {showQuickCall && (
+        <QuickCallReportModal
+          open={quickCallOpen}
+          onClose={() => setQuickCallOpen(false)}
+          ticketId={Number(ticketId ?? 0)}
+          ticketForm={form}
+          ticketValues={form.getFieldsValue(true)}
+          selectedCustomerName={selectedCustomerName}
+          sessionPayload={sessionPayload}
+          assignedAgentDetails={extractList(assignAgentData)}
+        />
+      )}
 
       <Modal
         open={leaderPickerOpen}

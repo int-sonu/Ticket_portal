@@ -40,6 +40,25 @@ const formatRequestDate = (date: Date) => {
   return `${year}/${month}/${day}`;
 };
 
+const isOngoingTicket = (record: any) =>
+  String(
+    getFieldValue(record, [
+      "Status",
+      "StatusName",
+      "cStatus",
+      "cStatusName",
+      "TicketStatus",
+      "TicketStatusName",
+      "cCurrentStatus",
+      "cCurrentStatusName",
+      "cTicketStatus",
+      "nStatus",
+      "nTicketStatus",
+    ]) ?? ""
+  )
+    .toLowerCase()
+    .includes("ongoing");
+
 const AssignAgentTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -323,11 +342,16 @@ const AssignAgentTickets = () => {
                 "id",
               ]);
               if (ticketId) {
-                navigate(`/tickets/view/${ticketId}`, {
-                  state: {
-                    selectedRow: record,
-                  },
-                });
+                navigate(
+                  isOngoingTicket(record)
+                    ? `/tickets/view/${ticketId}`
+                    : `/tickets/followup/${ticketId}`,
+                  {
+                    state: {
+                      selectedRow: record,
+                    },
+                  }
+                );
               }
             },
             style: { cursor: "pointer" },

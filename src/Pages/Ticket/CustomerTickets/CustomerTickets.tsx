@@ -166,6 +166,9 @@ const getTicketStatusValue = (record: any) =>
     "cTicketStatusName",
   ]);
 
+const isOngoingTicket = (record: any) =>
+  String(getTicketStatusValue(record) ?? "").toLowerCase().includes("ongoing");
+
 const CustomerTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -312,11 +315,17 @@ const CustomerTickets = () => {
       return;
     }
 
-    navigate(`/tickets/view/${ticketId}`, {
-      state: {
-        selectedRow: record,
-      },
-    });
+    navigate(
+      isOngoingTicket(record)
+        ? `/tickets/view`
+        : `/tickets/followup`,
+      {
+        state: {
+          selectedRow: record,
+          isFrom: !isOngoingTicket(record) ? "customerView" : "ongoing",
+        },
+      }
+    );
   };
 
   const columns = useMemo(

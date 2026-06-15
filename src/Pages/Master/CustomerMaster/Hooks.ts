@@ -97,6 +97,19 @@ export const useGetCustomerWiseAssets = (payload: any, enabled = true) => {
   });
 };
 
+export const useGetCustomerAlternativeContacts = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["customer-alternative-contacts", payload],
+
+    queryFn: () => customerApis.alternativeContactList(payload),
+
+    enabled,
+  });
+};
+
 export const useGetCustomerBrandOptions = (payload: any) => {
   return useQuery({
     queryKey: ["customer-brand-options", payload],

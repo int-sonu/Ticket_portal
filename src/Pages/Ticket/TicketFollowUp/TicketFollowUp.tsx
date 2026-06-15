@@ -1,6 +1,7 @@
-// This page is no longer used. Follow-up is handled via FollowupModal in TicketView.
-// Kept as an empty component to avoid router import errors.
+import TicketView from "../TicketView/TicketView";
 
-const TicketFollowUp = () => null;
+const TicketFollowUp = () => {
+  return <TicketView />;
+};
 
 export default TicketFollowUp;

@@ -16,7 +16,7 @@ const TicketPageShell = ({
       className={`relative z-0 flex h-full min-h-0 w-full flex-col ${className}`.trim()}
     >
       <div
-        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${contentClassName}`.trim()}
+        className={`min-h-0 flex-1 overflow-hidden overflow-x-hidden ${contentClassName}`.trim()}
       >
         {children}
       </div>

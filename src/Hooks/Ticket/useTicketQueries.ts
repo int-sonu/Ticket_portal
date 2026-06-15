@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ticketApis } from "../../Axios/TicketsApi";
+import { itemRepairApis } from "../../Axios/ItemRepairApis";
 
 // ============================
 // TICKET LISTS
@@ -209,6 +210,17 @@ export const useCustomerWiseAllTicketList = (
       ticketApis.customerWiseAllTicketList(
         payload
       ),
+    enabled,
+  });
+};
+
+export const useRepairItemActivityList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["repair-item-activity-list", payload],
+    queryFn: () => itemRepairApis.repairItemActivityList(payload),
     enabled,
   });
 };

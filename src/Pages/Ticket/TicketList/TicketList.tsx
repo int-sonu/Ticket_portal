@@ -244,6 +244,23 @@ const getBooleanField = (record: any, keys: string[]) => {
   return value === true || value === "true" || value === 1 || value === "1";
 };
 
+const getTicketStatusText = (record: any) =>
+  String(
+    getFieldValue(record, [
+      "Status",
+      "StatusName",
+      "cStatus",
+      "cStatusName",
+      "TicketStatus",
+      "TicketStatusName",
+      "cCurrentStatus",
+      "cCurrentStatusName",
+      "cTicketStatus",
+      "nStatus",
+      "nTicketStatus",
+    ]) ?? ""
+  ).toLowerCase();
+
 const getTicketIdValue = (record: any) =>
   Number(
     getFieldValue(record, [
@@ -911,11 +928,20 @@ const TicketList = () => {
               onClick: () => {
                 const ticketId = getTicketIdValue(record);
                 if (ticketId) {
-                  navigate(`/tickets/view/${ticketId}`, {
-                    state: {
-                      selectedRow: record,
-                    },
-                  });
+                  const isOngoing =
+                    activeTab === "ONGOING" ||
+                    getTicketStatusText(record).includes("ongoing");
+
+                  navigate(
+                    isOngoing
+                      ? `/tickets/view/${ticketId}`
+                      : `/tickets/followup/${ticketId}`,
+                    {
+                      state: {
+                        selectedRow: record,
+                      },
+                    }
+                  );
                 }
               },
               style: { cursor: "pointer" },

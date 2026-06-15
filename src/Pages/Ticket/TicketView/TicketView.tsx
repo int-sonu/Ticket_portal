@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Button, message } from "antd";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { useTicketView } from "../../../Hooks/Ticket/useTicketQueries";
+import {
+  useRepairItemActivityList,
+  useTicketView,
+} from "../../../Hooks/Ticket/useTicketQueries";
 import { getApiImageBaseUrl } from "../../../Axios/config";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
@@ -10,12 +14,27 @@ import TicketPageShell from "../Common/TicketPageShell";
 import TicketOverviewSection from "./TicketOverviewSection";
 import shareIcon from "../../../assets/icons/shareIcon.svg";
 import closeblack from "../../../assets/icons/close-black.svg";
+import EstimateIcon from "../../../assets/icons/EstimateIcon.svg";
+import transferIcon from "../../../assets/icons/transferIcon.svg";
+import postponeIcon from "../../../assets/icons/postponeIcon.svg";
+import sendIcon from "../../../assets/icons/sendIcon.svg";
+import mergeIcon from "../../../assets/icons/mergeIcon.svg";
+import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
+import {
+  useGetCustomerAlternativeContacts,
+  useGetCustomerAssetDepartments,
+  useGetCustomerBrandOptions,
+  useGetCustomerWiseAssets,
+} from "../../Master/CustomerMaster/Hooks";
+import TransferTicketModal from "../Common/TransferTicketModal";
+import ShareTicketModal from "../Common/ShareTicketModal";
 import FollowupModal from "../Common/FollowupModal";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
   quickCallTicketValues?: Record<string, any> | null;
   assignedAgentDetails?: any[];
   openQuickCall?: boolean;
+  isFrom?: string;
 };
 
 const getFieldValue = (record: any, keys: string[]) => {
@@ -26,7 +45,7 @@ const getFieldValue = (record: any, keys: string[]) => {
   }
 
   const recordKey = Object.keys(record || {}).find((item) =>
-    keys.some((key) => key.toLowerCase() === item.toLowerCase())
+    keys.some((key) => key.toLowerCase() === item.toLowerCase()),
   );
 
   if (!recordKey) return "";
@@ -36,7 +55,8 @@ const getFieldValue = (record: any, keys: string[]) => {
 
 const formatDisplayValue = (value: any): string => {
   if (value === null || value === undefined || value === "") return "";
-  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "string" || typeof value === "number")
+    return String(value);
   if (typeof value === "boolean") return value ? "Yes" : "No";
 
   if (Array.isArray(value)) {
@@ -60,7 +80,6 @@ const formatDisplayValue = (value: any): string => {
       value?.cName ??
       value?.cTitle ??
       value?.cDescription ??
-     
       ""
     );
   }
@@ -84,7 +103,7 @@ const parseTicketDate = (value: any): number | null => {
   if (!text) return null;
 
   const dmYTimeMatch = text.match(
-    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?$/i
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?$/i,
   );
 
   if (dmYTimeMatch) {
@@ -105,7 +124,7 @@ const parseTicketDate = (value: any): number | null => {
       hour,
       minute,
       0,
-      0
+      0,
     );
     const ms = parsed.getTime();
     return Number.isNaN(ms) ? null : ms;
@@ -243,13 +262,15 @@ const pickRecord = (response: any) => {
     // Handle both TicketSummary (object) and ticketSummary (array)
     const summaryObj =
       dataObj.TicketSummary ??
-      (Array.isArray(dataObj.ticketSummary) ? dataObj.ticketSummary[0] : dataObj.ticketSummary) ??
+      (Array.isArray(dataObj.ticketSummary)
+        ? dataObj.ticketSummary[0]
+        : dataObj.ticketSummary) ??
       null;
 
     if (summaryObj) {
       return {
-        ...summaryObj,  // cDescription, cTicketSummary, etc. from summary
-        ...dataObj,     // root fields overwrite (nCustomerId, attachments, etc.)
+        ...summaryObj, // cDescription, cTicketSummary, etc. from summary
+        ...dataObj, // root fields overwrite (nCustomerId, attachments, etc.)
       };
     }
     return dataObj;
@@ -302,7 +323,9 @@ const pickAttachments = (record: any) => {
       // Resolve relative URLs for each attachment
       return candidate.map((file: any) => ({
         ...file,
-        cUrl: resolveImageUrl(file?.cUrl ?? file?.cFilePath ?? file?.url ?? file?.path ?? ""),
+        cUrl: resolveImageUrl(
+          file?.cUrl ?? file?.cFilePath ?? file?.url ?? file?.path ?? "",
+        ),
       }));
     }
   }
@@ -333,7 +356,7 @@ const pickAssignedAgents = (record: any) => {
             agent?.id ??
             agent?.value ??
             agent ??
-            0
+            0,
         ),
         nRole: Number(agent?.nRole ?? 0),
       }))
@@ -344,6 +367,67 @@ const pickAssignedAgents = (record: any) => {
   return parsed > 0 ? [{ nAgentId: parsed, nRole: 0 }] : [];
 };
 
+const buildFollowupDetailRows = (record: any) => {
+  const rows = [
+    {
+      label: "Followup Mode",
+      value: formatDisplayValue(
+        getFieldValue(record, [
+          "FollowupMode",
+          "cFollowupMode",
+          "CallReportMode",
+          "cCallReportMode",
+          "ModeName",
+          "cModeName",
+        ]),
+      ),
+    },
+    {
+      label: "Followup Remarks",
+      value: formatDisplayValue(
+        getFieldValue(record, [
+          "Remarks",
+          "Remark",
+          "FollowupRemarks",
+          "cFollowupRemarks",
+          "CallRemarks",
+          "cCallRemarks",
+          "CallSummary",
+          "cCallSummary",
+        ]),
+      ),
+    },
+    {
+      label: "Next Follow Up",
+      value: formatDisplayValue(
+        getFieldValue(record, [
+          "NextFollowupDate",
+          "dNextFollowupDate",
+          "NextFollowUpDate",
+          "dNextFollowUpDate",
+          "UpcomingFollowupDate",
+          "dUpcomingFollowupDate",
+        ]),
+      ),
+    },
+    {
+      label: "Followup Status",
+      value: formatDisplayValue(
+        getFieldValue(record, [
+          "FollowupStatus",
+          "cFollowupStatus",
+          "CallStatus",
+          "cCallStatus",
+          "Status",
+          "cStatus",
+        ]),
+      ),
+    },
+  ];
+
+  return rows.filter((item) => String(item.value ?? "").trim());
+};
+
 const TicketView = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -351,15 +435,35 @@ const TicketView = () => {
 
   const state = (location.state as TicketViewState | null) ?? {};
   const selectedRow = state.selectedRow ?? {};
+  const isFollowupPage = location.pathname
+    .toLowerCase()
+    .includes("/tickets/followup/");
+  const isFromCustomer = state.isFrom === "customerView";
+  const showFilesTab = state.isFrom !== "ongoing";
+  const pageHeading =
+    state.isFrom === "ongoing"
+      ? "Ongoing"
+      : isFollowupPage
+        ? "Follow Up"
+        : "Ticket";
+
+  const showFollowupAction = isFollowupPage && isFromCustomer;
   const [activeTab, setActiveTab] = useState<"details" | "history" | "files">(
-    "details"
+    "details",
   );
   const [quickCallOpen, setQuickCallOpen] = useState(
-    Boolean(state.openQuickCall)
+    Boolean(state.openQuickCall),
   );
+  const [shareOpen, setShareOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [postponeOpen, setPostponeOpen] = useState(false);
   const [tick, setTick] = useState(() => Date.now());
-  const [followupOpen, setFollowupOpen] = useState(false);
-  const [followupCustomerId, setFollowupCustomerId] = useState<number>(0);
+
+  useEffect(() => {
+    if (!showFilesTab && activeTab === "files") {
+      setActiveTab("details");
+    }
+  }, [activeTab, showFilesTab]);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 60_000);
@@ -371,7 +475,7 @@ const TicketView = () => {
       selectedRow?.nTicketId ??
       selectedRow?.TicketId ??
       selectedRow?.ticketId ??
-      0
+      0,
   );
 
   useEffect(() => {
@@ -384,7 +488,7 @@ const TicketView = () => {
       TicketId: ticketId,
       nTicketId: ticketId,
     }),
-    [ticketId]
+    [ticketId],
   );
 
   const { data, isLoading } = useTicketView(payload, !!ticketId);
@@ -395,12 +499,68 @@ const TicketView = () => {
       ...(selectedRow || {}),
       ...(ticketData || {}),
     }),
-    [selectedRow, ticketData]
+    [selectedRow, ticketData],
   );
-  const attachments = useMemo(() => pickAttachments(resolvedRecord), [resolvedRecord]);
+  const supportSessionPayload = useMemo(() => getRequestPayload(), []);
+  const customerId = Number(
+    getFieldValue(resolvedRecord, [
+      "nCustomerId",
+      "CustomerId",
+      "customerId",
+    ]) || 0,
+  );
+  const groupId = Number(
+    getFieldValue(resolvedRecord, ["nGroupId", "GroupId", "groupId"]) || 0,
+  );
+  const customerSupportPayload = useMemo(
+    () => ({
+      ...supportSessionPayload,
+      nCustomerId: customerId,
+      CustomerId: customerId,
+      customerId,
+    }),
+    [customerId, supportSessionPayload],
+  );
+  const assignAgentPayload = useMemo(
+    () => ({
+      ...supportSessionPayload,
+      nGroupId: groupId,
+      dDate: new Date().toISOString().slice(0, 10).replaceAll("-", "/"),
+    }),
+    [groupId, supportSessionPayload],
+  );
+  const repairItemPayload = useMemo(
+    () => ({
+      ...supportSessionPayload,
+      nTicketId: ticketId,
+      TicketId: ticketId,
+      nCustomerId: customerId,
+      CustomerId: customerId,
+    }),
+    [customerId, supportSessionPayload, ticketId],
+  );
+
+  useGetCustomerAssetDepartments(supportSessionPayload);
+  useGetCustomerBrandOptions(supportSessionPayload);
+  useGetCustomerWiseAssets(customerSupportPayload, !!customerId);
+  const { data: alternativeContactsData } = useGetCustomerAlternativeContacts(
+    customerSupportPayload,
+    !!customerId,
+  );
+  useGetAssignAgentList(assignAgentPayload, !!groupId);
+  useRepairItemActivityList(repairItemPayload, !!ticketId);
+
+  const attachments = useMemo(
+    () => pickAttachments(resolvedRecord),
+    [resolvedRecord],
+  );
+  const alternativeContacts = useMemo(
+    () => extractList(alternativeContactsData),
+    [alternativeContactsData],
+  );
   const assignedAgentDetails = useMemo(
     () => state.assignedAgentDetails ?? pickAssignedAgents(resolvedRecord),
-    [resolvedRecord, state.assignedAgentDetails]
+    [resolvedRecord, state.assignedAgentDetails],
   );
 
   const ticketNo = formatDisplayValue(
@@ -410,10 +570,14 @@ const TicketView = () => {
       "TicketNumber",
       "cTicketNumber",
       "nTicketNo",
-    ])
+    ]),
   );
   const customerName = formatDisplayValue(
-    getFieldValue(resolvedRecord, ["CustomerName", "cCustomerName", "Customer"])
+    getFieldValue(resolvedRecord, [
+      "CustomerName",
+      "cCustomerName",
+      "Customer",
+    ]),
   );
   const summary = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -423,7 +587,7 @@ const TicketView = () => {
       "cSummary",
       "ViewSummary",
       "cViewSummary",
-    ])
+    ]),
   );
   const description = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -432,7 +596,7 @@ const TicketView = () => {
       "TicketDescription",
       "cTicketDescription",
       "DescriptionText",
-    ])
+    ]),
   );
   const createdDateValue = getFieldValue(resolvedRecord, [
     "CreatedDate",
@@ -450,7 +614,7 @@ const TicketView = () => {
       "PriorityName",
       "cPriority",
       "cPriorityName",
-    ])
+    ]),
   );
   const status = normalizeTicketStatus(resolvedRecord);
   const followupDate = formatDisplayValue(
@@ -459,7 +623,7 @@ const TicketView = () => {
       "dFollowupDate",
       "FollowUpDate",
       "dFollowUpDate",
-    ])
+    ]),
   );
   const source = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -467,7 +631,7 @@ const TicketView = () => {
       "cSourceName",
       "TicketSource",
       "cTicketSource",
-    ])
+    ]),
   );
   const group = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -475,7 +639,7 @@ const TicketView = () => {
       "cGroupName",
       "TicketGroup",
       "cTicketGroup",
-    ])
+    ]),
   );
   const serviceType = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -483,22 +647,24 @@ const TicketView = () => {
       "cServiceTypeName",
       "ServiceType",
       "cServiceType",
-    ])
+    ]),
   );
   const address = formatDisplayValue(
-    getFieldValue(resolvedRecord, ["Address", "cCustomerAddress"])
+    getFieldValue(resolvedRecord, ["Address", "cCustomerAddress"]),
   );
   const assetName = formatDisplayValue(
-    getFieldValue(resolvedRecord, ["AssetName", "cAssetName", "Asset"])
+    getFieldValue(resolvedRecord, ["AssetName", "cAssetName", "Asset"]),
   );
   const contactNumber = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "cContactNumber",
       "ContactNumber",
       "PhoneNumber",
-    ])
+    ]),
   );
-  const email = formatDisplayValue(getFieldValue(resolvedRecord, ["cEmail", "Email"]));
+  const email = formatDisplayValue(
+    getFieldValue(resolvedRecord, ["cEmail", "Email"]),
+  );
   const createdByTeam = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "TeamName",
@@ -507,33 +673,40 @@ const TicketView = () => {
       "cCreatedByTeam",
       "GroupName",
       "cGroupName",
-    ])
+    ]),
+  );
+  const detailRows = useMemo(
+    () => (isFollowupPage ? buildFollowupDetailRows(resolvedRecord) : []),
+    [isFollowupPage, resolvedRecord],
   );
 
   return (
-    <TicketPageShell contentClassName="p-4 relative">
+    <TicketPageShell contentClassName="p-4 relative flex h-full min-h-0 flex-col overflow-hidden">
       {/* absolute inset-4 forces this div to fill the padded area exactly, without expanding */}
-      <div className="absolute inset-4 flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-        <div className="flex items-center justify-end gap-3 px-2 pt-0.5">
-          <button
-            type="button"
-            aria-label="Share"
-            className="rounded-full p-1 text-slate-700 hover:bg-slate-100"
-          >
-            <img src={shareIcon} alt="" className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            aria-label="Close"
-            className="rounded-full px-2 py-1 text-2xl leading-none text-slate-900 hover:bg-slate-100"
-          >
-            <img src={closeblack} alt="" className="h-4 w-4" />
-          </button>
-        </div>
+      {/* <div className="absolute inset-4 flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white"> */}
+      <div className="px-2 pb-1 text-xl font-medium text-slate-900">
+        {pageHeading}
+      </div>
+      <div className="flex items-center justify-end gap-3 px-2 pt-0.5">
+        <button
+          type="button"
+          aria-label="Share"
+          className="rounded-full p-1 text-slate-700 hover:bg-slate-100"
+        >
+          <img src={shareIcon} alt="" className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          aria-label="Close"
+          className="rounded-full px-2 py-1 text-2xl leading-none text-slate-900 hover:bg-slate-100"
+        >
+          <img src={closeblack} alt="" className="h-4 w-4" />
+        </button>
+      </div>
 
-        {/* flex-1 min-h-0 lets the section grow AND enables internal overflow-y:auto */}
-        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      {/* flex-1 min-h-0 lets the section grow AND enables internal overflow-y:auto */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <TicketOverviewSection
           ticketId={ticketId}
           isLoading={isLoading}
@@ -557,6 +730,11 @@ const TicketView = () => {
           email={email}
           attachments={attachments}
           createdByTeam={createdByTeam}
+          alternativeContacts={alternativeContacts}
+          showFilesTab={showFilesTab}
+          showFilesInDetails={showFilesTab}
+          extraRows={detailRows}
+          showFollowUpAction={showFollowupAction}
           onFollowUpClick={() => {
             navigate("/tickets/create", {
               state: {
@@ -567,32 +745,108 @@ const TicketView = () => {
                   description: description,
                 },
                 draftValues: {
-                  CustomerId: getFieldValue(resolvedRecord, ["nCustomerId", "CustomerId", "customerId"]),
+                  CustomerId: getFieldValue(resolvedRecord, [
+                    "nCustomerId",
+                    "CustomerId",
+                    "customerId",
+                  ]),
                   ContactNo: contactNumber,
                   Email: email,
+                  IssueSummary: summary || description || "Follow up ticket",
+                  Description: description || summary || "",
                   Priority: priority || "Low",
-                  Group: getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]) === 0 ? undefined : getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]),
-                  ServiceType: getFieldValue(resolvedRecord, ["nServiceTypeId", "ServiceTypeId"]) === 0 ? undefined : getFieldValue(resolvedRecord, ["nServiceTypeId", "ServiceTypeId"]),
-                  Source: getFieldValue(resolvedRecord, ["nTicketSourceId", "TicketSourceId"]),
-                  AssetId: getFieldValue(resolvedRecord, ["nAssetId", "AssetId"]),
+                  Group:
+                    getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]) === 0
+                      ? undefined
+                      : getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]),
+                  ServiceType:
+                    getFieldValue(resolvedRecord, [
+                      "nServiceTypeId",
+                      "ServiceTypeId",
+                    ]) === 0
+                      ? undefined
+                      : getFieldValue(resolvedRecord, [
+                          "nServiceTypeId",
+                          "ServiceTypeId",
+                        ]),
+                  Source: getFieldValue(resolvedRecord, [
+                    "nTicketSourceId",
+                    "TicketSourceId",
+                  ]),
+                  AssetId: getFieldValue(resolvedRecord, [
+                    "nAssetId",
+                    "AssetId",
+                  ]),
                   AssetName: assetName,
                   files: attachments,
-                }
-              }
+                },
+              },
             });
           }}
         />
-        </div>
-        <QuickCallReportModal
-          open={quickCallOpen}
-          onClose={() => setQuickCallOpen(false)}
-          ticketId={ticketId}
-          ticketValues={resolvedRecord}
-          selectedCustomerName={customerName}
-          sessionPayload={getRequestPayload()}
-          assignedAgentDetails={assignedAgentDetails}
-        />
       </div>
+      {!isFollowupPage ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2 px-1 ">
+          <Button
+            className="!border-black !text-black !bg-white rounded-full shadow-sm flex items-center gap-3 w-28 "
+            onClick={() => message.info("Estimate action will be added next")}
+          >
+            <img src={EstimateIcon} alt="" className="h-5 w-5 " /> Estimate
+          </Button>
+          <Button
+            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28"
+            onClick={() => setTransferOpen(true)}
+          >
+            <img src={transferIcon} alt="" className="h-5 w-5 " /> Transfer
+          </Button>
+          <Button
+            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
+            onClick={() => setPostponeOpen(true)}
+          >
+            <img src={postponeIcon} alt="" className="h-5 w-5 " />
+            Postponed
+          </Button>
+          <Button
+            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
+            onClick={() => setShareOpen(true)}
+          >
+            <img src={sendIcon} alt="" className="h-5 w-5 " /> Share
+          </Button>
+          <Button
+            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
+            onClick={() => message.info("Merge action will be added next")}
+          >
+            <img src={mergeIcon} alt="" className="h-5 w-5 " /> Merge
+          </Button>
+        </div>
+      ) : null}
+      <QuickCallReportModal
+        open={quickCallOpen}
+        onClose={() => setQuickCallOpen(false)}
+        ticketId={ticketId}
+        ticketValues={resolvedRecord}
+        selectedCustomerName={customerName}
+        sessionPayload={getRequestPayload()}
+        assignedAgentDetails={assignedAgentDetails}
+      />
+      <ShareTicketModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        ticketId={ticketId}
+      />
+      <TransferTicketModal
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        ticketId={ticketId}
+      />
+      <FollowupModal
+        open={postponeOpen}
+        onClose={() => setPostponeOpen(false)}
+        ticketId={ticketId}
+        customerId={customerId}
+        defaultTicketId={ticketId}
+      />
+      {/* </div> */}
     </TicketPageShell>
   );
 };

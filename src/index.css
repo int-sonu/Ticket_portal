@@ -44,6 +44,31 @@ body,
   border-radius: 9999px;
 }
 
+/* Ticket detail body scrollbar */
+.ticket-overview-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #93c5fd #eff6ff;
+}
+
+.ticket-overview-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ticket-overview-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #93c5fd;
+  border-radius: 9999px;
+  border: 2px solid #eff6ff;
+}
+
+.ticket-overview-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #60a5fa;
+}
+
+.ticket-overview-scrollbar::-webkit-scrollbar-track {
+  background: #eff6ff;
+  border-radius: 9999px;
+}
+
 .ant-switch.ant-switch-checked,
 .agent-green-switch.ant-switch-checked {
   background: #22c55e !important;
@@ -467,28 +492,34 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   line-height: 26px !important;
 }
 
-.ticket-create-form .source-radio-group .ant-radio-inner {
-  border-color: #111827;
+.ticket-create-form .source-radio-group .ant-radio-inner,
+.ticket-create-form .priority-radio-group .ant-radio-inner {
+  border-color: #0284c7;
 }
 
-.ticket-create-form .source-radio-group .ant-radio-checked .ant-radio-inner {
-  border-color: #111827;
-  background-color: #111827;
+.ticket-create-form .source-radio-group .ant-radio-checked .ant-radio-inner,
+.ticket-create-form .priority-radio-group .ant-radio-checked .ant-radio-inner {
+  border-color: #0284c7;
+  background-color: #0284c7;
 }
 
 .ticket-create-form .source-radio-group .ant-radio:hover .ant-radio-inner,
+.ticket-create-form .priority-radio-group .ant-radio:hover .ant-radio-inner,
 .ticket-create-form
   .source-radio-group
   .ant-radio-input:focus
+  + .ant-radio-inner,
+.ticket-create-form
+  .priority-radio-group
+  .ant-radio-input:focus
   + .ant-radio-inner {
-  border-color: #111827;
+  border-color: #0284c7;
 }
 
 .ticket-create-form .ant-input-group-addon {
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
-  
 }
 
 .ticket-search-button {
@@ -529,6 +560,14 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   padding-inline: 22px !important;
   border-radius: 6px !important;
   font-size: 13px !important;
+}
+
+.ticket-right-save:disabled,
+.ticket-right-save.ant-btn-disabled {
+  opacity: 1 !important;
+  color: #ffffff !important;
+  background: #10b981 !important;
+  border-color: #10b981 !important;
 }
 
 .ticket-upload-btn {
