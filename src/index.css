@@ -46,12 +46,13 @@ body,
 
 /* Ticket detail body scrollbar */
 .ticket-overview-scrollbar {
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #93c5fd #eff6ff;
 }
 
 .ticket-overview-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 .ticket-overview-scrollbar::-webkit-scrollbar-thumb {
@@ -67,6 +68,26 @@ body,
 .ticket-overview-scrollbar::-webkit-scrollbar-track {
   background: #eff6ff;
   border-radius: 9999px;
+}
+
+/* Files tab list: allow scrolling without showing the rail */
+.files-list-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.files-list-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Call reports list: keep scrolling available without showing the rail */
+.call-report-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.call-report-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .ant-switch.ant-switch-checked,

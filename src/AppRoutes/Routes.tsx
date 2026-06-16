@@ -15,6 +15,7 @@ import PrivateRoute from "./PrivateRoute";
 import MainLayout from "../layouts/MainLayout";
 
 import Dashboard from "../Pages/Dashboard/Dashboard";
+import DashboardCallReport from "../Pages/CallReport/CallReport";
 
 // Master Modules
 import AgentGroupList from "../Pages/Master/AgentGroup/AgentGroupList";
@@ -65,6 +66,8 @@ const Routes: React.FC = () => {
             {/* Dashboard */}
 
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/call-reports" element={<DashboardCallReport />} />
+            <Route path="/callreports/view" element={<DashboardCallReport />} />
 
             {/* Master Module */}
 

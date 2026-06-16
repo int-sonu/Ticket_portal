@@ -33,8 +33,7 @@ const ShareTicketModal = ({
     shareTicket.mutate(
       {
         TicketId: ticketId,
-        UserId: values.UserId,
-        Remarks: values.Remarks,
+        AgentId: values.AgentId,
       },
       {
         onSuccess: () => {
@@ -57,6 +56,8 @@ const ShareTicketModal = ({
       onCancel={onClose}
       footer={null}
       destroyOnClose
+      width={400}
+      height={400}
     >
       <Form
         form={form}
@@ -64,18 +65,18 @@ const ShareTicketModal = ({
         onFinish={handleSubmit}
       >
         <Form.Item
-          label="User"
-          name="UserId"
+          label="Agent"
+          name="AgentId"
           rules={[
             {
-              required: true,
+             
               message:
-                "Please Select User",
+                "Please Select Agent",
             },
           ]}
         >
           <Select
-            placeholder="Select User"
+            placeholder="Select Agent"
           />
         </Form.Item>
 
@@ -95,7 +96,7 @@ const ShareTicketModal = ({
             }
             block
           >
-            Share Ticket
+          Save
           </Button>
         </Form.Item>
       </Form>

@@ -1,15 +1,16 @@
-import { Card, Empty, Image, Spin } from "antd";
+import { Empty, Image, Spin } from "antd";
 import { useRef } from "react";
 
 import addressIcon from "../../../assets/icons/AddressIcon.svg";
 import assetIcon from "../../../assets/icons/Asseticon.svg";
+import calendarIcon from "../../../assets/icons/calenderiCon.svg";
 import groupIcon from "../../../assets/icons/GroupIcon.svg";
 import phoneIcon from "../../../assets/icons/PhoneIcon.svg";
 import serviceTypeIcon from "../../../assets/icons/servicetypeicon.svg";
 import ticketSmallIcon from "../../../assets/icons/ticketSmallIcon.svg";
-import calendarIcon from "../../../assets/icons/calenderiCon.svg";
 import TicketHistory from "../TicketHistory/TicketHistory";
-
+import data from "../../../assets/icons/data.gif";
+import { dataTagSymbol } from "@tanstack/react-query";
 type TicketOverviewSectionProps = {
   ticketId: number;
   isLoading: boolean;
@@ -80,29 +81,40 @@ const TicketOverviewSection = ({
   const scrollFiles = (direction: "left" | "right") => {
     const el = filesRef.current;
     if (!el) return;
-    el.scrollBy({ left: direction === "left" ? -220 : 220, behavior: "smooth" });
+    el.scrollBy({
+      left: direction === "left" ? -220 : 220,
+      behavior: "smooth",
+    });
   };
 
-  const leftRows = [
-    { label: "Address",      value: address,             icon: addressIcon },
-    { label: "Asset",        value: assetName,           icon: assetIcon },
-    { label: "Ticket Source",value: source || "N/A",     icon: ticketSmallIcon },
-    { label: "Service Type", value: serviceType || "N/A",icon: serviceTypeIcon },
-    { label: "Group",        value: group || "N/A",      icon: groupIcon },
-    { label: "Follow Up",    value: followupDate || "N/A",icon: calendarIcon },
+  const detailRows = 
+  [
+    { label: "Address", value: address, icon: addressIcon },
+    { label: "Asset", value: assetName, icon: assetIcon },
+    { label: "Ticket Source", value: source || "N/A", icon: ticketSmallIcon },
+    {
+      label: "Service Type",
+      value: serviceType || "N/A",
+      icon: serviceTypeIcon,
+    },
+    { label: "Group", value: group || "N/A", icon: groupIcon },
+    { label: "Follow Up", value: followupDate || "N/A", icon: calendarIcon },
+    ...extraRows,
   ];
-
-  const detailRows = [...leftRows, ...extraRows];
 
   const getContactValue = (item: any, keys: string[]) => {
     for (const key of keys) {
-      if (item?.[key] !== undefined && item?.[key] !== null && item?.[key] !== "") {
+      if (
+        item?.[key] !== undefined &&
+        item?.[key] !== null &&
+        item?.[key] !== ""
+      ) {
         return item[key];
       }
     }
 
     const matchedKey = Object.keys(item || {}).find((field) =>
-      keys.some((key) => key.toLowerCase() === field.toLowerCase())
+      keys.some((key) => key.toLowerCase() === field.toLowerCase()),
     );
 
     return matchedKey ? item?.[matchedKey] : "";
@@ -112,27 +124,98 @@ const TicketOverviewSection = ({
     ? alternativeContacts
     : [];
 
-  /* ── Files carousel — shared between Details tab & Files tab ── */
-  const FilesSection = () => (
-    <div className="mt-1">
-      <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
+  const FilesSection = ({
+    variant = "carousel",
+  }: {
+    variant?: "carousel" | "list";
+  }) => {
+    if (variant === "list") {
+      return (
+        <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden px-0 py-3">
+            {attachments.length > 0 ? (
+              <div className="space-y-4">
+                {attachments.map((file: any, index: number) => {
+                  const preview =
+                    file?.url ??
+                    file?.Url ??
+                    file?.thumbUrl ??
+                    file?.ThumbUrl ??
+                    file?.cFilePath ??
+                    file?.cUrl ??
+                    file?.fileUrl ??
+                    file?.FileUrl ??
+                    file?.path ??
+                    file?.Path ??
+                    file?.Location ??
+                    file?.location ??
+                    "";
+                  const caption =
+                    file?.name ??
+                    file?.FileName ??
+                    file?.cFileName ??
+                    file?.cDocumentName ??
+                    `File ${index + 1}`;
+
+                  return (
+                    <div
+                      key={file?.uid ?? file?.id ?? `${caption}-${index}`}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    >
+                      <div className="mb-2 flex items-center gap-3">
+                        <div className="shrink-0 text-sm text-slate-700">
+                          {file?.createdOn || file?.date || file?.CreatedOn || ""}
+                        </div>
+                        <div className="min-w-0 rounded-md bg-sky-50 px-3 py-1 text-sm text-slate-700">
+                          {caption}
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                        {preview ? (
+                          <Image
+                            src={preview}
+                            alt={caption}
+                            width={120}
+                            height={120}
+                            className="h-[120px] w-[120px] object-cover"
+                            preview={{ mask: false }}
+                          />
+                        ) : (
+                          <div className="flex h-[120px] w-[120px] items-center justify-center bg-slate-100 text-xs text-slate-500">
+                            No preview
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex min-h-[290px] pt-25 items-center justify-center">
+               <img src={data} alt="" className="h-60 w-60" />
+              </div>
+            )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-2">
           <div className="text-sm font-semibold text-slate-900">Files</div>
         </div>
         <div className="px-3 py-3 sm:px-4">
           {attachments.length > 0 ? (
             <div className="relative">
-              {/* Left arrow */}
               <button
                 type="button"
                 onClick={() => scrollFiles("left")}
                 aria-label="Scroll files left"
                 className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 px-2 py-1 text-2xl leading-none text-slate-500 shadow-sm hover:bg-white"
               >
-                ‹
+                {"<"}
               </button>
 
-              {/* Single-row horizontal scroll */}
               <div
                 ref={filesRef}
                 className="flex gap-3 overflow-x-auto scroll-smooth px-7 pb-1"
@@ -184,275 +267,283 @@ const TicketOverviewSection = ({
                 })}
               </div>
 
-              {/* Right arrow */}
               <button
                 type="button"
                 onClick={() => scrollFiles("right")}
                 aria-label="Scroll files right"
                 className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 px-2 py-1 text-2xl leading-none text-slate-500 shadow-sm hover:bg-white"
               >
-                ›
+                {">"}
               </button>
             </div>
           ) : (
             <Empty description="No files found" />
           )}
         </div>
-      </Card>
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <Spin spinning={isLoading}>
-      <div className="relative z-10 flex h-full min-h-0 flex-col px-4 pb-3 sm:px-4 sm:pb-4">
-
-        {/* ── Tab Bar ── */}
-        <div className="sticky top-0 z-40 flex items-end gap-3 border border-slate-200 border-b-0 bg-white rounded-tl-2xl shadow-[0_1px_0_rgba(226,232,240,1)]">
-          <button
-            type="button"
-            onClick={() => onTabChange("details")}
-            className={`rounded-tl-2xl px-5 py-1.5 text-sm font-semibold ${
-              activeTab === "details"
-                ? "bg-sky-500 text-white"
-                : "text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            Ticket Details
-          </button>
-          <button
-            type="button"
-            onClick={() => onTabChange("history")}
-            className={`rounded-t-sm px-4 py-1.5 text-sm font-semibold ${
-              activeTab === "history"
-                ? "bg-sky-500 text-white"
-                : "text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            History
-          </button>
-          {showFilesTab ? (
+      <div className="relative z-10 flex min-h-0 w-full flex-col pb-3 sm:pb-5">
+        <div className=" flex min-h-5 w-full flex-col bg-white pb-3">
+          <div className="fixed flex h-9 w-7xl items-end rounded-tl-2xl border border-slate-200 bg-white pt-10 rounded-t-2xl">
             <button
               type="button"
-              onClick={() => onTabChange("files")}
-              className={`rounded-t-sm px-4 py-1.5 text-sm font-semibold ${
-                activeTab === "files"
-                  ? "bg-sky-500 text-white"
-                  : "text-slate-900 hover:bg-slate-50"
+              onClick={() => onTabChange("details")}
+              className={`px-3 py-2 font- text-lg h-10 text-center ${
+                activeTab === "details"
+                  ? "bg-sky-500 text-white  rounded-tl-2xl   "
+                  : "bg-slate-50 text-black font-semibold text-lg text-center hover:bg-slate-100"
               }`}
             >
-              Files
+              Ticket Details
             </button>
-          ) : null}
-        </div>
 
-        {/* ── Ticket Header Card (always visible on every tab) ── */}
-        <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-          <div className="px-3 pt-1.5 sm:px-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 space-y-1">
-                <div className="text-sm font-semibold text-slate-900">
-                  Ticket No : {ticketNo || "N/A"}
-                </div>
-                <div className="text-base text-slate-900">{customerName || "-"}</div>
-                <div className="text-sm text-slate-600">{summary || "-"}</div>
-                <div className="text-sm text-slate-700">
-                  Description : {description || "-"}
-                </div>
-              </div>
-              <div className="whitespace-nowrap text-xs text-slate-700">
-                {createdDate ? `Ticket Created on ${createdDate}` : ""}
-              </div>
-            </div>
-          </div>
-
-          {/* Status / badges bar */}
-          <div className="flex flex-wrap items-center gap-2 border-y border-slate-200 bg-slate-100/80 px-3 py-2 sm:px-4">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              {priority ? (
-                <span className="flex items-center gap-1 rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600">
-                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
-                  {priority}
-                </span>
-              ) : null}
-              {status ? (
-                <span className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-600">
-                  {status}
-                </span>
-              ) : null}
-              {ticketAge ? (
-                <span className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-600">
-                  {ticketAge}
-                </span>
-              ) : null}
-            </div>
-            {createdByTeam ? (
-              <span className="whitespace-nowrap text-xs text-slate-500">
-                Ticket Created by {createdByTeam}
-              </span>
+            <button
+              type="button"
+              onClick={() => onTabChange("history")}
+              className={` px-4 py-2  font-semibold text-lg h-10 text-center ${
+                activeTab === "history"
+                  ? "bg-sky-500  text-white"
+                  : "bg-slate-50 text-black text-lg  text-center hover:bg-slate-100"
+              }`}
+            >
+              History
+            </button>
+            {showFilesTab ? (
+              <button
+                type="button"
+                onClick={() => onTabChange("files")}
+                className={` px-4 py-2  font-semibold text-lg h-10 text-center ${
+                  activeTab === "files"
+                    ? "bg-sky-500  text-white"
+                    : "bg-slate-50 text-black text-lg  text-center hover:bg-slate-100"
+                }`}
+              >
+                Files
+              </button>
             ) : null}
           </div>
-        </Card>
 
-        {/* ── Tab Content ── */}
-        <div
-          className="ticket-overview-scrollbar mt-3 min-h-0 flex-1 overflow-y-scroll pr-1"
-          style={{ scrollbarGutter: "stable", scrollbarWidth: "thin" }}
-        >
-        {activeTab === "details" ? (
-          <>
-            {/* Two-column: Address details (left) + Contacts (right) */}
-            <div className="mt-3 grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
 
-              {/* Left: field rows + Files */}
-              <div className="flex flex-col gap-3">
-                <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1 px-3 py-2 sm:px-4">
-                    {detailRows.map((item) => (
-                      <div
-                        key={item.label}
-                        className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-1.5"
-                      >
-                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-                          {item.icon ? (
-                            <img src={item.icon} alt="" className="h-3.5 w-3.5 shrink-0" />
-                          ) : null}
-                          <span>{item.label} :</span>
-                        </div>
-                        <div className="break-words text-sm text-slate-800">
-                          {item.value || "N/A"}
-                        </div>
-                      </div>
-                    ))}
+            {activeTab !== "files" ? (
+              <div className="border-b border-slate-200 px-4 py-3 pt-11">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-1">
+                    <div className="text-lg font-semibold text-black">
+                      Ticket No : {ticketNo || "N/A"}
+                    </div>
+                    <div className="text-lg font-semibold text-black">
+                      {customerName || "-"}
+                    </div>
+                    <div className="text-base text-black">{summary || "-"}</div>
+                    <div className="text-sm text-slate-700">
+                      Description : {description || "-"}
+                    </div>
                   </div>
-                </Card>
+                  <div className="whitespace-nowrap text-xs text-slate-700">
+                    {createdDate ? `Ticket Created on ${createdDate}` : ""}
+                  </div>
+                </div>
 
-                {/* Files section — left column only */}
-                {showFilesInDetails ? <FilesSection /> : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2 bg-blue-200/30 py-2 px-2">
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    {priority ? (
+                      <span className="flex items-center gap-1 rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600">
+                        <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                        {priority}
+                      </span>
+                    ) : null}
+                    {status ? (
+                      <span className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-600">
+                        {status}
+                      </span>
+                    ) : null}
+                    {ticketAge ? (
+                      <span className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-600">
+                        {ticketAge}
+                      </span>
+                    ) : null}
+                  </div>
+                  {createdByTeam ? (
+                    <span className="whitespace-nowrap text-xs text-slate-500">
+                      Ticket Created by {createdByTeam}
+                    </span>
+                  ) : null}
+                </div>
               </div>
+            ) : null}
 
-              {/* Right: Contacts */}
-              <div className="flex flex-col gap-3">
-                <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-                  <div className="px-3 py-2 sm:px-4">
-                    <div className="mb-2 text-sm font-semibold text-slate-900">Contacts</div>
-                    <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
-                      <div className="min-w-0">
-                        <div className="text-base font-semibold text-slate-900">
-                          {customerName || "-"}
+            <div className="min-h-0 flex-1 w-full py-3 pr-4">
+              {activeTab === "details" ? (
+                <>
+                  <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
+                    <div className="flex flex-col gap-3">
+                      <div className="rounded-xl border border-slate-200 bg-white">
+                        <div className="grid grid-cols-1 gap-1 px-3 py-3 sm:px-4">
+                          {detailRows.map((item) => (
+                            <div
+                              key={item.label}
+                              className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-1.5"
+                            >
+                              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                                {item.icon ? (
+                                  <img
+                                    src={item.icon}
+                                    alt=""
+                                    className="h-3.5 w-3.5 shrink-0"
+                                  />
+                                ) : null}
+                                <span>{item.label} :</span>
+                              </div>
+                              <div className="break-words text-sm text-slate-800">
+                                {item.value || "N/A"}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="mt-0.5 text-sm text-slate-600">
-                          {contactNumber || "-"}
-                        </div>
-                        <div className="text-sm text-slate-600">{email || "-"}</div>
                       </div>
+
+                      {showFilesInDetails ? <FilesSection /> : null}
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div className="rounded-xl border border-slate-200 bg-white">
+                        <div className="px-3 py-3 sm:px-4">
+                          <div className="mb-2 text-sm font-semibold text-slate-900">
+                            Contacts
+                          </div>
+                          <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
+                            <div className="min-w-0">
+                              <div className="text-base font-semibold text-slate-900">
+                                {customerName || "-"}
+                              </div>
+                              <div className="mt-0.5 text-sm text-slate-600">
+                                {contactNumber || "-"}
+                              </div>
+                              <div className="text-sm text-slate-600">
+                                {email || "-"}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                              aria-label="Call contact"
+                            >
+                              <img
+                                src={phoneIcon}
+                                alt=""
+                                className="h-5 w-5"
+                                style={{ filter: "invert(1) brightness(10)" }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white">
+                        <div className="px-3 py-3 sm:px-4">
+                          <div className="mb-2 text-sm font-semibold text-slate-900">
+                            Alternative Contacts
+                          </div>
+                          <div className="flex flex-col gap-3">
+                            {alternativeContactList.length ? (
+                              alternativeContactList.map(
+                                (contact: any, index: number) => {
+                                  const altName =
+                                    getContactValue(contact, [
+                                      "cCustomerName",
+                                      "CustomerName",
+                                      "cContactName",
+                                      "ContactName",
+                                      "cContactPerson",
+                                      "ContactPerson",
+                                      "name",
+                                    ]) || `Contact ${index + 1}`;
+                                  const altPhone =
+                                    getContactValue(contact, [
+                                      "cContactNumber",
+                                      "ContactNumber",
+                                      "cPhoneNo",
+                                      "PhoneNo",
+                                      "mobile",
+                                      "Mobile",
+                                    ]) || "-";
+                                  const altEmail =
+                                    getContactValue(contact, [
+                                      "cEmail",
+                                      "Email",
+                                      "email",
+                                    ]) || "-";
+
+                                  return (
+                                    <div
+                                      key={`${altName}-${index}`}
+                                      className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="text-base font-semibold text-slate-900">
+                                          {altName}
+                                        </div>
+                                        <div className="mt-0.5 text-sm text-slate-600">
+                                          {altPhone}
+                                        </div>
+                                        <div className="text-sm text-slate-600">
+                                          {altEmail}
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                                        aria-label="Call alternative contact"
+                                      >
+                                        <img
+                                          src={phoneIcon}
+                                          alt=""
+                                          className="h-5 w-5"
+                                          style={{
+                                            filter: "invert(1) brightness(10)",
+                                          }}
+                                        />
+                                      </button>
+                                    </div>
+                                  );
+                                },
+                              )
+                            ) : (
+                              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                No alternative contacts found
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {showFollowUpAction ? (
+                    <div className="mt-4 flex justify-end">
                       <button
                         type="button"
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
-                        aria-label="Call contact"
+                        onClick={onFollowUpClick}
+                        className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-emerald-600 active:bg-emerald-700"
                       >
-                        <img
-                          src={phoneIcon}
-                          alt=""
-                          className="h-5 w-5"
-                          style={{ filter: "invert(1) brightness(10)" }}
-                        />
+                        FollowUp
                       </button>
                     </div>
-                  </div>
-                </Card>
-
-                <Card bordered className="border-slate-200" styles={{ body: { padding: 0 } }}>
-                  <div className="px-3 py-2 sm:px-4">
-                    <div className="mb-2 text-sm font-semibold text-slate-900">
-                      Alternative Contacts
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {alternativeContactList.length ? (
-                        alternativeContactList.map((contact: any, index: number) => {
-                          const altName =
-                            getContactValue(contact, [
-                              "cCustomerName",
-                              "CustomerName",
-                              "cContactName",
-                              "ContactName",
-                              "cContactPerson",
-                              "ContactPerson",
-                              "name",
-                            ]) || `Contact ${index + 1}`;
-                          const altPhone =
-                            getContactValue(contact, [
-                              "cContactNumber",
-                              "ContactNumber",
-                              "cPhoneNo",
-                              "PhoneNo",
-                              "mobile",
-                              "Mobile",
-                            ]) || "-";
-                          const altEmail =
-                            getContactValue(contact, ["cEmail", "Email", "email"]) || "-";
-
-                          return (
-                            <div
-                              key={`${altName}-${index}`}
-                              className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3"
-                            >
-                              <div className="min-w-0">
-                                <div className="text-base font-semibold text-slate-900">
-                                  {altName}
-                                </div>
-                                <div className="mt-0.5 text-sm text-slate-600">
-                                  {altPhone}
-                                </div>
-                                <div className="text-sm text-slate-600">{altEmail}</div>
-                              </div>
-                              <button
-                                type="button"
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
-                                aria-label="Call alternative contact"
-                              >
-                                <img
-                                  src={phoneIcon}
-                                  alt=""
-                                  className="h-5 w-5"
-                                  style={{ filter: "invert(1) brightness(10)" }}
-                                />
-                              </button>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                          No alternative contacts found
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </div>
+                  ) : null}
+                </>
+              ) : activeTab === "history" ? (
+                <div className="relative z-10">
+                  <TicketHistory ticketId={ticketId} />
+                </div>
+              ) : (
+                <FilesSection variant="list" />
+              )}
             </div>
-
-            {showFollowUpAction ? (
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={onFollowUpClick}
-                  className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-600 active:bg-emerald-700 transition-colors"
-                >
-                  FollowUp
-                </button>
-              </div>
-            ) : null}
-          </>
-        ) : activeTab === "history" ? (
-          <div className="relative z-10 mt-0.5">
-            <TicketHistory ticketId={ticketId} />
-          </div>
-        ) : (
-          /* Files tab — also shows the same carousel */
-          <div>
-            <FilesSection />
-          </div>
-        )}
+          {/* </div> */}
         </div>
       </div>
     </Spin>

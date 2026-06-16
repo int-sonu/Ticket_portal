@@ -440,8 +440,7 @@ const TicketView = () => {
     .includes("/tickets/followup/");
   const isFromCustomer = state.isFrom === "customerView";
   const showFilesTab = state.isFrom !== "ongoing";
-  const pageHeading =
-    state.isFrom === "ongoing"
+  const pageHeading = state.isFrom === "ongoing"
       ? "Ongoing"
       : isFollowupPage
         ? "Follow Up"
@@ -565,72 +564,51 @@ const TicketView = () => {
 
   const ticketNo = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-      "TicketNo",
-      "cTicketNo",
-      "TicketNumber",
-      "cTicketNumber",
       "nTicketNo",
     ]),
   );
   const customerName = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-      "CustomerName",
       "cCustomerName",
-      "Customer",
     ]),
   );
   const summary = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-      "TicketSummary",
+    
       "cTicketSummary",
-      "Summary",
-      "cSummary",
-      "ViewSummary",
-      "cViewSummary",
     ]),
   );
   const description = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "cDescription",
-      "Description",
-      "TicketDescription",
-      "cTicketDescription",
-      "DescriptionText",
     ]),
   );
   const createdDateValue = getFieldValue(resolvedRecord, [
-    "CreatedDate",
-    "CreatedDateTime",
-    "CreatedOn",
+   
     "dCreatedDate",
-    "dCreatedOn",
-    "cDate",
   ]);
   const createdDate = formatDisplayValue(createdDateValue);
   const ticketAge = formatTicketAge(createdDateValue || createdDate, tick);
   const priority = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-      "Priority",
-      "PriorityName",
+      
       "cPriority",
-      "cPriorityName",
     ]),
   );
   const status = normalizeTicketStatus(resolvedRecord);
   const followupDate = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-      "FollowupDate",
+     
       "dFollowupDate",
-      "FollowUpDate",
-      "dFollowUpDate",
+     
+     
     ]),
   );
   const source = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-      "SourceName",
+     
       "cSourceName",
-      "TicketSource",
-      "cTicketSource",
+      
     ]),
   );
   const group = formatDisplayValue(
@@ -681,32 +659,39 @@ const TicketView = () => {
   );
 
   return (
-    <TicketPageShell contentClassName="p-4 relative flex h-full min-h-0 flex-col overflow-hidden">
-      {/* absolute inset-4 forces this div to fill the padded area exactly, without expanding */}
-      {/* <div className="absolute inset-4 flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white"> */}
-      <div className="px-2 pb-1 text-xl font-medium text-slate-900">
-        {pageHeading}
-      </div>
-      <div className="flex items-center justify-end gap-3 px-2 pt-0.5">
-        <button
-          type="button"
-          aria-label="Share"
-          className="rounded-full p-1 text-slate-700 hover:bg-slate-100"
-        >
-          <img src={shareIcon} alt="" className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          aria-label="Close"
-          className="rounded-full px-2 py-1 text-2xl leading-none text-slate-900 hover:bg-slate-100"
-        >
-          <img src={closeblack} alt="" className="h-4 w-4" />
-        </button>
+    <TicketPageShell contentClassName="relative flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex w-full items-center justify-between px-4 pb-2 pt-0">
+        <h1 className="text-2xl font-medium leading-none text-slate-900">
+          {pageHeading}
+        </h1>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label="Share"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
+          >
+            <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-900 hover:bg-slate-100"
+          >
+            <img src={closeblack} alt="" className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
-      {/* flex-1 min-h-0 lets the section grow AND enables internal overflow-y:auto */}
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${
+          activeTab === "files"
+            ? "files-list-scrollbar"
+            : "ticket-overview-scrollbar"
+        }`}
+      >
         <TicketOverviewSection
           ticketId={ticketId}
           isLoading={isLoading}
@@ -804,7 +789,7 @@ const TicketView = () => {
             onClick={() => setPostponeOpen(true)}
           >
             <img src={postponeIcon} alt="" className="h-5 w-5 " />
-            Postponed
+            Postpone
           </Button>
           <Button
             className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "

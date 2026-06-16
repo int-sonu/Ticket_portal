@@ -295,6 +295,18 @@ export const ticketApis = {
     return response.data;
   },
 
+  callReportList: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/CallReport/CallreportList",
+        payload
+      );
+
+    return response.data;
+  },
+
   // CRUD
 
   ticketSave: async (

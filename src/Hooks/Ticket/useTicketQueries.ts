@@ -131,6 +131,18 @@ export const useClosedTicketList = (
   });
 };
 
+export const useCallReportList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["call-report-list", payload],
+    queryFn: () =>
+      ticketApis.callReportList(payload),
+    enabled,
+  });
+};
+
 // ============================
 // TICKET DETAILS
 // ============================

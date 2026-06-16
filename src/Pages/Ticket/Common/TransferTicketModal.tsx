@@ -33,10 +33,9 @@ const TransferTicketModal = ({
     transferTicket.mutate(
       {
         TicketId: ticketId,
-        AgentId: values.AgentId,
+        AgentId: values.nAgentId,
         TransferReason:
           values.TransferReason,
-        Remarks: values.Remarks,
       },
       {
         onSuccess: () => {
@@ -59,18 +58,20 @@ const TransferTicketModal = ({
       onCancel={onClose}
       footer={null}
       destroyOnClose
+      width={400}
+      height={400}
+
     >
       <Form
         form={form}
-        layout="vertical"
+        layout="vertical" 
         onFinish={handleSubmit}
       >
         <Form.Item
           label="Agent"
-          name="AgentId"
+          name="AgentId" 
           rules={[
-            {
-              required: true,
+            {  
               message:
                 "Please Select Agent",
             },
@@ -82,26 +83,18 @@ const TransferTicketModal = ({
         </Form.Item>
 
         <Form.Item
-          label="Transfer Reason"
-          name="TransferReason"
+          label="Reason for Transfer"
+          name="TransferReason" className="w-100 h-"
           rules={[
             {
-              required: true,
+            
               message:
                 "Please Enter Transfer Reason",
             },
           ]}
         >
-          <Input />
+           <TextArea rows={6} />
         </Form.Item>
-
-        <Form.Item
-          label="Remarks"
-          name="Remarks"
-        >
-          <TextArea rows={4} />
-        </Form.Item>
-
         <Form.Item>
           <Button
             type="primary"
@@ -111,7 +104,7 @@ const TransferTicketModal = ({
             }
             block
           >
-            Transfer Ticket
+           Save
           </Button>
         </Form.Item>
       </Form>
