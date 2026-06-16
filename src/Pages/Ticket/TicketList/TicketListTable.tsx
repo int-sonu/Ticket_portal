@@ -172,6 +172,7 @@ const TicketListTable = ({
       pagination={{
         pageSize: 20,
       }}
+      
     />
   );
 };

@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 import { Empty, Input, Spin } from "antd";
-import { FilterOutlined, SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined } from "@ant-design/icons";
 
 import { useCallReportList } from "../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
-
 type CallReportRow = Record<string, any>;
 
 const getFieldValue = (record: CallReportRow, keys: string[]) => {
@@ -67,9 +66,8 @@ const formatDateValue = (value: any) => {
 const formatSearchText = (row: CallReportRow) =>
   [
     getFieldValue(row, [
-      "CallReportDate",
-      "cCallReportDate",
-      "dCallReportDate",
+      
+      "cToDate",
     ]),
     getFieldValue(row, ["CallReportId", "nCallReportId", "cCallReportId"]),
     getFieldValue(row, ["TicketNo", "TicketNo.", "nTicketNo", "cTicketNo"]),
@@ -182,13 +180,12 @@ const DashboardCallReport = () => {
   ] as const;
 
   return (
-    <div className="-m-6 h-full min-h-0 overflow-hidden bg-white">
+    <div className="-m-6 h-full min-h-0 overflow-hidden bg-white pt-10">
       <div className="flex h-full min-h-0 flex-col px-4 py-3">
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-2">
           <h1 className="text-[18px] font-medium text-slate-900">
             Call Reports
           </h1>
-
           <div className="flex items-center gap-2">
             <Input
               allowClear
@@ -196,16 +193,10 @@ const DashboardCallReport = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
-              className="w-[300px]"
+              className="w-[400px]"
               style={{ height: 34 }}
             />
-            <button
-              type="button"
-              aria-label="Filter"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              <FilterOutlined />
-            </button>
+           
           </div>
         </div>
 
@@ -224,7 +215,7 @@ const DashboardCallReport = () => {
                     : "border-sky-500 bg-white text-slate-700 hover:bg-sky-50"
                 }`}
               >
-                <span className="text-sm leading-none">▤</span>
+                <span className="text-sm leading-none"></span>
                 <span>{item.label}</span>
               </button>
             );
@@ -279,5 +270,4 @@ const DashboardCallReport = () => {
     </div>
   );
 };
-
 export default DashboardCallReport;

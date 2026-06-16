@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, message } from "antd";
+import { Button, Input, Modal, Select, message } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
   useRepairItemActivityList,
+  useTicketHistory,
   useTicketView,
 } from "../../../Hooks/Ticket/useTicketQueries";
 import { getApiImageBaseUrl } from "../../../Axios/config";
@@ -86,6 +88,11 @@ const formatDisplayValue = (value: any): string => {
 
   return String(value);
 };
+
+const normalizeText = (value: any) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
 
 const parseTicketDate = (value: any): number | null => {
   if (value instanceof Date) {
@@ -453,10 +460,15 @@ const TicketView = () => {
   const [quickCallOpen, setQuickCallOpen] = useState(
     Boolean(state.openQuickCall),
   );
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [assetSearch, setAssetSearch] = useState("");
+  const [assetDepartmentFilter, setAssetDepartmentFilter] = useState("All");
+  const [assetBrandFilter, setAssetBrandFilter] = useState("All");
   const [shareOpen, setShareOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [tick, setTick] = useState(() => Date.now());
+  const [displayAssetName, setDisplayAssetName] = useState("");
 
   useEffect(() => {
     if (!showFilesTab && activeTab === "files") {
@@ -520,6 +532,20 @@ const TicketView = () => {
     }),
     [customerId, supportSessionPayload],
   );
+  const historyPayload = useMemo(
+    () => ({
+      nTicketId: ticketId,
+      nCompanyId: supportSessionPayload.nCompanyId,
+      cSchemaName: supportSessionPayload.cSchemaName,
+      cDbName: supportSessionPayload.cDbName,
+    }),
+    [
+      supportSessionPayload.cDbName,
+      supportSessionPayload.cSchemaName,
+      supportSessionPayload.nCompanyId,
+      ticketId,
+    ],
+  );
   const assignAgentPayload = useMemo(
     () => ({
       ...supportSessionPayload,
@@ -539,23 +565,48 @@ const TicketView = () => {
     [customerId, supportSessionPayload, ticketId],
   );
 
-  useGetCustomerAssetDepartments(supportSessionPayload);
-  useGetCustomerBrandOptions(supportSessionPayload);
-  useGetCustomerWiseAssets(customerSupportPayload, !!customerId);
+  const { data: customerAssetDepartmentsData } =
+    useGetCustomerAssetDepartments(supportSessionPayload);
+  const { data: customerBrandOptionsData } =
+    useGetCustomerBrandOptions(supportSessionPayload);
+  const { data: customerAssetsData } = useGetCustomerWiseAssets(
+    customerSupportPayload,
+    !!customerId,
+  );
   const { data: alternativeContactsData } = useGetCustomerAlternativeContacts(
     customerSupportPayload,
     !!customerId,
   );
   useGetAssignAgentList(assignAgentPayload, !!groupId);
   useRepairItemActivityList(repairItemPayload, !!ticketId);
+  const { data: ticketHistoryData } = useTicketHistory(
+    historyPayload,
+    !!ticketId && !!supportSessionPayload.nCompanyId,
+  );
 
   const attachments = useMemo(
     () => pickAttachments(resolvedRecord),
     [resolvedRecord],
   );
+  const customerAssetList = useMemo(
+    () => extractList(customerAssetsData),
+    [customerAssetsData],
+  );
+  const customerAssetDepartmentOptions = useMemo(
+    () => extractList(customerAssetDepartmentsData),
+    [customerAssetDepartmentsData],
+  );
+  const customerBrandOptions = useMemo(
+    () => extractList(customerBrandOptionsData),
+    [customerBrandOptionsData],
+  );
   const alternativeContacts = useMemo(
     () => extractList(alternativeContactsData),
     [alternativeContactsData],
+  );
+  const historyItems = useMemo(
+    () => extractList(ticketHistoryData),
+    [ticketHistoryData],
   );
   const assignedAgentDetails = useMemo(
     () => state.assignedAgentDetails ?? pickAssignedAgents(resolvedRecord),
@@ -633,6 +684,9 @@ const TicketView = () => {
   const assetName = formatDisplayValue(
     getFieldValue(resolvedRecord, ["AssetName", "cAssetName", "Asset"]),
   );
+  useEffect(() => {
+    setDisplayAssetName(assetName);
+  }, [assetName, ticketId]);
   const contactNumber = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "cContactNumber",
@@ -657,6 +711,220 @@ const TicketView = () => {
     () => (isFollowupPage ? buildFollowupDetailRows(resolvedRecord) : []),
     [isFollowupPage, resolvedRecord],
   );
+  const selectedAssetName = displayAssetName || assetName || "N/A";
+  const assetModalDepartments = useMemo(() => {
+    const mapped = customerAssetDepartmentOptions.map((item: any) => ({
+      label:
+        formatDisplayValue(
+          getFieldValue(item, ["cDepartmentName", "DepartmentName", "name"]),
+        ) || "All",
+      value:
+        getFieldValue(item, [
+          "nDepartmentId",
+          "DepartmentId",
+          "id",
+          "value",
+        ]) || formatDisplayValue(item) || "All",
+    }));
+
+    return mapped.filter(
+      (item: any, index: number, arr: any[]) =>
+        item.label && arr.findIndex((x) => x.label === item.label) === index,
+    );
+  }, [customerAssetDepartmentOptions]);
+  const assetModalBrands = useMemo(() => {
+    const mapped = customerBrandOptions.map((item: any) => ({
+      label:
+        formatDisplayValue(
+          getFieldValue(item, ["cBrandName", "BrandName", "name"]),
+        ) || "All",
+      value:
+        getFieldValue(item, ["nBrandId", "BrandId", "id", "value"]) ||
+        formatDisplayValue(item) ||
+        "All",
+    }));
+
+    return mapped.filter(
+      (item: any, index: number, arr: any[]) =>
+        item.label && arr.findIndex((x) => x.label === item.label) === index,
+    );
+  }, [customerBrandOptions]);
+  const filteredAssetRows = useMemo(() => {
+    const searchTerm = String(assetSearch ?? "").trim().toLowerCase();
+
+    return customerAssetList.filter((item: any) => {
+      const name = formatDisplayValue(
+        getFieldValue(item, [
+          "cAssetName",
+          "cAssetMasterName",
+          "AssetName",
+          "name",
+        ]),
+      );
+      const department = formatDisplayValue(
+        getFieldValue(item, [
+          "cDepartmentName",
+          "DepartmentName",
+          "department",
+        ]),
+      );
+      const brand = formatDisplayValue(
+        getFieldValue(item, ["cBrandName", "BrandName", "brand"]),
+      );
+      const departmentId = String(
+        getFieldValue(item, [
+          "nDepartmentId",
+          "DepartmentId",
+          "departmentId",
+          "department",
+        ]) ?? department,
+      );
+      const brandId = String(
+        getFieldValue(item, ["nBrandId", "BrandId", "brandId", "brand"]) ?? brand,
+      );
+
+      const haystack = `${name} ${department} ${brand}`.toLowerCase();
+      const matchesDepartment =
+        assetDepartmentFilter === "All" ||
+        normalizeText(assetDepartmentFilter) === normalizeText(departmentId) ||
+        normalizeText(assetDepartmentFilter) === normalizeText(department);
+      const matchesBrand =
+        assetBrandFilter === "All" ||
+        normalizeText(assetBrandFilter) === normalizeText(brandId) ||
+        normalizeText(assetBrandFilter) === normalizeText(brand);
+
+      return (
+        (!searchTerm || haystack.includes(searchTerm)) &&
+        matchesDepartment &&
+        matchesBrand
+      );
+    });
+  }, [assetBrandFilter, assetDepartmentFilter, assetSearch, customerAssetList]);
+
+  const latestCallReport = useMemo(() => {
+    const candidates = [...historyItems].reverse();
+    const item = candidates.find((entry: any) => {
+      const summary = formatDisplayValue(
+        getFieldValue(entry, [
+          "cCallSummary",
+          "CallSummary",
+          "cViewSummary",
+          "ViewSummary",
+          "Remarks",
+          "Remark",
+          "Comment",
+          "Description",
+        ]),
+      );
+      return Boolean(summary);
+    });
+
+    if (!item) return null;
+
+    const title = formatDisplayValue(
+      getFieldValue(item, [
+        "cViewSummary",
+        "ViewSummary",
+        "CallSummary",
+        "cCallSummary",
+        "Activity",
+        "Action",
+        "Title",
+      ]),
+    );
+    const remarks = formatDisplayValue(
+      getFieldValue(item, [
+        "Remarks",
+        "Remark",
+        "Comment",
+        "Description",
+        "cDescription",
+        "CallSummary",
+        "cCallSummary",
+      ]),
+    );
+    const dateText = formatDisplayValue(
+      getFieldValue(item, [
+        "dCreatedDate",
+        "CreatedDate",
+        "CreatedOn",
+        "dSortDate",
+        "SortDate",
+      ]),
+    );
+    const createdBy = formatDisplayValue(
+      getFieldValue(item, [
+        "CreatedByName",
+        "cCreatedByName",
+        "AgentName",
+        "cAgentName",
+        "CreatedBy",
+        "cCreatedBy",
+      ]),
+    );
+
+    return { title, remarks, dateText, createdBy };
+  }, [historyItems]);
+
+  const previousCallReportFromTicket = useMemo(() => {
+    const previousReports = extractList(
+      getFieldValue(resolvedRecord, ["previousCallreport", "previousCallReport"]),
+    );
+    const item = previousReports[0];
+
+    if (!item) return null;
+
+    const title = formatDisplayValue(
+      getFieldValue(item, [
+        "cViewSummary",
+        "ViewSummary",
+        "cCallSummary",
+        "CallSummary",
+        "Summary",
+        "Title",
+      ]),
+    );
+    const remarks = formatDisplayValue(
+      getFieldValue(item, [
+        "cCallSummary",
+        "CallSummary",
+        "Remarks",
+        "Remark",
+        "Comment",
+        "Description",
+        "cComment",
+      ]),
+    );
+    const dateText = formatDisplayValue(
+      getFieldValue(item, [
+        "dCreatedDate",
+        "CreatedDate",
+        "CreatedOn",
+        "dSortDate",
+        "SortDate",
+      ]),
+    );
+    const createdBy = formatDisplayValue(
+      getFieldValue(item, [
+        "CreatedByName",
+        "cCreatedByName",
+        "AgentName",
+        "cAgentName",
+        "CreatedBy",
+        "cCreatedBy",
+      ]),
+    );
+
+    return { title, remarks, dateText, createdBy };
+  }, [resolvedRecord]);
+
+  const isOngoingTicket = state.isFrom === "ongoing";
+  const detailPreviousCallReport =
+    isOngoingTicket && previousCallReportFromTicket
+      ? previousCallReportFromTicket
+      : isOngoingTicket
+        ? latestCallReport
+        : null;
 
   return (
     <TicketPageShell contentClassName="relative flex h-full min-h-0 flex-col overflow-hidden">
@@ -697,6 +965,7 @@ const TicketView = () => {
           isLoading={isLoading}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          onEditAssetClick={() => setAssetPickerOpen(true)}
           ticketNo={ticketNo}
           customerName={customerName}
           summary={summary}
@@ -707,7 +976,7 @@ const TicketView = () => {
           ticketAge={ticketAge}
           followupDate={followupDate}
           address={address}
-          assetName={assetName}
+          assetName={selectedAssetName}
           source={source}
           serviceType={serviceType}
           group={group}
@@ -716,10 +985,11 @@ const TicketView = () => {
           attachments={attachments}
           createdByTeam={createdByTeam}
           alternativeContacts={alternativeContacts}
-          showFilesTab={showFilesTab}
-          showFilesInDetails={showFilesTab}
+          showFilesTab={true}
+          showFilesInDetails={true}
           extraRows={detailRows}
           showFollowUpAction={showFollowupAction}
+          previousCallReport={detailPreviousCallReport}
           onFollowUpClick={() => {
             navigate("/tickets/create", {
               state: {
@@ -762,7 +1032,7 @@ const TicketView = () => {
                     "nAssetId",
                     "AssetId",
                   ]),
-                  AssetName: assetName,
+                  AssetName: selectedAssetName,
                   files: attachments,
                 },
               },
@@ -770,6 +1040,105 @@ const TicketView = () => {
           }}
         />
       </div>
+      <Modal
+        open={assetPickerOpen}
+        title="Asset"
+        centered
+        width={560}
+        footer={null}
+        onCancel={() => setAssetPickerOpen(false)}
+      >
+        <div className="space-y-3">
+          <Input
+            allowClear
+            prefix={<SearchOutlined className="text-slate-400" />}
+            placeholder="Search"
+            value={assetSearch}
+            onChange={(event) => setAssetSearch(event.target.value)}
+          />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              placeholder="Department"
+              value={assetDepartmentFilter}
+              onChange={setAssetDepartmentFilter}
+              options={[
+                { label: "All", value: "All" },
+                ...assetModalDepartments.map((item: any) => ({
+                  label: item.label,
+                  value: String(item.value ?? item.label),
+                })),
+              ]}
+            />
+            <Select
+              placeholder="Brand"
+              value={assetBrandFilter}
+              onChange={setAssetBrandFilter}
+              options={[
+                { label: "All", value: "All" },
+                ...assetModalBrands.map((item: any) => ({
+                  label: item.label,
+                  value: String(item.value ?? item.label),
+                })),
+              ]}
+            />
+          </div>
+
+          <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1">
+            {filteredAssetRows.length ? (
+              filteredAssetRows.map((asset: any, index: number) => {
+                const name =
+                  formatDisplayValue(
+                    getFieldValue(asset, [
+                      "cAssetName",
+                      "cAssetMasterName",
+                      "AssetName",
+                      "name",
+                    ]),
+                  ) || "Asset";
+                const department = formatDisplayValue(
+                  getFieldValue(asset, [
+                    "cDepartmentName",
+                    "DepartmentName",
+                    "department",
+                  ]),
+                );
+                const brand = formatDisplayValue(
+                  getFieldValue(asset, ["cBrandName", "BrandName", "brand"]),
+                );
+                const serialNo = formatDisplayValue(
+                  getFieldValue(asset, ["cSerialNo", "SerialNo", "serialNo"]),
+                );
+
+                return (
+                  <button
+                    key={`${name}-${index}`}
+                    type="button"
+                    className="w-full rounded-lg border border-sky-100 bg-sky-50 px-4 py-3 text-left transition-colors hover:border-sky-300 hover:bg-sky-100"
+                    onClick={() => {
+                      setDisplayAssetName(name);
+                      setAssetPickerOpen(false);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-sky-100 pb-2">
+                      <div className="font-medium text-slate-900">{name}</div>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs text-slate-600">
+                      <div>Department : {department || "-"}</div>
+                      <div>Brand : {brand || "-"}</div>
+                      {serialNo ? <div>Srl No : {serialNo}</div> : null}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-sm text-slate-500">
+                No data found
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
       {!isFollowupPage ? (
         <div className="mt-4 flex flex-wrap items-center gap-2 px-1 ">
           <Button

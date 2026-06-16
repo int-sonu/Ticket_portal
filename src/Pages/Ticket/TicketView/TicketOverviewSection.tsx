@@ -1,3 +1,4 @@
+import { EditOutlined } from "@ant-design/icons";
 import { Empty, Image, Spin } from "antd";
 import { useRef } from "react";
 
@@ -10,12 +11,12 @@ import serviceTypeIcon from "../../../assets/icons/servicetypeicon.svg";
 import ticketSmallIcon from "../../../assets/icons/ticketSmallIcon.svg";
 import TicketHistory from "../TicketHistory/TicketHistory";
 import data from "../../../assets/icons/data.gif";
-import { dataTagSymbol } from "@tanstack/react-query";
 type TicketOverviewSectionProps = {
   ticketId: number;
   isLoading: boolean;
   activeTab: "details" | "history" | "files";
   onTabChange: (tab: "details" | "history" | "files") => void;
+  onEditAssetClick?: () => void;
   ticketNo: string;
   customerName: string;
   summary: string;
@@ -44,6 +45,12 @@ type TicketOverviewSectionProps = {
     icon?: string;
   }>;
   showFollowUpAction?: boolean;
+  previousCallReport?: {
+    title?: string;
+    remarks?: string;
+    dateText?: string;
+    createdBy?: string;
+  } | null;
 };
 
 const TicketOverviewSection = ({
@@ -51,6 +58,7 @@ const TicketOverviewSection = ({
   isLoading,
   activeTab,
   onTabChange,
+  onEditAssetClick,
   ticketNo,
   customerName,
   summary,
@@ -75,6 +83,7 @@ const TicketOverviewSection = ({
   showFilesTab = true,
   extraRows = [],
   showFollowUpAction = true,
+  previousCallReport = null,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,8 +96,7 @@ const TicketOverviewSection = ({
     });
   };
 
-  const detailRows = 
-  [
+  const detailRows = [
     { label: "Address", value: address, icon: addressIcon },
     { label: "Asset", value: assetName, icon: assetIcon },
     { label: "Ticket Source", value: source || "N/A", icon: ticketSmallIcon },
@@ -131,7 +139,11 @@ const TicketOverviewSection = ({
   }) => {
     if (variant === "list") {
       return (
-        <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden px-0 py-3">
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 px-4 py-2">
+            <div className="text-sm font-semibold text-slate-900">Files</div>
+          </div>
+          <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-4">
             {attachments.length > 0 ? (
               <div className="space-y-4">
                 {attachments.map((file: any, index: number) => {
@@ -191,10 +203,17 @@ const TicketOverviewSection = ({
                 })}
               </div>
             ) : (
-              <div className="flex min-h-[290px] pt-25 items-center justify-center">
-               <img src={data} alt="" className="h-60 w-60" />
+              <div className="flex min-h-[280px] items-center justify-center">
+              <img
+                                          src={data}
+                                          alt=""
+                                          className="h-50 w-50"
+                                         
+                                          
+                                        />
               </div>
             )}
+          </div>
         </div>
       );
     }
@@ -277,7 +296,7 @@ const TicketOverviewSection = ({
               </button>
             </div>
           ) : (
-            <Empty description="No files found" />
+            <Empty description="No files" />
           )}
         </div>
       </div>
@@ -287,15 +306,15 @@ const TicketOverviewSection = ({
   return (
     <Spin spinning={isLoading}>
       <div className="relative z-10 flex min-h-0 w-full flex-col pb-3 sm:pb-5">
-        <div className=" flex min-h-5 w-full flex-col bg-white pb-3">
-          <div className="fixed flex h-9 w-7xl items-end rounded-tl-2xl border border-slate-200 bg-white pt-10 rounded-t-2xl">
+        <div className="flex min-h-0 w-full flex-col bg-white pb-3">
+          <div className="sticky top-0 z-20 flex w-full items-end rounded-tr-2xl border border-slate-200 bg-white">
             <button
               type="button"
               onClick={() => onTabChange("details")}
-              className={`px-3 py-2 font- text-lg h-10 text-center ${
+              className={`px-4 py-2 text-center text-base font-medium ${
                 activeTab === "details"
-                  ? "bg-sky-500 text-white  rounded-tl-2xl   "
-                  : "bg-slate-50 text-black font-semibold text-lg text-center hover:bg-slate-100"
+                  ? "bg-sky-500 text-white"
+                  : "bg-slate-50 text-black hover:bg-slate-100"
               }`}
             >
               Ticket Details
@@ -304,22 +323,23 @@ const TicketOverviewSection = ({
             <button
               type="button"
               onClick={() => onTabChange("history")}
-              className={` px-4 py-2  font-semibold text-lg h-10 text-center ${
+              className={`px-4 py-2 text-center text-base font-medium ${
                 activeTab === "history"
-                  ? "bg-sky-500  text-white"
-                  : "bg-slate-50 text-black text-lg  text-center hover:bg-slate-100"
+                  ? "bg-sky-500 text-white"
+                  : "bg-slate-50 text-black hover:bg-slate-100"
               }`}
             >
               History
             </button>
+
             {showFilesTab ? (
               <button
                 type="button"
                 onClick={() => onTabChange("files")}
-                className={` px-4 py-2  font-semibold text-lg h-10 text-center ${
+                className={`px-4 py-2 text-center text-base font-medium ${
                   activeTab === "files"
-                    ? "bg-sky-500  text-white"
-                    : "bg-slate-50 text-black text-lg  text-center hover:bg-slate-100"
+                    ? "bg-sky-500 text-white"
+                    : "bg-slate-50 text-black hover:bg-slate-100"
                 }`}
               >
                 Files
@@ -327,9 +347,9 @@ const TicketOverviewSection = ({
             ) : null}
           </div>
 
-
+          <div className="min-h-0 w-full pt-0">
             {activeTab !== "files" ? (
-              <div className="border-b border-slate-200 px-4 py-3 pt-11">
+              <div className="border-b border-slate-200 px-4 py-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 space-y-1">
                     <div className="text-lg font-semibold text-black">
@@ -348,7 +368,7 @@ const TicketOverviewSection = ({
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2 bg-blue-200/30 py-2 px-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2 bg-blue-200/30 px-2 py-2">
                   <div className="flex flex-1 flex-wrap items-center gap-2">
                     {priority ? (
                       <span className="flex items-center gap-1 rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-600">
@@ -376,7 +396,7 @@ const TicketOverviewSection = ({
               </div>
             ) : null}
 
-            <div className="min-h-0 flex-1 w-full py-3 pr-4">
+            <div className="min-h-0 w-full flex-1 py-3 pr-4">
               {activeTab === "details" ? (
                 <>
                   <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
@@ -398,13 +418,44 @@ const TicketOverviewSection = ({
                                 ) : null}
                                 <span>{item.label} :</span>
                               </div>
-                              <div className="break-words text-sm text-slate-800">
-                                {item.value || "N/A"}
+                              <div className="flex items-center gap-2 break-words text-sm text-slate-800">
+                                <span>{item.value || "N/A"}</span>
+                                {item.label === "Asset" && onEditAssetClick ? (
+                                  <button
+                                    type="button"
+                                    onClick={onEditAssetClick}
+                                    aria-label="Edit asset"
+                                    className="text-sky-600 hover:text-sky-700"
+                                  >
+                                    <EditOutlined className="text-[14px]" />
+                                  </button>
+                                ) : null}
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
+
+                      {previousCallReport ? (
+                        <div className="rounded-xl border border-slate-200 bg-white">
+                          <div className="flex items-start justify-between gap-3 px-4 py-3">
+                            <div className="text-sm font-semibold text-slate-900">
+                              Previous Call Report Summary
+                            </div>
+                            <div className="text-xs text-slate-700">
+                              {previousCallReport.title}
+                              {previousCallReport.dateText
+                                ? ` on ${previousCallReport.dateText}`
+                                : ""}
+                            </div>
+                          </div>
+                          {previousCallReport.remarks ? (
+                            <div className="border-t border-slate-100 px-4 py-3 text-sm text-slate-700">
+                              {previousCallReport.remarks}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       {showFilesInDetails ? <FilesSection /> : null}
                     </div>
@@ -543,7 +594,7 @@ const TicketOverviewSection = ({
                 <FilesSection variant="list" />
               )}
             </div>
-          {/* </div> */}
+          </div>
         </div>
       </div>
     </Spin>

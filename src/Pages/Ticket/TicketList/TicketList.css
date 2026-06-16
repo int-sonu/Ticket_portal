@@ -11,14 +11,14 @@
   padding: 7px 7px !important;
   font-size: 10px;
   font-weight: 600;
-  color: #0f172a;
+  color: #060707;
   background: #fff;
 }
 
 .ticket-list-table .ant-table-tbody > tr > td {
   padding: 8px 7px !important;
   font-size: 10.5px;
-  color: #0f172a;
+  color: #0f272a;
   vertical-align: middle;
 }
 
@@ -113,7 +113,9 @@
   border-radius: 999px;
   background: #aee2ff;
   border: 2px solid #aee2ff;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .ticket-priority-label {

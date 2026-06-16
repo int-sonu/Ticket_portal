@@ -100,7 +100,7 @@ const getHistoryTitle = (item: Record<string, any>) =>
       item.Status ??
       item.cAction ??
       item.cActivity ??
-      "History"
+      "History",
   );
 
 const getHistoryActor = (item: Record<string, any>) =>
@@ -113,7 +113,7 @@ const getHistoryActor = (item: Record<string, any>) =>
       item.cAgentName ??
       item.CreatedBy ??
       item.cCreatedBy ??
-      item.nCreatedBy
+      item.nCreatedBy,
   );
 
 const getHistoryRemarks = (item: Record<string, any>) =>
@@ -134,7 +134,7 @@ const getHistoryRemarks = (item: Record<string, any>) =>
       item.CallSummary ??
       item.cCallSummary ??
       item.cViewSummary ??
-      ""
+      "",
   );
 
 const TicketHistory = ({ ticketId }: Props) => {
@@ -154,7 +154,7 @@ const TicketHistory = ({ ticketId }: Props) => {
       sessionPayload.cDbName,
       sessionPayload.cSchemaName,
       sessionPayload.nCompanyId,
-    ]
+    ],
   );
 
   const enabled =
@@ -169,13 +169,18 @@ const TicketHistory = ({ ticketId }: Props) => {
 
   return (
     <Spin spinning={isLoading}>
-      <Card bordered className="border-slate-200 shadow-sm" styles={{ body: { padding: 0 } }}>
+      <Card
+        bordered
+        className="border-slate-200 shadow-sm"
+        styles={{ body: { padding: 0 } }}
+      >
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
-          <div className="text-lg font-semibold text-slate-900">Call History</div>
+          <div className="text-lg font-semibold text-slate-900">
+            Call History
+          </div>
 
-          <Button
-            type="primary"
-            className="h-9 rounded-md border-0 bg-blue-600 px-4 text-sm font-semibold shadow-none hover:!bg-blue-700"
+          <Button type="text"
+            className="h-9 rounded-md border-0 bg-green-600 text-black px-4 text-sm font-semibold "
           >
             Previous Tickets &gt;&gt;
           </Button>
@@ -195,7 +200,7 @@ const TicketHistory = ({ ticketId }: Props) => {
                     item.dCreatedOn ??
                     item.Date ??
                     item.cDate ??
-                    item.Time
+                    item.Time,
                 );
                 const title = getHistoryTitle(item);
                 const actor = getHistoryActor(item);
@@ -203,9 +208,11 @@ const TicketHistory = ({ ticketId }: Props) => {
                 const key = item.Id ?? item.id ?? `${title}-${index}`;
 
                 return (
-                  <div key={key} className="grid grid-cols-[18px_minmax(0,1fr)] gap-3">
+                  <div
+                    key={key}
+                    className="grid grid-cols-[18px_minmax(0,1fr)] gap-3"
+                  >
                     <div className="relative flex justify-center">
-                      
                       <img src={clockgrey} alt="Time" className="h-6 w-6" />
                       {/* <span className="mt-1.5 h-3
                        w-3 rounded-full border-2 border-teal-500 bg-white" /> */}
@@ -216,15 +223,17 @@ const TicketHistory = ({ ticketId }: Props) => {
 
                     <div className="space-y-1.5">
                       {dateText ? (
-                        <div className="text-sm font-medium text-slate-700">{dateText}</div>
+                        <div className="text-sm font-medium text-slate-700">
+                          {dateText}
+                        </div>
                       ) : null}
 
-                      <div className="text-base font-semibold text-teal-700">{title}</div>
+                      <div className="text-base font-semibold text-teal-700">
+                        {title}
+                      </div>
 
                       {actor ? (
-                        <div className="text-sm text-slate-500">
-                          {actor}
-                        </div>
+                        <div className="text-sm text-slate-500">{actor}</div>
                       ) : null}
 
                       {remarks ? (
