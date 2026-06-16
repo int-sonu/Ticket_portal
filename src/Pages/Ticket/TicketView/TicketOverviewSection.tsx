@@ -2,6 +2,7 @@ import { EditOutlined } from "@ant-design/icons";
 import { Empty, Image, Spin } from "antd";
 import { useRef } from "react";
 
+import clockGreenIcon from "../../../assets/icons/clock-green.svg";
 import addressIcon from "../../../assets/icons/AddressIcon.svg";
 import assetIcon from "../../../assets/icons/Asseticon.svg";
 import calendarIcon from "../../../assets/icons/calenderiCon.svg";
@@ -139,54 +140,55 @@ const TicketOverviewSection = ({
   }) => {
     if (variant === "list") {
       return (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 px-4 py-2">
-            <div className="text-sm font-semibold text-slate-900">Files</div>
-          </div>
-          <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-4">
-            {attachments.length > 0 ? (
-              <div className="space-y-4">
-                {attachments.map((file: any, index: number) => {
-                  const preview =
-                    file?.url ??
-                    file?.Url ??
-                    file?.thumbUrl ??
-                    file?.ThumbUrl ??
-                    file?.cFilePath ??
-                    file?.cUrl ??
-                    file?.fileUrl ??
-                    file?.FileUrl ??
-                    file?.path ??
-                    file?.Path ??
-                    file?.Location ??
-                    file?.location ??
-                    "";
-                  const caption =
-                    file?.name ??
-                    file?.FileName ??
-                    file?.cFileName ??
-                    file?.cDocumentName ??
-                    `File ${index + 1}`;
+        <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden p-4">
+          {attachments.length > 0 ? (
+            <div className="space-y-6">
+              {attachments.map((file: any, index: number) => {
+                const preview =
+                  file?.url ??
+                  file?.Url ??
+                  file?.thumbUrl ??
+                  file?.ThumbUrl ??
+                  file?.cFilePath ??
+                  file?.cUrl ??
+                  file?.fileUrl ??
+                  file?.FileUrl ??
+                  file?.path ??
+                  file?.Path ??
+                  file?.Location ??
+                  file?.location ??
+                  "";
 
-                  return (
-                    <div
-                      key={file?.uid ?? file?.id ?? `${caption}-${index}`}
-                      className="rounded-lg border border-slate-200 bg-slate-50 p-3"
-                    >
-                      <div className="mb-2 flex items-center gap-3">
-                        <div className="shrink-0 text-sm text-slate-700">
-                          {file?.createdOn || file?.date || file?.CreatedOn || ""}
-                        </div>
-                        <div className="min-w-0 rounded-md bg-sky-50 px-3 py-1 text-sm text-slate-700">
-                          {caption}
-                        </div>
+                const displayDate =
+                  file?.createdOn ||
+                  file?.date ||
+                  file?.CreatedOn ||
+                  (createdDate || "").split(" ")[0] ||
+                  "";
+                const displayTeam =
+                  file?.createdByTeam || createdByTeam || "Unknown Team";
+
+                return (
+                  <div
+                    key={file?.uid ?? file?.id ?? `file-${index}`}
+                    className="flex items-start gap-4"
+                  >
+                    <div className="flex w-[110px] shrink-0 items-center gap-1.5 pt-1 text-xs text-slate-500">
+                      <span>{displayDate}</span>
+                      <img src={clockGreenIcon} alt="" className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex min-w-0 flex-col items-start gap-2">
+                      <div className="inline-flex items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-xs text-slate-600">
+                        <span className="font-semibold text-slate-800">
+                          TK {ticketNo}
+                        </span>
+                        <span>{displayTeam}</span>
                       </div>
-
                       <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                         {preview ? (
                           <Image
                             src={preview}
-                            alt={caption}
+                            alt="Attachment"
                             width={120}
                             height={120}
                             className="h-[120px] w-[120px] object-cover"
@@ -199,21 +201,15 @@ const TicketOverviewSection = ({
                         )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex min-h-[280px] items-center justify-center">
-              <img
-                                          src={data}
-                                          alt=""
-                                          className="h-50 w-50"
-                                         
-                                          
-                                        />
-              </div>
-            )}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex min-h-[280px] items-center justify-center">
+              <img src={data} alt="" className="h-50 w-50" />
+            </div>
+          )}
         </div>
       );
     }
@@ -436,6 +432,8 @@ const TicketOverviewSection = ({
                         </div>
                       </div>
 
+                      {showFilesInDetails ? <FilesSection /> : null}
+
                       {previousCallReport ? (
                         <div className="rounded-xl border border-slate-200 bg-white">
                           <div className="flex items-start justify-between gap-3 px-4 py-3">
@@ -456,8 +454,6 @@ const TicketOverviewSection = ({
                           ) : null}
                         </div>
                       ) : null}
-
-                      {showFilesInDetails ? <FilesSection /> : null}
                     </div>
 
                     <div className="flex flex-col gap-3">
@@ -494,14 +490,14 @@ const TicketOverviewSection = ({
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white">
-                        <div className="px-3 py-3 sm:px-4">
-                          <div className="mb-2 text-sm font-semibold text-slate-900">
-                            Alternative Contacts
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            {alternativeContactList.length ? (
-                              alternativeContactList.map(
+                      {alternativeContactList.length > 0 ? (
+                        <div className="rounded-xl border border-slate-200 bg-white">
+                          <div className="px-3 py-3 sm:px-4">
+                            <div className="mb-2 text-sm font-semibold text-slate-900">
+                              Alternative Contacts
+                            </div>
+                            <div className="flex flex-col gap-3">
+                              {alternativeContactList.map(
                                 (contact: any, index: number) => {
                                   const altName =
                                     getContactValue(contact, [
@@ -562,15 +558,11 @@ const TicketOverviewSection = ({
                                     </div>
                                   );
                                 },
-                              )
-                            ) : (
-                              <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                                No alternative contacts found
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : null}
                     </div>
                   </div>
 

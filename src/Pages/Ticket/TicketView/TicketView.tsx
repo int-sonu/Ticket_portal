@@ -12,6 +12,7 @@ import { getApiImageBaseUrl } from "../../../Axios/config";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import QuickCallReportModal from "../Common/QuickCallReportModal";
+import EstimateModal from "../Common/EstimateModal";
 import TicketPageShell from "../Common/TicketPageShell";
 import TicketOverviewSection from "./TicketOverviewSection";
 import shareIcon from "../../../assets/icons/shareIcon.svg";
@@ -467,6 +468,7 @@ const TicketView = () => {
   const [shareOpen, setShareOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
+  const [estimateOpen, setEstimateOpen] = useState(false);
   const [tick, setTick] = useState(() => Date.now());
   const [displayAssetName, setDisplayAssetName] = useState("");
 
@@ -920,11 +922,7 @@ const TicketView = () => {
 
   const isOngoingTicket = state.isFrom === "ongoing";
   const detailPreviousCallReport =
-    isOngoingTicket && previousCallReportFromTicket
-      ? previousCallReportFromTicket
-      : isOngoingTicket
-        ? latestCallReport
-        : null;
+    previousCallReportFromTicket || latestCallReport || null;
 
   return (
     <TicketPageShell contentClassName="relative flex h-full min-h-0 flex-col overflow-hidden">
@@ -1143,7 +1141,7 @@ const TicketView = () => {
         <div className="mt-4 flex flex-wrap items-center gap-2 px-1 ">
           <Button
             className="!border-black !text-black !bg-white rounded-full shadow-sm flex items-center gap-3 w-28 "
-            onClick={() => message.info("Estimate action will be added next")}
+            onClick={() => setEstimateOpen(true)}
           >
             <img src={EstimateIcon} alt="" className="h-5 w-5 " /> Estimate
           </Button>
@@ -1199,6 +1197,13 @@ const TicketView = () => {
         ticketId={ticketId}
         customerId={customerId}
         defaultTicketId={ticketId}
+      />
+      <EstimateModal
+        open={estimateOpen}
+        onClose={() => setEstimateOpen(false)}
+        ticketId={ticketId}
+        customerName={customerName}
+        sessionPayload={getRequestPayload()}
       />
       {/* </div> */}
     </TicketPageShell>
