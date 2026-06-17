@@ -1133,6 +1133,7 @@ const TicketView = () => {
       >
         <TicketOverviewSection
           ticketId={ticketId}
+          customerId={customerId}
           isLoading={isLoading}
           activeTab={activeTab}
           onTabChange={setActiveTab}

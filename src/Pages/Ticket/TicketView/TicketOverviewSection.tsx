@@ -14,6 +14,7 @@ import TicketHistory from "../TicketHistory/TicketHistory";
 import data from "../../../assets/icons/data.gif";
 type TicketOverviewSectionProps = {
   ticketId: number;
+  customerId?: number;
   isLoading: boolean;
   activeTab: "details" | "history" | "files";
   onTabChange: (tab: "details" | "history" | "files") => void;
@@ -85,6 +86,7 @@ const TicketOverviewSection = ({
   extraRows = [],
   showFollowUpAction = true,
   previousCallReport = null,
+  customerId,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
 
@@ -138,12 +140,30 @@ const TicketOverviewSection = ({
   }: {
     variant?: "carousel" | "list";
   }) => {
+    const validAttachments = attachments.filter((file: any) => {
+      const preview =
+        file?.url ??
+        file?.Url ??
+        file?.thumbUrl ??
+        file?.ThumbUrl ??
+        file?.cFilePath ??
+        file?.cUrl ??
+        file?.fileUrl ??
+        file?.FileUrl ??
+        file?.path ??
+        file?.Path ??
+        file?.Location ??
+        file?.location ??
+        "";
+      return !!preview;
+    });
+
     if (variant === "list") {
       return (
         <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden p-4">
-          {attachments.length > 0 ? (
+          {validAttachments.length > 0 ? (
             <div className="space-y-6">
-              {attachments.map((file: any, index: number) => {
+              {validAttachments.map((file: any, index: number) => {
                 const preview =
                   file?.url ??
                   file?.Url ??
@@ -185,20 +205,13 @@ const TicketOverviewSection = ({
                         <span>{displayTeam}</span>
                       </div>
                       <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-                        {preview ? (
-                          <Image
-                            src={preview}
-                            alt="Attachment"
-                            width={120}
-                            height={120}
-                            className="h-[120px] w-[120px] object-cover"
-                            preview={{ mask: false }}
-                          />
-                        ) : (
-                          <div className="flex h-[120px] w-[120px] items-center justify-center bg-slate-100 text-xs text-slate-500">
-                            No preview
-                          </div>
-                        )}
+                        <Image
+                          src={preview}
+                          alt="Attachment"
+                          width={120}
+                          height={120}
+                          className="h-[120px] w-[120px] object-cover"
+                        />
                       </div>
                     </div>
                   </div>
@@ -220,7 +233,7 @@ const TicketOverviewSection = ({
           <div className="text-sm font-semibold text-slate-900">Files</div>
         </div>
         <div className="px-3 py-3 sm:px-4">
-          {attachments.length > 0 ? (
+          {validAttachments.length > 0 ? (
             <div className="relative">
               <button
                 type="button"
@@ -236,10 +249,20 @@ const TicketOverviewSection = ({
                 className="flex gap-3 overflow-x-auto scroll-smooth px-7 pb-1"
                 style={{ scrollbarWidth: "none" }}
               >
-                {attachments.map((file: any, index: number) => {
+                {validAttachments.map((file: any, index: number) => {
                   const preview =
-                    
+                    file?.url ??
+                    file?.Url ??
+                    file?.thumbUrl ??
+                    file?.ThumbUrl ??
+                    file?.cFilePath ??
                     file?.cUrl ??
+                    file?.fileUrl ??
+                    file?.FileUrl ??
+                    file?.path ??
+                    file?.Path ??
+                    file?.Location ??
+                    file?.location ??
                     "";
                   const caption =
                     file?.name ??
@@ -253,20 +276,13 @@ const TicketOverviewSection = ({
                       key={file?.uid ?? file?.id ?? `${caption}-${index}`}
                       className="h-[116px] w-[116px] shrink-0 overflow-hidden rounded-sm border border-slate-200 bg-white"
                     >
-                      {preview ? (
-                        <Image
-                          src={preview}
-                          alt={caption}
-                          width={116}
-                          height={116}
-                          className="h-[116px] w-[116px] rounded-sm object-cover"
-                          preview={{ mask: false }}
-                        />
-                      ) : (
-                        <div className="flex h-[116px] items-center justify-center bg-slate-100 text-xs text-slate-500">
-                          No preview
-                        </div>
-                      )}
+                      <Image
+                        src={preview}
+                        alt={caption}
+                        width={116}
+                        height={116}
+                        className="h-[116px] w-[116px] rounded-sm object-cover"
+                      />
                     </div>
                   );
                 })}
@@ -570,7 +586,7 @@ const TicketOverviewSection = ({
                 </>
               ) : activeTab === "history" ? (
                 <div className="relative z-10">
-                  <TicketHistory ticketId={ticketId} />
+                  <TicketHistory ticketId={ticketId} customerId={customerId} customerName={customerName} />
                 </div>
               ) : (
                 <FilesSection variant="list" />

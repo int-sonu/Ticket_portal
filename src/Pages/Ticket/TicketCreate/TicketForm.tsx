@@ -24,7 +24,7 @@ import type { UploadFile } from "antd";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+
 import EmailIcon from "../../../assets/icons/email-icon.svg";
 import closedTicketIcon from "../../../assets/icons/closedTicketIcon.svg";
 import mobileIcon from "../../../assets/icons/mobileicon.svg";
@@ -1822,7 +1822,7 @@ const TicketForm = ({
       form.scrollToField(missingFields[0].name, {
         block: "center",
       });
-      toast.error(
+      message.error(
         `Please fill the required fields: ${missingFields
           .map((field) => field.label)
           .join(", ")}`
@@ -2032,7 +2032,7 @@ const TicketForm = ({
         }, 600);
       },
       onError: (error: any) =>
-        toast.error(
+        message.error(
           error?.response?.data?.message ||
             error?.message ||
             "Unable to save ticket"
@@ -2092,7 +2092,7 @@ const TicketForm = ({
           customerForm.resetFields();
         },
         onError: (error: any) =>
-          toast.error(
+          message.error(
             error?.response?.data?.message ||
               error?.message ||
               "Unable to save customer"
@@ -2142,7 +2142,7 @@ const TicketForm = ({
           assetForm.resetFields();
         },
         onError: (error: any) =>
-          toast.error(
+          message.error(
             error?.response?.data?.message ||
               error?.message ||
               "Unable to save asset"
@@ -2261,7 +2261,7 @@ const TicketForm = ({
         },
       });
     } catch (error: any) {
-      toast.error(
+      message.error(
         error?.response?.data?.message ||
           error?.message ||
           "Unable to load customer tickets"
@@ -2273,9 +2273,11 @@ const TicketForm = ({
     <div className="ticket-create-shell flex-1">
       <div className="ticket-create-header text-[18px] font-semibold leading-none">
         <h2 className="text-2xl font-medium leading-none text-slate-900" >Create New Ticket</h2>
-         <div className="text-[14px] font-medium text-gray-500 ">
-            TicketId : {followupSourceTicket.nTicketId },{followupSourceTicket.cViewSummary}
+         {followupSourceTicket && (
+            <div className="text-[14px] font-medium text-gray-500 ">
+              TicketId : {followupSourceTicket.nTicketId}, {followupSourceTicket.cViewSummary}
             </div>
+         )}
         <Button
           type="text"
           icon={<CloseOutlined className="text-lg text-slate-500" />}

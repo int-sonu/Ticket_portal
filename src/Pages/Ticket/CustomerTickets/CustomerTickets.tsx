@@ -27,6 +27,7 @@ interface CustomerTicketsLocationState {
   returnTo?: string;
   ticketRows?: any[];
   draftValues?: Record<string, any>;
+  hideSkipButton?: boolean;
 }
 
 const getFieldValue = (
@@ -182,6 +183,7 @@ const CustomerTickets = () => {
     (location.state as CustomerTicketsLocationState | null) ?? {};
   const prefetchedRows = locationState.ticketRows ?? [];
   const returnTo = locationState.returnTo ?? "/tickets/create";
+  const hideSkipButton = locationState.hideSkipButton ?? false;
 
   const customerName =
     locationState.customerName ??
@@ -379,6 +381,18 @@ const CustomerTickets = () => {
           ),
       },
       {
+        title: "Customer Name",
+        render: (_: any, record: any) =>
+          String(
+            getFieldValue(record, [
+              "CustomerName",
+              "cCustomerName",
+              "Customer",
+              "cCustomer",
+            ]) || resolvedCustomerName || "-"
+          ),
+      },
+      {
         title: "Ticket Summary",
         render: (_: any, record: any) => {
           const summary =
@@ -414,34 +428,8 @@ const CustomerTickets = () => {
         render: (_: any, record: any) =>
           getTicketStatusValue(record) || "-",
       },
-      {
-        title: "",
-        width: 110,
-        render: (_: any, record: any) => {
-          const ticketId = getTicketIdValue(record);
-
-          return (
-            <Button
-              type="primary"
-              size="small"
-              style={{
-                background: "#22c55e",
-                borderColor: "#22c55e",
-                minWidth: 70,
-              }}
-              disabled={!ticketId}
-              onClick={(event) => {
-                event.stopPropagation();
-                openTicketView(record);
-              }}
-            >
-              FollowUp
-            </Button>
-          );
-        },
-      },
     ],
-    [navigate, pageSize, safeCurrentPage]
+    [navigate, pageSize, safeCurrentPage, resolvedCustomerName]
   );
 
   const pageTitle = customerName
@@ -563,20 +551,22 @@ const CustomerTickets = () => {
           />
         </div>
 
-        <div className="mt-auto flex justify-end pt-2">
-          <Button
-            type="primary"
-            style={{
-              minWidth: 78,
-              height: 38,
-              background: "#22c55e",
-              borderColor: "#22c55e",
-            }}
-            onClick={goBackWithDraft}
-          >
-            Skip
-          </Button>
-        </div>
+        {!hideSkipButton && (
+          <div className="mt-auto flex justify-end pt-2">
+            <Button
+              type="primary"
+              style={{
+                minWidth: 78,
+                height: 38,
+                background: "#22c55e",
+                borderColor: "#22c55e",
+              }}
+              onClick={goBackWithDraft}
+            >
+              Skip
+            </Button>
+          </div>
+        )}
       </div>
       </Card>
 

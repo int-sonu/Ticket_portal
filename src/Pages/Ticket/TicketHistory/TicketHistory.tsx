@@ -1,6 +1,6 @@
 import { Button, Card, Empty, Spin } from "antd";
 import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 import { useTicketHistory } from "../../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../../Utils/requestPayload";
@@ -8,6 +8,8 @@ import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import clockgrey from "../../../Assets/icons/clock-grey.svg";
 interface Props {
   ticketId?: number;
+  customerId?: number;
+  customerName?: string;
 }
 
 const formatText = (value: any) => {
@@ -137,8 +139,9 @@ const getHistoryRemarks = (item: Record<string, any>) =>
       "",
   );
 
-const TicketHistory = ({ ticketId }: Props) => {
+const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
   const params = useParams();
+  const navigate = useNavigate();
   const resolvedTicketId = Number(ticketId ?? params.id ?? 0);
   const sessionPayload = getRequestPayload();
 
@@ -179,8 +182,23 @@ const TicketHistory = ({ ticketId }: Props) => {
             Call History
           </div>
 
-          <Button type="text"
-            className="h-9 rounded-md border-0 bg-green-600 text-black px-4 text-sm font-semibold "
+          <Button 
+            type="primary"
+            style={{
+              background: "#22c55e",
+              borderColor: "#22c55e",
+            }}
+            className="h-9 rounded-md px-4 text-sm font-semibold shadow-sm"
+            onClick={() => {
+              navigate("/tickets/customertickets", {
+                state: {
+                  customerId,
+                  customerName,
+                  returnTo: `/tickets/view/${ticketId}`,
+                  hideSkipButton: true,
+                }
+              });
+            }}
           >
             Previous Tickets &gt;&gt;
           </Button>
