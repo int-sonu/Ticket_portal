@@ -238,18 +238,8 @@ const TicketOverviewSection = ({
               >
                 {attachments.map((file: any, index: number) => {
                   const preview =
-                    file?.url ??
-                    file?.Url ??
-                    file?.thumbUrl ??
-                    file?.ThumbUrl ??
-                    file?.cFilePath ??
+                    
                     file?.cUrl ??
-                    file?.fileUrl ??
-                    file?.FileUrl ??
-                    file?.path ??
-                    file?.Path ??
-                    file?.Location ??
-                    file?.location ??
                     "";
                   const caption =
                     file?.name ??
