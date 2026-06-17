@@ -396,5 +396,67 @@ export const ticketApis = {
 
     return response.data;
   },
+
+  ticketAttachmentUpload: async (
+    payload: FormData
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/TicketAttachmentUpload",
+        payload,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+    return response.data;
+  },
+
+  ticketAttachmentDelete: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await sendWithMethodFallback(
+        "delete",
+        "/Api/V1/Ticket/TicketAttachmentDelete",
+        payload,
+        ["post"]
+      );
+
+    return response.data;
+  },
+
+  repairPartAttachmentUpload: async (
+    payload: FormData
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/ItemRepair/RepairPartAttachmentUpload",
+        payload,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+    return response.data;
+  },
+
+  repairPartAttachmentDelete: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await sendWithMethodFallback(
+        "delete",
+        "/Api/V1/ItemRepair/RepairPartAttachmentDelete",
+        payload,
+        ["post"]
+      );
+
+    return response.data;
+  },
 };
 

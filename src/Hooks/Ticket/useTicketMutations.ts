@@ -10,11 +10,24 @@ export const useTicketMutations = () => {
 
   const refreshTickets = () => {
     queryClient.invalidateQueries({
-      queryKey: ["ticket"],
-    });
+      predicate: (query) => {
+        const [rootKey] = query.queryKey;
 
-    queryClient.invalidateQueries({
-      queryKey: ["ticket-list"],
+        if (typeof rootKey !== "string") {
+          return false;
+        }
+
+        return (
+          rootKey === "overdue-ticket-list" ||
+          rootKey === "postponed-ticket-list" ||
+          rootKey === "created-ticket-list" ||
+          rootKey === "customer-wise-active-ticket-list" ||
+          rootKey === "customer-wise-all-ticket-list" ||
+          rootKey === "assign-agent-ticket-list" ||
+          rootKey === "call-report-list" ||
+          rootKey.startsWith("ticket")
+        );
+      },
     });
   };
 

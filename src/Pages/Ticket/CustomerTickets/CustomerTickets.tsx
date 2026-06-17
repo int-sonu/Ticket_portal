@@ -317,8 +317,8 @@ const CustomerTickets = () => {
 
     navigate(
       isOngoingTicket(record)
-        ? `/tickets/view`
-        : `/tickets/followup`,
+        ? `/tickets/view/${ticketId}`
+        : `/tickets/followup/${ticketId}`,
       {
         state: {
           selectedRow: record,

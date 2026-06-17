@@ -15,6 +15,7 @@ import {
 import dayjs, { type Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import calenderiCon from "../../../assets/icons/calenderiCon.svg";
 
 dayjs.extend(customParseFormat);
 
@@ -65,6 +66,9 @@ const FollowupDateTimePicker = ({
   const selectedValue = useMemo(() => parseValue(value), [value]);
   const [open, setOpen] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
+  const [draftValue, setDraftValue] = useState<Dayjs>(
+    selectedValue ?? dayjs()
+  );
   const [viewDate, setViewDate] = useState<Dayjs>(
     selectedValue ?? dayjs()
   );
@@ -72,6 +76,7 @@ const FollowupDateTimePicker = ({
   useEffect(() => {
     if (open) {
       setViewDate(selectedValue ?? dayjs());
+      setDraftValue(selectedValue ?? dayjs());
       setTimeOpen(true);
     }
   }, [open, selectedValue]);
@@ -80,7 +85,14 @@ const FollowupDateTimePicker = ({
     if (!open) setTimeOpen(false);
   }, [open]);
 
-  const activeValue = selectedValue ?? viewDate;
+  useEffect(() => {
+    if (selectedValue) {
+      setDraftValue(selectedValue);
+      setViewDate(selectedValue);
+    }
+  }, [selectedValue]);
+
+  const activeValue = selectedValue ?? draftValue;
   const displayValue = selectedValue
     ? selectedValue.format(DISPLAY_FORMAT)
     : "";
@@ -99,7 +111,8 @@ const FollowupDateTimePicker = ({
       .second(0)
       .millisecond(0);
 
-    setViewDate(day);
+    setViewDate(next);
+    setDraftValue(next);
     updateValue(next);
   };
 
@@ -123,7 +136,7 @@ const FollowupDateTimePicker = ({
     nextMinute: number | null,
     nextMeridiem: "AM" | "PM" | null
   ) => {
-    const base = selectedValue ?? viewDate;
+    const base = selectedValue ?? draftValue;
     const hourValue = nextHour12 ?? hour12;
     const minuteValue = clampMinute(nextMinute ?? minute);
     const meridiemValue = nextMeridiem ?? meridiem;
@@ -132,13 +145,18 @@ const FollowupDateTimePicker = ({
     if (meridiemValue === "PM") normalizedHour += 12;
     if (meridiemValue === "AM" && hourValue === 12) normalizedHour = 0;
 
-    updateValue(
-      base
-        .hour(normalizedHour)
-        .minute(minuteValue)
-        .second(0)
-        .millisecond(0)
-    );
+    const nextValue = base
+      .hour(normalizedHour)
+      .minute(minuteValue)
+      .second(0)
+      .millisecond(0);
+
+    setDraftValue(nextValue);
+    setViewDate(nextValue);
+
+    if (selectedValue) {
+      updateValue(nextValue);
+    }
   };
 
   const startOfGrid = viewDate
@@ -409,9 +427,10 @@ const FollowupDateTimePicker = ({
           readOnly
           value={displayValue}
           placeholder="Select follow up date & time"
-          suffix={<CalendarOutlined />}
+          suffix=<img src={calenderiCon} />
           className="followup-date-input pointer-events-none"
         />
+          
       </div>
     </Popover>
   );

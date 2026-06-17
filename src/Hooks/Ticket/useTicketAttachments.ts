@@ -16,6 +16,14 @@ export const useTicketAttachments = () => {
     queryClient.invalidateQueries({
       queryKey: ["ticket-view"],
     });
+
+    queryClient.invalidateQueries({
+      queryKey: ["ticket-history"],
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: ["ticket-history-attachment"],
+    });
   };
 
   const uploadTicketAttachment =

@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   useRepairItemActivityList,
   useTicketHistory,
+  useTicketHistoryAttachment,
   useTicketView,
 } from "../../../Hooks/Ticket/useTicketQueries";
 import { getApiImageBaseUrl } from "../../../Axios/config";
@@ -32,6 +33,8 @@ import {
 import TransferTicketModal from "../Common/TransferTicketModal";
 import ShareTicketModal from "../Common/ShareTicketModal";
 import FollowupModal from "../Common/FollowupModal";
+import AssignTicketModal from "../Common/AssignTicketModal";
+import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
   quickCallTicketValues?: Record<string, any> | null;
@@ -341,6 +344,119 @@ const pickAttachments = (record: any) => {
   return [];
 };
 
+const pickAllAttachments = (record: any) => {
+  const directAttachments = pickAttachments(record);
+
+  if (directAttachments.length > 0) {
+    return directAttachments.map((file: any) => ({
+      ...file,
+      uid:
+        file?.uid ??
+        file?.nAttachementId ??
+        file?.AttachmentId ??
+        file?.nAttachmentId ??
+        file?.id,
+      name:
+        file?.name ??
+        file?.FileName ??
+        file?.cFileName ??
+        file?.cDocumentName ??
+        file?.DocumentName,
+      cUrl: resolveImageUrl(
+        file?.cUrl ??
+          file?.cFilePath ??
+          file?.url ??
+          file?.path ??
+          file?.Location ??
+          file?.location ??
+          file?.FilePath ??
+          file?.filepath ??
+          "",
+      ),
+    }));
+  }
+
+  const nestedObjects = [
+    record?.Data,
+    record?.data,
+    record?.Result,
+    record?.result,
+    record?.message,
+    record?.response,
+    record?.response?.data,
+    record?.Data?.data,
+    record?.data?.data,
+    record?.Data?.result,
+    record?.data?.result,
+  ].filter(Boolean);
+
+  for (const item of nestedObjects) {
+    const nestedAttachments = pickAttachments(item);
+
+    if (nestedAttachments.length > 0) {
+      return nestedAttachments.map((file: any) => ({
+        ...file,
+        uid:
+          file?.uid ??
+          file?.nAttachementId ??
+          file?.AttachmentId ??
+          file?.nAttachmentId ??
+          file?.id,
+        name:
+          file?.name ??
+          file?.FileName ??
+          file?.cFileName ??
+          file?.cDocumentName ??
+          file?.DocumentName,
+        cUrl: resolveImageUrl(
+          file?.cUrl ??
+            file?.cFilePath ??
+            file?.url ??
+            file?.path ??
+            file?.Location ??
+            file?.location ??
+            file?.FilePath ??
+            file?.filepath ??
+            "",
+        ),
+      }));
+    }
+  }
+
+  const extractedList = extractList(record);
+
+  if (Array.isArray(extractedList) && extractedList.length > 0) {
+    return extractedList.map((file: any) => ({
+      ...file,
+      uid:
+        file?.uid ??
+        file?.nAttachementId ??
+        file?.AttachmentId ??
+        file?.nAttachmentId ??
+        file?.id,
+      name:
+        file?.name ??
+        file?.FileName ??
+        file?.cFileName ??
+        file?.cDocumentName ??
+        file?.DocumentName,
+      cUrl: resolveImageUrl(
+        file?.cUrl ??
+          file?.cFilePath ??
+          file?.url ??
+          file?.path ??
+          file?.Location ??
+          file?.location ??
+          file?.FilePath ??
+          file?.filepath ??
+          "",
+      ),
+    }));
+  }
+
+  return [];
+};
+
 const pickAssignedAgents = (record: any) => {
   const raw = [
     record?.cAssignedId,
@@ -448,11 +564,22 @@ const TicketView = () => {
     .includes("/tickets/followup/");
   const isFromCustomer = state.isFrom === "customerView";
   const showFilesTab = state.isFrom !== "ongoing";
-  const pageHeading = state.isFrom === "ongoing"
+  const pageHeading =
+    state.isFrom === "ongoing"
       ? "Ongoing"
+      : state.isFrom === "upcoming"
+      ? "Upcoming"
+      : state.isFrom === "unassigned"
+      ? "Unassigned"
+      : state.isFrom === "overdue"
+      ? "Overdue"
+      : state.isFrom === "created"
+      ? "Created Tickets"
+      : state.isFrom === "postponed"
+      ? "Postponed"
       : isFollowupPage
-        ? "Follow Up"
-        : "Ticket";
+      ? "Follow Up"
+      : "Ticket";
 
   const showFollowupAction = isFollowupPage && isFromCustomer;
   const [activeTab, setActiveTab] = useState<"details" | "history" | "files">(
@@ -469,8 +596,10 @@ const TicketView = () => {
   const [transferOpen, setTransferOpen] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [estimateOpen, setEstimateOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [tick, setTick] = useState(() => Date.now());
   const [displayAssetName, setDisplayAssetName] = useState("");
+  const { acceptTicket } = useTicketActions();
 
   useEffect(() => {
     if (!showFilesTab && activeTab === "files") {
@@ -585,11 +714,48 @@ const TicketView = () => {
     historyPayload,
     !!ticketId && !!supportSessionPayload.nCompanyId,
   );
-
-  const attachments = useMemo(
-    () => pickAttachments(resolvedRecord),
-    [resolvedRecord],
+  const { data: ticketHistoryAttachmentData } = useTicketHistoryAttachment(
+    historyPayload,
+    !!ticketId && !!supportSessionPayload.nCompanyId,
   );
+
+  const attachments = useMemo(() => {
+    const directAttachments = pickAllAttachments(resolvedRecord);
+    const historyAttachments = pickAllAttachments(ticketHistoryAttachmentData);
+
+    if (!historyAttachments.length) {
+      return directAttachments;
+    }
+
+    const directIds = new Set(
+      directAttachments.map((file: any) =>
+        String(
+          file?.nAttachementId ??
+            file?.AttachmentId ??
+            file?.id ??
+            file?.uid ??
+            file?.cUrl ??
+            ""
+        )
+      )
+    );
+
+    const missingHistoryAttachments = historyAttachments.filter(
+      (file: any) =>
+        !directIds.has(
+          String(
+            file?.nAttachementId ??
+              file?.AttachmentId ??
+              file?.id ??
+              file?.uid ??
+              file?.cUrl ??
+              ""
+          )
+        )
+    );
+
+    return [...directAttachments, ...missingHistoryAttachments];
+  }, [resolvedRecord, ticketHistoryAttachmentData]);
   const customerAssetList = useMemo(
     () => extractList(customerAssetsData),
     [customerAssetsData],
@@ -921,6 +1087,13 @@ const TicketView = () => {
   }, [resolvedRecord]);
 
   const isOngoingTicket = state.isFrom === "ongoing";
+  const isUnassignedTicket = state.isFrom === "unassigned";
+  const isWorkflowTicket =
+    state.isFrom === "ongoing" ||
+    state.isFrom === "upcoming" ||
+    state.isFrom === "overdue" ||
+    state.isFrom === "created" ||
+    state.isFrom === "postponed";
   const detailPreviousCallReport =
     previousCallReportFromTicket || latestCallReport || null;
 
@@ -1137,7 +1310,34 @@ const TicketView = () => {
           </div>
         </div>
       </Modal>
-      {!isFollowupPage ? (
+      {!isFollowupPage && isUnassignedTicket ? (
+        <div className="mt-4 flex items-center justify-end gap-4 px-1">
+          <Button
+            className="!border-emerald-500 !text-emerald-600 !bg-white rounded-xl shadow-sm h-10 px-8"
+            onClick={() => setAssignOpen(true)}
+          >
+            Assign
+          </Button>
+          <Button
+            type="primary"
+            className="!bg-emerald-500 !border-emerald-500 rounded-xl h-10 px-8"
+            loading={acceptTicket.isPending}
+            onClick={() =>
+              acceptTicket.mutate(
+                { TicketId: ticketId, nTicketId: ticketId } as any,
+                {
+                  onSuccess: () => {
+                    message.success("Ticket accepted successfully");
+                  },
+                }
+              )
+            }
+          >
+            Accept
+          </Button>
+        </div>
+      ) : null}
+      {!isFollowupPage && isWorkflowTicket && !isUnassignedTicket ? (
         <div className="mt-4 flex flex-wrap items-center gap-2 px-1 ">
           <Button
             className="!border-black !text-black !bg-white rounded-full shadow-sm flex items-center gap-3 w-28 "
@@ -1180,6 +1380,11 @@ const TicketView = () => {
         selectedCustomerName={customerName}
         sessionPayload={getRequestPayload()}
         assignedAgentDetails={assignedAgentDetails}
+      />
+      <AssignTicketModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        ticketId={ticketId}
       />
       <ShareTicketModal
         open={shareOpen}

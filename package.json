@@ -21,6 +21,7 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
+    "react-toastify": "^11.1.0",
     "tailwindcss": "^4.3.0",
     "vite-plugin-node-polyfills": "^0.28.0"
   },

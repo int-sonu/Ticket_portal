@@ -24,11 +24,11 @@ import type { UploadFile } from "antd";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import EmailIcon from "../../../assets/icons/email-icon.svg";
 import closedTicketIcon from "../../../assets/icons/closedTicketIcon.svg";
 import mobileIcon from "../../../assets/icons/mobileicon.svg";
 import { ticketApis } from "../../../Axios/TicketsApi";
-
 import { useTicketAttachments } from "../../../Hooks/Ticket/useTicketAttachments";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
 import {
@@ -56,6 +56,7 @@ import {
 import QuickCallReportModal from "../Common/QuickCallReportModal";
 import { useGetServiceTypeDropdown } from "../../Master/ServiceType/Hooks";
 import { useGetTicketSourceDropdown } from "../../Master/TicketSource/Hooks";
+import shareIcon from "../../../assets/icons/shareIcon.svg"
 
 const { TextArea } = Input;
 type TicketFormProps = {
@@ -123,6 +124,57 @@ const optionalText = (value: any) => {
   return text || null;
 };
 
+const isEmptySelectionValue = (value: any) => {
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    text === "" ||
+    text === "nil" ||
+    text === "null" ||
+    text === "undefined" ||
+    text === "0"
+  );
+};
+
+const normalizeSelectionValue = (value: any) =>
+  isEmptySelectionValue(value) ? "" : String(value).trim();
+
+const ticketRequiredFields = [
+  {
+    name: "CustomerId",
+    label: "Customer",
+    isMissing: (value: any) =>
+      !String(value ?? "").trim() || Number(value) <= 0,
+  },
+  {
+    name: "ContactPerson",
+    label: "Contact Person Name",
+    isMissing: (value: any) => !String(value ?? "").trim(),
+  },
+  {
+    name: "ContactNo",
+    label: "Phone Number",
+    isMissing: (value: any) => !String(value ?? "").trim(),
+  },
+  {
+    name: "Email",
+    label: "Email",
+    isMissing: (value: any) => !String(value ?? "").trim(),
+  },
+  {
+    name: "IssueSummary",
+    label: "Ticket Summary",
+    isMissing: (value: any) => !String(value ?? "").trim(),
+  },
+  {
+    name: "Description",
+    label: "Description",
+    isMissing: (value: any) => !String(value ?? "").trim(),
+  },
+] as const;
+
 const formatApiDate = (value: any) =>
   value?.format?.("YYYY-MM-DD") ?? value ?? null;
 
@@ -132,6 +184,80 @@ const formatRequestDate = (date: Date) => {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}/${month}/${day}`;
+};
+
+const formatDateTimeForApi = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const PRIORITY_VALUE_MAP: Record<string, number> = {
+  "Very Low": 1,
+  Low: 2,
+  Medium: 3,
+  High: 4,
+  "Very High": 5,
+};
+
+const normalizeAssignedAgentPayload = (agents: any[] = []) =>
+  agents
+    .map((agent: any) => ({
+      nAgentId: Number(
+        agent?.nAgentId ??
+          agent?.agentId ??
+          agent?.id ??
+          agent?.value ??
+          agent ??
+          0
+      ),
+      nRole: Number(agent?.nRole ?? 0),
+    }))
+    .filter((agent) => agent.nAgentId > 0);
+
+const normalizeSourceId = (
+  value: any,
+  options: Array<{ label: string; value: any }>
+) => {
+  const text = String(value ?? "").trim();
+
+  if (!text) return 0;
+
+  const numericValue = Number(text);
+  if (Number.isFinite(numericValue) && numericValue > 0) {
+    return numericValue;
+  }
+
+  const matchedOption = options.find(
+    (option) =>
+      String(option.value ?? "").trim() === text ||
+      String(option.label ?? "").trim().toLowerCase() ===
+        text.toLowerCase()
+  );
+
+  const matchedValue = Number(matchedOption?.value ?? 0);
+
+  return Number.isFinite(matchedValue) && matchedValue > 0
+    ? matchedValue
+    : 0;
+};
+
+const getOptionLabelByValue = (
+  value: any,
+  options: Array<{ label: string; value: any }>
+) => {
+  const normalizedValue = String(value ?? "").trim();
+
+  const match = options.find(
+    (option) => String(option.value ?? "").trim() === normalizedValue
+  );
+
+  return match?.label ?? normalizedValue;
 };
 
 const searchOptions = (
@@ -808,14 +934,21 @@ const TicketForm = ({
       );
       return direct ? direct.value : ticketSourceOptions[0].value;
     }
-    return "Direct";
+    return undefined;
   }, [ticketSourceOptions]);
 
   useEffect(() => {
-    if (
-      ticketSourceOptions.length > 0 &&
-      !form.getFieldValue("Source")
-    ) {
+    if (ticketSourceOptions.length === 0 || defaultSource === undefined) {
+      return;
+    }
+
+    const currentSource = form.getFieldValue("Source");
+    const currentSourceId = normalizeSourceId(
+      currentSource,
+      ticketSourceOptions
+    );
+
+    if (currentSourceId === 0) {
       form.setFieldValue("Source", defaultSource);
     }
   }, [defaultSource, form, ticketSourceOptions]);
@@ -876,8 +1009,9 @@ const TicketForm = ({
     () => extractList(assignAgentData),
     [assignAgentData]
   );
-  const selectedAssignAgentId =
-    Form.useWatch("AssignToAgent", form);
+  const selectedAssignAgentId = normalizeSelectionValue(
+    Form.useWatch("AssignToAgent", form)
+  );
   const canSaveTicket =
     Boolean(selectedCustomerId) &&
     Boolean(watchedContactPerson?.toString().trim()) &&
@@ -889,11 +1023,7 @@ const TicketForm = ({
     Boolean(watchedGroup) &&
     Boolean(selectedAssignAgentId);
   const selectedAssignAgentName = useMemo(() => {
-    if (
-      selectedAssignAgentId === undefined ||
-      selectedAssignAgentId === null ||
-      selectedAssignAgentId === ""
-    ) {
+    if (!selectedAssignAgentId) {
       return "";
     }
 
@@ -920,11 +1050,7 @@ const TicketForm = ({
     );
   }, [assignAgents, selectedAssignAgentId]);
   const selectedAssignAgentDetails = useMemo(() => {
-    if (
-      selectedAssignAgentId === undefined ||
-      selectedAssignAgentId === null ||
-      selectedAssignAgentId === ""
-    ) {
+    if (!selectedAssignAgentId) {
       return [];
     }
 
@@ -1625,11 +1751,6 @@ const TicketForm = ({
       uploadFile,
     ]);
 
-    uploadTicketAttachment.mutate({
-      ...sessionPayload,
-      file: fileToSave,
-    } as any);
-
     setImageEditorOpen(false);
     setEditorFile(null);
     setEditorImage("");
@@ -1682,9 +1803,62 @@ const TicketForm = ({
   };
 
   const handleSubmit = (values: any) => {
+    const missingFields = ticketRequiredFields.filter((field) =>
+      field.isMissing(values[field.name])
+    );
+
+    form.setFields(
+      ticketRequiredFields.map((field) => ({
+        name: field.name,
+        errors: missingFields.some(
+          (missingField) => missingField.name === field.name
+        )
+          ? [`${field.label} is required`]
+          : [],
+      }))
+    );
+
+    if (missingFields.length) {
+      form.scrollToField(missingFields[0].name, {
+        block: "center",
+      });
+      toast.error(
+        `Please fill the required fields: ${missingFields
+          .map((field) => field.label)
+          .join(", ")}`
+      );
+      return;
+    }
+
     const normalizedFollowupDate = values.FollowupDate?.format?.(
       "YYYY-MM-DD HH:mm:ss"
     ) ?? values.FollowupDate;
+
+    const normalizedPriority =
+      typeof values.nPriority === "number"
+        ? values.nPriority
+        : PRIORITY_VALUE_MAP[String(values.Priority ?? "").trim()] ?? 2;
+    const normalizedSourceId = normalizeSourceId(
+      values.Source ?? values.SourceId,
+      ticketSourceOptions
+    );
+    const normalizedSourceLabel = getOptionLabelByValue(
+      normalizedSourceId,
+      ticketSourceOptions
+    );
+    const assignedDateTime = formatDateTimeForApi(new Date());
+    const normalizedGroupId =
+      Number(
+        values.Group ??
+          values.GroupId ??
+          values.nGroupId ??
+          0
+      ) || 0;
+    const normalizedAssignedAgents = normalizeAssignedAgentPayload(
+      Array.isArray(selectedAssignAgentDetails)
+        ? selectedAssignAgentDetails
+        : []
+    );
 
     const payload = {
       ...sessionPayload,
@@ -1692,32 +1866,25 @@ const TicketForm = ({
       nCustomerId:
         Number(values.CustomerId ?? selectedCustomerId ?? 0) || 0,
       cCustomerName: selectedCustomerName ?? values.CustomerName ?? "",
-      nSourceId:
-        Number(values.Source ?? values.SourceId ?? sessionPayload.nSourceId ?? 0) || 0,
+      nSourceId: normalizedSourceId,
       cContactPerson: values.ContactPerson ?? "",
       cContactNumber: values.ContactNo ?? values.ContactNumber ?? "",
       cEmail: values.Email ?? "",
       cTicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
       cDescription: values.Description ?? "",
-      cAssignedId: selectedAssignAgentDetails,
+      cAssignedId: normalizedAssignedAgents,
+      Status: values.Status ?? values.TicketStatus ?? "Open",
+      TicketStatus: values.TicketStatus ?? values.Status ?? "Open",
       nTicketStatus:
         Number(
           values.TicketStatus ??
             values.nTicketStatus ??
             sessionPayload.nTicketStatus ??
-            5
-        ) || 5,
-      nAssetId:
-        Number(values.AssetId ?? values.nAssetId ?? sessionPayload.nAssetId ?? 0) || 0,
-      nPriority:
-        Number(
-          values.nPriority ??
-            sessionPayload.nPriority ??
-            values.Priority ??
             1
         ) || 1,
-      nGroupId:
-        Number(values.Group ?? values.GroupId ?? values.nGroupId ?? sessionPayload.nGroupId ?? 0) || 0,
+      nAssetId:
+        Number(values.AssetId ?? values.nAssetId ?? sessionPayload.nAssetId ?? 0) || 0,
+      nPriority: normalizedPriority,
       bOnSite: Boolean(values.OnsiteRequired ?? values.bOnSite),
       dFollowupDate: normalizedFollowupDate ?? "",
       TicketId: ticketId,
@@ -1725,24 +1892,147 @@ const TicketForm = ({
       FollowupDate: normalizedFollowupDate,
     };
 
+    if (normalizedGroupId > 0) {
+      payload.nGroupId = normalizedGroupId;
+      payload.dAssignedDate = assignedDateTime;
+      payload.dassigneddate = assignedDateTime;
+    }
+
+    if (normalizedAssignedAgents.length > 0) {
+      payload.dAssignedDate = assignedDateTime;
+      payload.dassigneddate = assignedDateTime;
+    }
+
     const mutation = isEdit
       ? updateTicket
       : createTicket;
 
     mutation.mutate(payload as any, {
-      onSuccess: () => {
-        window.sessionStorage.removeItem(
-          TICKET_DRAFT_STORAGE_KEY
-        );
+      onSuccess: async (response: any) => {
+        const hasAssignedAgent = normalizedAssignedAgents.length > 0;
+        const hasGroup = normalizedGroupId > 0;
+        const targetTab =
+          hasAssignedAgent || hasGroup ? "ONGOING" : "CREATED";
+        const savedTicketId =
+          Number(
+            response?.nTicketId ??
+              0
+          ) || undefined;
+
+        if (savedTicketId && fileList.length > 0) {
+          const uploadPromises = fileList
+            .map((file) => file.originFileObj)
+            .filter(Boolean)
+            .map((file) => {
+              const formData = new FormData();
+
+              formData.append("file", file as Blob);
+              formData.append("TicketId", String(savedTicketId));
+              formData.append("nTicketId", String(savedTicketId));
+              formData.append(
+                "nCompanyId",
+                String(sessionPayload.nCompanyId ?? 0)
+              );
+              formData.append(
+                "cDbName",
+                String(sessionPayload.cDbName ?? "")
+              );
+              formData.append(
+                "cSchemaName",
+                String(sessionPayload.cSchemaName ?? "")
+              );
+              formData.append(
+                "nModifiedBy",
+                String(sessionPayload.nModifiedBy ?? 0)
+              );
+
+              return uploadTicketAttachment.mutateAsync(formData as any);
+            });
+
+          await Promise.allSettled(uploadPromises);
+        }
+
+        const savedTicketRecord = {
+          ...payload,
+          ...response,
+
+          nTicketId:
+            savedTicketId ??
+            payload.TicketId ??
+            response?.nTicketId ??
+            response?.ticketId,
+          TicketNo:
+            response?.TicketNo ??
+            response?.nTicketNo ??
+            response?.ticketNo ??
+            savedTicketId,
+          nTicketNo:
+            response?.nTicketNo ??
+            response?.TicketNo ??
+            response?.ticketNo ??
+            savedTicketId,
+          CustomerName: selectedCustomerName ?? values.CustomerName ?? "",
+          cCustomerName: selectedCustomerName ?? values.CustomerName ?? "",
+          TicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
+          cTicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
+          Description: values.Description ?? "",
+          cDescription: values.Description ?? "",
+          ContactPerson: values.ContactPerson ?? "",
+          cContactPerson: values.ContactPerson ?? "",
+          ContactNo: values.ContactNo ?? values.ContactNumber ?? "",
+          cContactNumber: values.ContactNo ?? values.ContactNumber ?? "",
+          Email: values.Email ?? "",
+          cEmail: values.Email ?? "",
+          Priority: values.Priority ?? "Medium",
+          nPriority: normalizedPriority,
+          SourceName: normalizedSourceLabel,
+          Source: normalizedSourceId,
+          nSourceId: normalizedSourceId,
+          FollowupDate: normalizedFollowupDate ?? "",
+          dFollowupDate: normalizedFollowupDate ?? "",
+          nGroupId: normalizedGroupId,
+          cAssignedId: normalizedAssignedAgents,
+          TicketStatus: values.TicketStatus ?? values.Status ?? "Open",
+          Status: values.Status ?? values.TicketStatus ?? "Open",
+          nTicketStatus:
+            Number(values.nTicketStatus ?? payload.nTicketStatus ?? 1) || 1,
+          attachments: fileList.map((file, index) => ({
+            uid: file.uid ?? `file-${index}`,
+            name: file.name ?? `attachment-${index + 1}`,
+            cFileName: file.name ?? `attachment-${index + 1}`,
+            cUrl: file.url ?? file.thumbUrl ?? "",
+            cFilePath: file.url ?? file.thumbUrl ?? "",
+            url: file.url ?? file.thumbUrl ?? "",
+            thumbUrl: file.thumbUrl ?? file.url ?? "",
+          })),
+          files: fileList.map((file, index) => ({
+            uid: file.uid ?? `file-${index}`,
+            name: file.name ?? `attachment-${index + 1}`,
+            cFileName: file.name ?? `attachment-${index + 1}`,
+            cUrl: file.url ?? file.thumbUrl ?? "",
+            cFilePath: file.url ?? file.thumbUrl ?? "",
+            url: file.url ?? file.thumbUrl ?? "",
+            thumbUrl: file.thumbUrl ?? file.url ?? "",
+          })),
+        };
+
         message.success(
           isEdit
             ? "Ticket updated"
             : "Ticket created"
         );
-        navigate("/tickets");
+        window.setTimeout(() => {
+          navigate("/tickets", {
+            state: {
+              activeTab: targetTab,
+              savedTicketResponse: response,
+              savedTicketRecord,
+            },
+          });
+        }, 600);
       },
       onError: (error: any) =>
-        message.error(
+        toast.error(
           error?.response?.data?.message ||
             error?.message ||
             "Unable to save ticket"
@@ -1802,7 +2092,7 @@ const TicketForm = ({
           customerForm.resetFields();
         },
         onError: (error: any) =>
-          message.error(
+          toast.error(
             error?.response?.data?.message ||
               error?.message ||
               "Unable to save customer"
@@ -1852,7 +2142,7 @@ const TicketForm = ({
           assetForm.resetFields();
         },
         onError: (error: any) =>
-          message.error(
+          toast.error(
             error?.response?.data?.message ||
               error?.message ||
               "Unable to save asset"
@@ -1971,7 +2261,7 @@ const TicketForm = ({
         },
       });
     } catch (error: any) {
-      message.error(
+      toast.error(
         error?.response?.data?.message ||
           error?.message ||
           "Unable to load customer tickets"
@@ -1981,42 +2271,19 @@ const TicketForm = ({
 
   return (
     <div className="ticket-create-shell flex-1">
-      {showFollowupBanner && followupSourceTicket && (
-        <div className="flex items-start justify-between  px-4 py-3 text-[13px] font-medium text-slate-800 shadow-[inset_0_-1px_0_0_#e2e8f0]">
-          <div className="flex flex-col gap-1">
-            <div className="text-[14px] font-semibold text-sky-900">
-              Follow-up for Ticket #{followupSourceTicket.nTicketId || followupSourceTicket.ticketId || followupSourceTicket.TicketId}
-            </div>
-            {followupSourceTicket.summary && (
-              <div>
-                <span className="text-slate-500">Original Summary:</span> {followupSourceTicket.summary}
-              </div>
-            )}
-            {followupSourceTicket.description && (
-              <div>
-                <span className="text-slate-500">Original Description:</span> {followupSourceTicket.description}
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowFollowupBanner(false)}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-sky-100 hover:text-slate-800"
-          >
-            <CloseOutlined className="text-[12px]" />
-          </button>
-        </div>
-      )}
-
       <div className="ticket-create-header text-[18px] font-semibold leading-none">
-        <h2>Create New Ticket</h2>
+        <h2 className="text-2xl font-medium leading-none text-slate-900" >Create New Ticket</h2>
+         <div className="text-[14px] font-medium text-gray-500 ">
+            TicketId : {followupSourceTicket.nTicketId },{followupSourceTicket.cViewSummary}
+            </div>
         <Button
           type="text"
           icon={<CloseOutlined className="text-lg text-slate-500" />}
           onClick={() => navigate("/tickets")}
         />
-      </div>
+      </div> 
 
+      
       <Form
         form={form}
         layout="vertical"
@@ -2086,10 +2353,10 @@ const TicketForm = ({
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
-                    className="ticket-search-button !h-full !w-10 border-0 !rounded-l-none !rounded-r-md m-0"
+                    className="ticket-search-button !h-7 !w-9 border-0 !rounded-l-none !rounded-r-md m-0"
                     onClick={() => {
                       setCustomerDropdownOpen(false);
-                      setCustomerPickerOpen(true);
+                      setCustomerPickerOpen(true); 
                     }}
                   />
                 }
@@ -2115,7 +2382,7 @@ const TicketForm = ({
                           <button
                             type="button"
                             key={`${id}-${index}`}
-                            className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-sky-50"
+                            className=" flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-sky-50"
                             onClick={() => {
                               handleCustomerSelect(id);
                               setCustomerDropdownOpen(false);
@@ -2185,9 +2452,8 @@ const TicketForm = ({
                     onClick={() => {
                       setAssetDropdownOpen(false);
                       setAssetOpen(true);
-                    }}
-                  >
-                    Add New Asset +
+                    }}>
+                  Link Asset +
                   </button>
                 </div>
               }
@@ -2200,7 +2466,7 @@ const TicketForm = ({
                     <Button
                       type="primary"
                       icon={<SearchOutlined />}
-                      className="ticket-search-button !h-full !w-10 border-0 !rounded-l-none !rounded-r-md m-0"
+                      className="ticket-search-button !h-7 !w-10 border-0 !rounded-l-none !rounded-r-md m-0"
                       onClick={() => {
                         setAssetDropdownOpen(false);
                         setAssetPickerTarget("ticket");
@@ -2391,7 +2657,7 @@ const TicketForm = ({
               <Form.Item
                 label="Follow up Date & Time"
                 name="FollowupDate"
-                className="flex-1 max-w-[240px]"
+                className="flex-1 max-w-[380px]"
               >
                 <FollowupDateTimePicker />
               </Form.Item>
@@ -2433,8 +2699,8 @@ const TicketForm = ({
                   value={assignAgentDisplayName}
                   placeholder="Select agent"
                   onClick={() => {
-                    const currentAgentId = String(
-                      form.getFieldValue("AssignToAgent") ?? ""
+                    const currentAgentId = normalizeSelectionValue(
+                      form.getFieldValue("AssignToAgent")
                     );
                     setPendingAssignAgentIds(
                       currentAgentId ? [currentAgentId] : []
@@ -2443,8 +2709,8 @@ const TicketForm = ({
                     setAssignAgentDropdownOpen(true);
                   }}
                   onFocus={() => {
-                    const currentAgentId = String(
-                      form.getFieldValue("AssignToAgent") ?? ""
+                    const currentAgentId = normalizeSelectionValue(
+                      form.getFieldValue("AssignToAgent")
                     );
                     setPendingAssignAgentIds(
                       currentAgentId ? [currentAgentId] : []
@@ -2457,8 +2723,8 @@ const TicketForm = ({
                       type="button"
                       className="ticket-agent-trigger"
                       onClick={() => {
-                        const currentAgentId = String(
-                          form.getFieldValue("AssignToAgent") ?? ""
+                        const currentAgentId = normalizeSelectionValue(
+                          form.getFieldValue("AssignToAgent")
                         );
                         setPendingAssignAgentIds(
                           currentAgentId ? [currentAgentId] : []
@@ -2622,8 +2888,9 @@ const TicketForm = ({
                             return;
                           }
 
-                          const selectedId =
-                            pendingAssignAgentIds[0] ?? "";
+                          const selectedId = normalizeSelectionValue(
+                            pendingAssignAgentIds[0] ?? ""
+                          );
 
                           if (selectedId) {
                             form.setFieldValue(
@@ -2722,15 +2989,7 @@ const TicketForm = ({
               <Button
                 type="primary"
                 htmlType="submit"
-                loading={
-                  createTicket.isPending ||
-                  updateTicket.isPending
-                }
-                disabled={
-                  !canSaveTicket ||
-                  createTicket.isPending ||
-                  updateTicket.isPending
-                }
+              
                 className="ticket-right-save bg-emerald-500 border-emerald-500 hover:!bg-emerald-600"
               >
                 {isEdit ? "Update" : "Save"}
@@ -2766,10 +3025,16 @@ const TicketForm = ({
             <Button
               className="ticket-agent-ok"
               onClick={() => {
-                if (pendingLeaderAssignAgentId) {
+                if (
+                  normalizeSelectionValue(
+                    pendingLeaderAssignAgentId
+                  )
+                ) {
                   form.setFieldValue(
                     "AssignToAgent",
-                    pendingLeaderAssignAgentId
+                    normalizeSelectionValue(
+                      pendingLeaderAssignAgentId
+                    )
                   );
                 }
 

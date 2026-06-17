@@ -63,6 +63,90 @@ const getRows = (response: any) => {
   return [];
 };
 
+const getSavedTicketRows = (response: any) => {
+  const directRows = getRows(response);
+
+  if (directRows.length) {
+    return directRows;
+  }
+
+  const candidates = [
+    response?.result,
+    response?.Result,
+    response?.message,
+    response?.Message,
+    response?.data?.result,
+    response?.data?.Result,
+    response?.data?.message,
+    response?.data?.Message,
+    response,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate || Array.isArray(candidate)) {
+      continue;
+    }
+
+    const ticketId =
+      candidate?.nTicketId ??
+      candidate?.TicketId ??
+      candidate?.ticketId ??
+      candidate?.nTicketNo ??
+      candidate?.TicketNo;
+
+    if (ticketId !== undefined && ticketId !== null && ticketId !== "") {
+      return [candidate];
+    }
+  }
+
+  return [];
+};
+
+const mergeSavedRows = (
+  rows: any[],
+  savedResponse: any,
+  savedRecord?: any
+) => {
+  const savedRows = savedRecord
+    ? [savedRecord]
+    : getSavedTicketRows(savedResponse);
+
+  if (!savedRows.length) {
+    return rows;
+  }
+
+  const rowIds = new Set(
+    rows.map((record: any) =>
+      String(
+        getFieldValue(record, [
+          "TicketId",
+          "nTicketId",
+          "ticketId",
+          "TicketNo",
+          "nTicketNo",
+        ])
+      )
+    )
+  );
+
+  const missingSavedRows = savedRows.filter(
+    (record: any) =>
+      !rowIds.has(
+        String(
+          getFieldValue(record, [
+            "TicketId",
+            "nTicketId",
+            "ticketId",
+            "TicketNo",
+            "nTicketNo",
+          ])
+        )
+      )
+  );
+
+  return [...missingSavedRows, ...rows];
+};
+
 const getFieldValue = (record: any, keys: string[]) => {
   for (const key of keys) {
     if (record?.[key] !== undefined && record?.[key] !== null) {
@@ -221,6 +305,30 @@ const ticketTabs = [
   { key: "CREATED", label: "Created Tickets" },
 ];
 
+const isValidTicketTab = (value: unknown): value is string =>
+  ticketTabs.some((tab) => tab.key === value);
+
+const tabToViewSource = (tab: string) => {
+  switch (tab) {
+    case "ONGOING":
+      return "ongoing";
+    case "UPCOMING":
+      return "upcoming";
+    case "UNASSIGNED":
+      return "unassigned";
+    case "OVERDUE":
+      return "overdue";
+    case "CREATED":
+      return "created";
+    case "POSTPONED":
+      return "postponed";
+    case "CLOSED":
+      return "closed";
+    default:
+      return "ticket";
+  }
+};
+
 const priorityOptions = [
   "Very Low",
   "Low",
@@ -280,7 +388,11 @@ const TicketList = () => {
     Boolean(locationState.openQuickCall)
   );
 
-  const [activeTab, setActiveTab] = useState("ONGOING");
+  const [activeTab, setActiveTab] = useState(
+    isValidTicketTab(locationState.activeTab)
+      ? locationState.activeTab
+      : "ONGOING"
+  );
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterStage, setFilterStage] = useState<string | null>(null);
@@ -305,6 +417,12 @@ const TicketList = () => {
       setQuickCallOpen(true);
     }
   }, [locationState.openQuickCall, quickCallTicketId]);
+
+  useEffect(() => {
+    if (isValidTicketTab(locationState.activeTab)) {
+      setActiveTab(locationState.activeTab);
+    }
+  }, [locationState.activeTab]);
 
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -352,7 +470,11 @@ const TicketList = () => {
   const getTableData = () => {
     switch (activeTab) {
       case "ONGOING":
-        return getRows(ongoing.data);
+        return mergeSavedRows(
+          getRows(ongoing.data),
+          locationState.savedTicketResponse,
+          locationState.savedTicketRecord
+        );
       case "UPCOMING":
         return getRows(upcoming.data);
       case "UNASSIGNED":
@@ -371,7 +493,11 @@ const TicketList = () => {
       case "POSTPONED":
         return getRows(postponed.data);
       case "CREATED":
-        return getRows(created.data);
+        return mergeSavedRows(
+          getRows(created.data),
+          locationState.savedTicketResponse,
+          locationState.savedTicketRecord
+        );
       default:
         return [];
     }
@@ -928,20 +1054,12 @@ const TicketList = () => {
               onClick: () => {
                 const ticketId = getTicketIdValue(record);
                 if (ticketId) {
-                  const isOngoing =
-                    activeTab === "ONGOING" ||
-                    getTicketStatusText(record).includes("ongoing");
-
-                  navigate(
-                    isOngoing
-                      ? `/tickets/view/${ticketId}`
-                      : `/tickets/followup/${ticketId}`,
-                    {
-                      state: {
-                        selectedRow: record,
-                      },
-                    }
-                  );
+                  navigate(`/tickets/view/${ticketId}`, {
+                    state: {
+                      selectedRow: record,
+                      isFrom: tabToViewSource(activeTab),
+                    },
+                  });
                 }
               },
               style: { cursor: "pointer" },

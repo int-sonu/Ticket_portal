@@ -16,6 +16,8 @@ const TicketCreate = () => {
     Priority: "Medium",
     IssueSummary: "",
     Status: "Open",
+    Group: undefined,
+    AssignToAgent: undefined,
   };
 
   return (

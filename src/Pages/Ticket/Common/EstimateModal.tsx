@@ -108,7 +108,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
     setItems(newItems);
   };
 
-  const totalValue = items.reduce((sum, item) => sum + (item.value || 0), 0);
+  const totalValue = items.reduce((sum, item) => sum + (item.total || 0), 0);
   const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0);
   const totalTax = items.reduce((sum, item) => sum + (item.tax || 0), 0);
   const totalAmount = items.reduce((sum, item) => sum + (item.total || 0), 0);

@@ -302,14 +302,14 @@ const TicketOverviewSection = ({
   return (
     <Spin spinning={isLoading}>
       <div className="relative z-10 flex min-h-0 w-full flex-col pb-3 sm:pb-5">
-        <div className="flex min-h-0 w-full flex-col bg-white pb-3">
-          <div className="sticky top-0 z-20 flex w-full items-end rounded-tr-2xl border border-slate-200 bg-white">
+        <div className="rounded-tl-2xl flex min-h-0 w-full flex-col bg-white pb-3">
+          <div className="rounded-tl-2xl sticky top-0 z-20 flex w-full items-end rounded-tr-2xl border border-slate-200 bg-white">
             <button
               type="button"
               onClick={() => onTabChange("details")}
               className={`px-4 py-2 text-center text-base font-medium ${
                 activeTab === "details"
-                  ? "bg-sky-500 text-white"
+                  ? "bg-sky-500 rounded-tl-2xl text-white"
                   : "bg-slate-50 text-black hover:bg-slate-100"
               }`}
             >

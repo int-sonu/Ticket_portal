@@ -23,6 +23,7 @@ const TicketListTable = ({
   const { deleteTicket } =
     useTicketMutations();
 
+    
   const handleDelete = (
     record: any
   ) => {
@@ -49,6 +50,26 @@ const TicketListTable = ({
     )
       .toLowerCase()
       .includes("ongoing");
+
+  const getViewSource = (record: any) => {
+    if (isOngoingTicket(record)) return "ongoing";
+
+    const status = String(
+      record?.Status ??
+        record?.StatusName ??
+        record?.TicketStatus ??
+        record?.TicketStatusName ??
+        ""
+    ).toLowerCase();
+
+    if (status.includes("unassigned")) return "unassigned";
+    if (status.includes("upcoming")) return "upcoming";
+    if (status.includes("overdue")) return "overdue";
+    if (status.includes("postponed")) return "postponed";
+    if (status.includes("created")) return "created";
+
+    return "ticket";
+  };
 
   const columns = [
     {
@@ -95,16 +116,12 @@ const TicketListTable = ({
               size="small"
               disabled={!ticketId}
               onClick={() =>
-                navigate(
-                  isOngoingTicket(record)
-                    ? `/tickets/view/${ticketId}`
-                    : `/tickets/followup/${ticketId}`,
-                  {
+                navigate(`/tickets/view/${ticketId}`, {
                   state: {
                     selectedRow: record,
+                    isFrom: getViewSource(record),
                   },
-                  }
-                )
+                })
               }
             >
               View
@@ -114,18 +131,14 @@ const TicketListTable = ({
               size="small"
               disabled={!ticketId}
               onClick={() =>
-                navigate(
-                  isOngoingTicket(record)
-                    ? `/tickets/view/${ticketId}`
-                    : `/tickets/followup/${ticketId}`,
-                  {
+                navigate(`/tickets/view/${ticketId}`, {
                   state: {
                     selectedRow: record,
+                    isFrom: getViewSource(record),
                     openQuickCall: true,
                     quickCallTicketValues: record,
                   },
-                  }
-                )
+                })
               }
             >
               Quick Call
