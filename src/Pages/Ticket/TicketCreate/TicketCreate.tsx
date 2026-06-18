@@ -7,7 +7,11 @@ const TicketCreate = () => {
 
   const locationState =
     (location.state as
-      | { draftValues?: Record<string, any>; followupSourceTicket?: any }
+      | {
+          draftValues?: Record<string, any>;
+          followupSourceTicket?: any;
+          selectedRow?: Record<string, any>;
+        }
       | null) ?? {};
 
   const initialValues = {
@@ -20,14 +24,21 @@ const TicketCreate = () => {
     AssignToAgent: undefined,
   };
 
+  const mergedInitialValues = {
+    ...initialValues,
+    ...(locationState.selectedRow ?? {}),
+    ...(locationState.draftValues ?? {}),
+  };
+
+  if (locationState.followupSourceTicket) {
+    delete mergedInitialValues.IssueSummary;
+    delete mergedInitialValues.TicketSummary;
+    delete mergedInitialValues.cTicketSummary;
+  }
+
   return (
     <TicketForm
-      initialValues={
-        {
-          ...initialValues,
-          ...(locationState.draftValues ?? {}),
-        }
-      }
+      initialValues={mergedInitialValues}
       followupSourceTicket={locationState.followupSourceTicket}
       isEdit={false}
     />

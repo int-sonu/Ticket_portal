@@ -41,6 +41,7 @@ type TicketViewState = {
   assignedAgentDetails?: any[];
   openQuickCall?: boolean;
   isFrom?: string;
+  activeTab?: "details" | "history" | "files";
 };
 
 const getFieldValue = (record: any, keys: string[]) => {
@@ -601,9 +602,13 @@ const TicketView = () => {
       ? "Follow Up"
       : "Ticket";
 
-  const showFollowupAction = isFollowupPage && isFromCustomer;
+  const showFollowupAction = state.isFrom === "followup";
   const [activeTab, setActiveTab] = useState<"details" | "history" | "files">(
-    "details",
+    state.activeTab === "history" ||
+      state.activeTab === "files" ||
+      state.activeTab === "details"
+      ? state.activeTab
+      : "details",
   );
   const [quickCallOpen, setQuickCallOpen] = useState(
     Boolean(state.openQuickCall),
@@ -1223,6 +1228,7 @@ const TicketView = () => {
           onFollowUpClick={() => {
             navigate("/tickets/create", {
               state: {
+                selectedRow: resolvedRecord,
                 followupSourceTicket: {
                   nTicketId: ticketId,
                   cViewSummary: summary || description || "Follow up ticket",

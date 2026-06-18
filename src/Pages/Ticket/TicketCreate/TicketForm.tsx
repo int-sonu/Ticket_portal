@@ -512,6 +512,25 @@ const TicketForm = ({
     x: number;
     y: number;
   } | null>(null);
+  const pageTitle = followupSourceTicket
+    ? "Created Ticket"
+    : isEdit
+      ? "Edit Ticket"
+      : "Create New Ticket";
+  const pageSubtitle = followupSourceTicket
+    ? `Ticket Id : ${followupSourceTicket.nTicketId}, ${followupSourceTicket.cViewSummary}`
+    : "";
+  const followupSummaryText =
+    followupSourceTicket?.summary ??
+    followupSourceTicket?.cViewSummary ??
+    initialValues?.IssueSummary ??
+    initialValues?.TicketSummary ??
+    "";
+  const followupDescriptionText =
+    followupSourceTicket?.description ??
+    initialValues?.Description ??
+    initialValues?.cDescription ??
+    "";
 
   const paintEditorCanvas = (sourceUrl: string) => {
     const canvas = editorCanvasRef.current;
@@ -2318,13 +2337,17 @@ const TicketForm = ({
 
   return (
     <div className="ticket-create-shell flex-1">
-      <div className="ticket-create-header text-[18px] font-semibold leading-none">
-        <h2 className="text-2xl font-medium leading-none text-slate-900" >Create New Ticket</h2>
-         {followupSourceTicket && (
-            <div className="text-[14px] font-medium text-gray-500 ">
-              TicketId : {followupSourceTicket.nTicketId}, {followupSourceTicket.cViewSummary}
-            </div>
-         )}
+      <div className="ticket-create-header">
+        <div className="ticket-create-header__titleline">
+          <h2>
+            {pageTitle}
+            {pageSubtitle ? (
+              <span className="ticket-create-header__subtitle-inline">
+                {` (${pageSubtitle})`}
+              </span>
+            ) : null}
+          </h2>
+        </div>
         <Button
           type="text"
           icon={<CloseOutlined className="text-lg text-slate-500" />}
@@ -2347,9 +2370,9 @@ const TicketForm = ({
         className="ticket-create-form"
         onFinish={handleSubmit}
       >
-        <div className="ticket-create-grid min-h-0 overflow-visible">
+        <div className="ticket-create-grid ticket-create-grid--ticket min-h-0 overflow-visible">
           <section
-            className="flex min-h-0 flex-col overflow-visible border-r border-slate-200 px-4 pb-2 lg:h-full"
+            className="ticket-create-left flex min-h-0 flex-col overflow-visible border-r border-slate-200 px-4 pb-2 lg:h-full"
           >
             <div className="-mx-4 mt-0 mb-1 w-[calc(100%+2rem)] bg-sky-50 px-4 pt-0 pb-0 sm:mx-0 sm:w-full">
               <Form.Item
@@ -2477,12 +2500,29 @@ const TicketForm = ({
               </Form.Item>
             </div>
 
-            <Form.Item
-              label="Ticket Summary"
-              name="IssueSummary"
-            >
-              <Input />
-            </Form.Item>
+            {followupSourceTicket ? (
+              <div className="mb-1 space-y-1 text-[12px] leading-5 text-slate-700">
+                <div>
+                  <span className="font-medium text-slate-900">
+                    Ticket Summary:
+                  </span>{" "}
+                  {followupSummaryText || "-"}
+                </div>
+                <div>
+                  <span className="font-medium text-slate-900">
+                    Ticket Description:
+                  </span>{" "}
+                  {followupDescriptionText || "-"}
+                </div>
+              </div>
+            ) : (
+              <Form.Item
+                label="Ticket Summary"
+                name="IssueSummary"
+              >
+                <Input />
+              </Form.Item>
+            )}
 
             <Form.Item
               label="Description"
@@ -2701,8 +2741,8 @@ const TicketForm = ({
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-col overflow-visible bg-white px-4 pb-2 lg:h-2px">
-            <div className="flex flex-row items-end gap-2">
+          <section className="ticket-create-right flex min-h-0 flex-col overflow-visible bg-white px-4 pb-2 lg:h-full">
+            <div className="flex flex-row items-start gap-2">
               <Form.Item
                 label="Follow up Date & Time"
                 name="FollowupDate"
@@ -2714,7 +2754,7 @@ const TicketForm = ({
               <Form.Item
                 name="OnsiteRequired"
                 valuePropName="checked"
-                className="mb-0 pb-1.5"
+                className="mb-0 self-start pt-8"
               >
                 <Checkbox className="inline-flex items-center whitespace-nowrap">
                   Onsite Required
@@ -2974,7 +3014,7 @@ const TicketForm = ({
     className="w-full"
   >
     <Button
-      className="ticket-upload-btn flex items-center justify-center gap-6 w-full"
+      className="ticket-upload-btn flex w-full items-center justify-center gap-3"
       icon={<UploadOutlined />}
     >
       Upload Files

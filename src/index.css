@@ -449,7 +449,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .ticket-create-shell {
   display: flex;
   flex-direction: column;
-  height: calc(100vh-350px);
+  height: calc(100vh - 96px);
   min-height: 0;
   width: 100%;
   overflow: hidden;
@@ -461,17 +461,34 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 4px;
+  gap: 16px;
+  padding: 0 0 8px;
   flex-shrink: 0;
   margin-top: 8px;
 }
 
+.ticket-create-header__titleline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
 .ticket-create-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 500;
   color: #0f172a;
-  margin-top: 8px;
+  line-height: 1.1;
+}
+
+.ticket-create-header__subtitle-inline {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .ticket-create-form {
@@ -570,6 +587,18 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   overflow: visible;
 }
 
+.ticket-create-grid--ticket {
+  gap: 0;
+}
+
+.ticket-create-left {
+  padding-right: 18px;
+}
+
+.ticket-create-right {
+  padding-left: 18px;
+}
+
 @media (max-width: 992px) {
   .ticket-create-grid {
     grid-template-columns: 1fr;
@@ -593,13 +622,40 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-upload-btn {
-  width: 405%;
+  width: 100%;
   min-width: 0;
   border-color: #0284c7 !important;
   color: #0284c7 !important;
   height: 32px !important;
   border-radius: 3px !important;
   display: flex;
+  justify-content: center;
+}
+
+.ticket-right-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+
+.ticket-create-right .ticket-quick-call {
+  margin-top: 8px;
+}
+
+.ticket-create-form .ant-upload-wrapper .ant-upload-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.ticket-create-form .ant-upload-wrapper .ant-upload-list .ant-upload-list-item {
+  width: 110px;
+  flex: 0 0 110px;
+}
+
+.ticket-create-form .ant-upload-wrapper .ant-upload-list-picture {
+  margin-top: 10px;
 }
 
 .ticket-create-form .ant-upload-wrapper .ant-upload-list-picture-card {
@@ -1463,7 +1519,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   }
 
   .ticket-create-header h2 {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .ticket-create-grid {

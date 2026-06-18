@@ -257,12 +257,111 @@ const CustomerTickets = () => {
     });
   };
 
+  const openFollowUpForm = (record: any) => {
+    const ticketId = getTicketIdValue(record);
+
+    if (!ticketId) return;
+
+    const customerIdValue =
+      getFieldValue(record, ["nCustomerId", "CustomerId", "customerId"]) ||
+      customerId;
+    const customerNameValue =
+      getFieldValue(record, ["CustomerName", "cCustomerName", "Customer"]) ||
+      resolvedCustomerName;
+    const contactPersonValue = getFieldValue(record, [
+      "ContactPerson",
+      "cContactPerson",
+    ]);
+    const contactNoValue = getFieldValue(record, [
+      "ContactNo",
+      "cContactNumber",
+      "ContactNumber",
+    ]);
+    const emailValue = getFieldValue(record, ["Email", "cEmail"]);
+    const summaryValue =
+      getFieldValue(record, [
+        "TicketSummary",
+        "cTicketSummary",
+        "cSummary",
+        "cDescription",
+      ]) || "";
+    const descriptionValue =
+      getFieldValue(record, [
+        "Description",
+        "cDescription",
+        "TicketDescription",
+      ]) || summaryValue;
+    const priorityValue = getFieldValue(record, [
+      "Priority",
+      "PriorityName",
+      "cPriority",
+      "cPriorityName",
+    ]);
+    const groupValue = getFieldValue(record, ["nGroupId", "GroupId", "Group"]);
+    const serviceTypeValue = getFieldValue(record, [
+      "nServiceType",
+      "ServiceType",
+      "ServiceTypeId",
+      "nServiceTypeId",
+    ]);
+    const sourceValue = getFieldValue(record, [
+      "nSourceId",
+      "Source",
+      "SourceId",
+      "TicketSourceId",
+    ]);
+    const assetIdValue = getFieldValue(record, [
+      "nAssetId",
+      "AssetId",
+      "assetId",
+    ]);
+    const assetNameValue = getFieldValue(record, [
+      "AssetName",
+      "cAssetName",
+      "assetName",
+    ]);
+
+    navigate("/tickets/create", {
+      state: {
+        selectedRow: record,
+        followupSourceTicket: {
+          nTicketId: ticketId,
+          cViewSummary: summaryValue || "Follow up ticket",
+          summary: summaryValue,
+          description: descriptionValue,
+        },
+        draftValues: {
+          CustomerId: customerIdValue,
+          CustomerName: customerNameValue,
+          ContactPerson: contactPersonValue,
+          ContactNo: contactNoValue,
+          Email: emailValue,
+          IssueSummary: summaryValue || "Follow up ticket",
+          Description: descriptionValue,
+          Priority: priorityValue || "Low",
+          Group: groupValue,
+          ServiceType: serviceTypeValue,
+          Source: sourceValue,
+          AssetId: assetIdValue,
+          AssetName: assetNameValue,
+        },
+        isFrom: "followup",
+      },
+    });
+  };
+
   const openPreviousCall = (record: any) => {
     const ticketId = getTicketIdValue(record);
 
     if (!ticketId) return;
 
-    navigate(`/tickets/history/${ticketId}`);
+    navigate(`/tickets/view/${ticketId}`, {
+      state: {
+        selectedRow: record,
+        isFrom: "history",
+        activeTab: "history",
+      },
+    });
   };
 
   const columns = useMemo(
@@ -374,7 +473,7 @@ const CustomerTickets = () => {
               }}
               onClick={(event) => {
                 event.stopPropagation();
-                openTicketView(record);
+                openFollowUpForm(record);
               }}
             >
               FollowUp
