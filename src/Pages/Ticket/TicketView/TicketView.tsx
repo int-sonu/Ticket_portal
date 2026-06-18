@@ -302,6 +302,21 @@ const resolveImageUrl = (path: string): string => {
   }
 };
 
+const parseMaybeJsonList = (value: any) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+
+  const text = value.trim();
+  if (!text) return [];
+
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const pickAttachments = (record: any) => {
   // API returns lowercase 'attachments' — add both cases
   const candidates = [
@@ -321,18 +336,22 @@ const pickAttachments = (record: any) => {
     record?.imageList,
     record?.Photos,
     record?.photos,
+    record?.cFileMappings,
     record?.data?.attachments,
     record?.data?.Attachments,
     record?.data?.Files,
     record?.data?.files,
     record?.data?.Images,
     record?.data?.images,
+    record?.data?.cFileMappings,
   ];
 
   for (const candidate of candidates) {
-    if (Array.isArray(candidate) && candidate.length > 0) {
+    const files = parseMaybeJsonList(candidate);
+
+    if (files.length > 0) {
       // Resolve relative URLs for each attachment
-      return candidate.map((file: any) => ({
+      return files.map((file: any) => ({
         ...file,
         cUrl: resolveImageUrl(
           file?.cUrl ?? file?.cFilePath ?? file?.url ?? file?.path ?? "",
@@ -563,7 +582,7 @@ const TicketView = () => {
     .toLowerCase()
     .includes("/tickets/followup/");
   const isFromCustomer = state.isFrom === "customerView";
-  const showFilesTab = state.isFrom !== "ongoing";
+  const showFilesTab = true;
   const pageHeading =
     state.isFrom === "ongoing"
       ? "Ongoing"
@@ -637,10 +656,47 @@ const TicketView = () => {
 
   const ticketData = useMemo(() => pickRecord(data), [data]);
   const resolvedRecord = useMemo(
-    () => ({
-      ...(selectedRow || {}),
-      ...(ticketData || {}),
-    }),
+    () => {
+      const merged = {
+        ...(selectedRow || {}),
+        ...(ticketData || {}),
+      };
+
+      const attachmentKeys = [
+        "attachments",
+        "Attachments",
+        "TicketAttachments",
+        "ticketAttachments",
+        "files",
+        "Files",
+        "FileList",
+        "fileList",
+        "ImageList",
+        "imageList",
+        "Photos",
+        "photos",
+        "cFileMappings",
+      ];
+
+      const hasValue = (value: any) => {
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === "string") return value.trim().length > 0;
+        return value !== undefined && value !== null && value !== "";
+      };
+
+      for (const key of attachmentKeys) {
+        const selectedValue = (selectedRow as any)?.[key];
+        const ticketValue = (ticketData as any)?.[key];
+
+        if (!hasValue(merged[key]) && hasValue(selectedValue)) {
+          merged[key] = selectedValue;
+        } else if (!hasValue(merged[key]) && hasValue(ticketValue)) {
+          merged[key] = ticketValue;
+        }
+      }
+
+      return merged;
+    },
     [selectedRow, ticketData],
   );
   const supportSessionPayload = useMemo(() => getRequestPayload(), []);
@@ -1157,8 +1213,9 @@ const TicketView = () => {
           attachments={attachments}
           createdByTeam={createdByTeam}
           alternativeContacts={alternativeContacts}
-          showFilesTab={true}
+          showFilesTab={showFilesTab}
           showFilesInDetails={true}
+          showAssetEditIcon={!isFollowupPage}
           extraRows={detailRows}
           showFollowUpAction={showFollowupAction}
           previousCallReport={detailPreviousCallReport}

@@ -15,12 +15,6 @@ const requiredTicketFields = [
   { name: "Email", label: "Email" },
   { name: "IssueSummary", label: "Issue Summary" },
   { name: "Description", label: "Description" },
-  { name: "FollowupDate", label: "Follow up Date & Time" },
-  { name: "Group", label: "Group" },
-  { name: "AssignToAgent", label: "Assign To Agent" },
-  { name: "AssetId", label: "Asset" },
-  { name: "Source", label: "Source" },
-  { name: "Priority", label: "Priority" },
 ];
 
 const requiredQuickCallFields = [
@@ -138,19 +132,8 @@ const QuickCallReportModal = ({
       ),
     ];
 
-    const sessionMissingFields = [
-      isEmptyValue(sessionPayload.nCompanyId) ? "Company" : "",
-      isEmptyValue(sessionPayload.cSchemaName) ? "Schema Name" : "",
-      isEmptyValue(sessionPayload.cDbName) ? "Database Name" : "",
-    ].filter(Boolean);
-
-    const assignedAgentMissing =
-      normalizedAssignedAgents.length === 0 ? ["Assign To Agent"] : [];
-
     const allMissingFields = [
       ...missingFields.map((field) => field.label),
-      ...sessionMissingFields,
-      ...assignedAgentMissing,
     ];
 
     if (allMissingFields.length > 0) {
@@ -240,7 +223,12 @@ const QuickCallReportModal = ({
           cCallSummary: values.Summary ?? "",
           cCallComment: values.Comment ?? "",
           nCreatedBy:
-            Number(sessionPayload.nCreatedBy ?? sessionPayload.nUserId ?? 0) ||
+            Number(
+              sessionPayload.nCreatedBy ??
+                sessionPayload.nModifiedBy ??
+                sessionPayload.nUserId ??
+                0
+            ) ||
             0,
           nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
           cSchemaName: sessionPayload.cSchemaName ?? "",

@@ -190,11 +190,12 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
             }}
             className="h-9 rounded-md px-4 text-sm font-semibold shadow-sm"
             onClick={() => {
-              navigate("/tickets/customertickets", {
+              navigate("/tickets/previoustickets", {
                 state: {
                   customerId,
                   customerName,
                   returnTo: `/tickets/view/${ticketId}`,
+                  isFrom: "history",
                   hideSkipButton: true,
                 }
               });

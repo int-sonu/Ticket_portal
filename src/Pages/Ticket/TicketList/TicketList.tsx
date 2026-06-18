@@ -1024,12 +1024,13 @@ const TicketList = () => {
               />
             </Popover>
 
-            <Button
-              type="primary"
-              onClick={() => navigate("/tickets/create")}
-            >
-              Create New Ticket
-            </Button>
+         <Button
+  type="primary"
+  className="!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-600"
+  onClick={() => navigate("/tickets/create")}
+>
+  Create New Ticket
+</Button>
           </Space>
         </div>
 

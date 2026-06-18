@@ -1,18 +1,7 @@
-import {
-  Button,
-  Card,
-  Empty,
-  Input,
-  Space,
-  Typography,
-} from "antd";
+import { Avatar, Button, Empty, Input, Space, Typography } from "antd";
 import { CloseOutlined, SearchOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useCustomerWiseActiveTicketList } from "../../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../../Utils/requestPayload";
@@ -30,10 +19,7 @@ interface CustomerTicketsLocationState {
   hideSkipButton?: boolean;
 }
 
-const getFieldValue = (
-  record: any,
-  keys: string[]
-) => {
+const getFieldValue = (record: any, keys: string[]) => {
   for (const key of keys) {
     if (record?.[key] !== undefined && record?.[key] !== null) {
       return record[key];
@@ -41,13 +27,10 @@ const getFieldValue = (
   }
 
   const recordKey = Object.keys(record || {}).find((item) =>
-    keys.some((key) => key.toLowerCase() === item.toLowerCase())
+    keys.some((key) => key.toLowerCase() === item.toLowerCase()),
   );
 
-  if (!recordKey) {
-    return "";
-  }
-
+  if (!recordKey) return "";
   return record[recordKey] ?? "";
 };
 
@@ -62,34 +45,21 @@ const parseTicketDate = (value: any) => {
   }
 
   const match = text.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-
   if (!match) return null;
 
   const [, day, month, year] = match;
-  const parsed = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day)
-  );
-
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 const formatTicketDateTime = (value: any) => {
   if (!value) {
-    return {
-      primary: "-",
-      secondary: "",
-    };
+    return { primary: "-", secondary: "" };
   }
 
   const parsed = parseTicketDate(value);
-
   if (!parsed) {
-    return {
-      primary: String(value),
-      secondary: "",
-    };
+    return { primary: String(value), secondary: "" };
   }
 
   const dateLabel = parsed
@@ -120,59 +90,14 @@ const getTicketIdValue = (record: any) =>
       "nTicketid",
       "TicketNo",
       "nTicketNo",
-    ]) || 0
+    ]) || 0,
   );
-
-const getTicketStatusValue = (record: any) =>
-  getFieldValue(record, [
-    "Status",
-    "StatusName",
-    "cStatus",
-    "cStatusName",
-    "TicketStatus",
-    "TicketStatusName",
-    "cTicketStatus",
-    "cTicketStatusName",
-    "cTicketStatusDesc",
-    "TicketStatusDesc",
-    "cStatusDesc",
-    "StatusValue",
-    "nStatus",
-    "cCurrentStatus",
-    "cCurrentStatusName",
-    "status",
-  ]) ||
-  getFieldValue(record?.status, [
-    "name",
-    "Name",
-    "statusName",
-    "StatusName",
-    "cStatusName",
-    "cTicketStatusName",
-  ]) ||
-  getFieldValue(record?.ticketStatus, [
-    "name",
-    "Name",
-    "statusName",
-    "StatusName",
-    "cStatusName",
-    "cTicketStatusName",
-  ]) ||
-  getFieldValue(record?.Status, [
-    "name",
-    "Name",
-    "statusName",
-    "StatusName",
-    "cStatusName",
-    "cTicketStatusName",
-  ]);
-
-const isOngoingTicket = (record: any) =>
-  String(getTicketStatusValue(record) ?? "").toLowerCase().includes("ongoing");
 
 const CustomerTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isPreviousTicketsRoute = location.pathname.includes("previoustickets");
+  const isCustomerTicketsRoute = location.pathname.includes("customertickets");
   const [searchParams] = useSearchParams();
 
   const [searchText, setSearchText] = useState("");
@@ -184,6 +109,7 @@ const CustomerTickets = () => {
   const prefetchedRows = locationState.ticketRows ?? [];
   const returnTo = locationState.returnTo ?? "/tickets/create";
   const hideSkipButton = locationState.hideSkipButton ?? false;
+  const shouldHideSkipButton = isPreviousTicketsRoute || hideSkipButton;
 
   const customerName =
     locationState.customerName ??
@@ -199,13 +125,21 @@ const CustomerTickets = () => {
     searchParams.get("nCustomerId") ??
     "";
 
+  const resolvedCustomerName =
+    String(customerName || locationState.customerName || "").trim() || "-";
+
+  const customerInitial = resolvedCustomerName
+    .replace(/[^a-z0-9]/gi, "")
+    .charAt(0)
+    .toUpperCase();
+
   const basePayload = useMemo(
     () => ({
       ...getRequestPayload(),
       pageNumber: 1,
       pageSize: 1000,
     }),
-    []
+    [],
   );
 
   const payload = useMemo(
@@ -219,18 +153,15 @@ const CustomerTickets = () => {
       pageNumber: 1,
       pageSize: 1000,
     }),
-    [basePayload, customerId, customerName]
+    [basePayload, customerId, customerName],
   );
 
-  const enabled =
-    Boolean(customerId || customerName) &&
-    prefetchedRows.length === 0;
+  const enabled = Boolean(customerId || customerName) && prefetchedRows.length === 0;
 
-  const {
-    data,
-    isFetching,
-    isError,
-  } = useCustomerWiseActiveTicketList(payload, enabled);
+  const { data, isFetching, isError } = useCustomerWiseActiveTicketList(
+    payload,
+    enabled,
+  );
 
   const rows = useMemo(() => {
     if (prefetchedRows.length > 0) {
@@ -267,7 +198,9 @@ const CustomerTickets = () => {
         "cPriority",
         "cPriorityName",
       ]);
-      const status = getTicketStatusValue(record);
+      const status = getFieldValue(record, [
+        "cTicketStatus",
+      ]);
 
       return [ticketNo, summary, priority, status]
         .join(" ")
@@ -283,11 +216,12 @@ const CustomerTickets = () => {
   const totalRows = filteredRows.length;
   const safeCurrentPage = Math.min(
     currentPage,
-    Math.max(1, Math.ceil(totalRows / pageSize))
+    Math.max(1, Math.ceil(totalRows / pageSize)),
   );
+
   const pagedRows = filteredRows.slice(
     (safeCurrentPage - 1) * pageSize,
-    safeCurrentPage * pageSize
+    safeCurrentPage * pageSize,
   );
 
   const handlePageChange = (page: number, size: number) => {
@@ -310,275 +244,313 @@ const CustomerTickets = () => {
     navigate(-1);
   };
 
-  const openTicketView = (record: any) => {
+  const openFollowUp = (record: any) => {
     const ticketId = getTicketIdValue(record);
 
-    if (!ticketId) {
-      return;
-    }
+    if (!ticketId) return;
 
-    navigate(
-      isOngoingTicket(record)
-        ? `/tickets/view/${ticketId}`
-        : `/tickets/followup/${ticketId}`,
-      {
-        state: {
-          selectedRow: record,
-          isFrom: !isOngoingTicket(record) ? "customerView" : "ongoing",
-        },
-      }
-    );
+    navigate(`/tickets/followup/${ticketId}`, {
+      state: {
+        selectedRow: record,
+        isFrom: "ongoing",
+      },
+    });
+  };
+
+  const openPreviousCall = (record: any) => {
+    const ticketId = getTicketIdValue(record);
+
+    if (!ticketId) return;
+
+    navigate(`/tickets/history/${ticketId}`);
   };
 
   const columns = useMemo(
-    () => [
-      {
-        title: "Srl",
-        width: 48,
-        render: (_: any, __: any, index: number) =>
-          (safeCurrentPage - 1) * pageSize + index + 1,
-      },
-      {
-        title: "Creation Date & Time",
-        width: 210,
-        render: (_: any, record: any) => {
-          const formatted = formatTicketDateTime(
-            getFieldValue(record, [
-              "CreatedDate",
-              "CreatedDateTime",
-              "CreatedOn",
-              "dCreatedDate",
-              "dCreatedOn",
-              "cDate",
-              "FollowupDate",
-              "dFollowupDate",
-            ])
-          );
-
-          return (
-            <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-              <div>{formatted.primary}</div>
-              {formatted.secondary ? (
-                <div style={{ color: "#2563eb", fontSize: 10 }}>
-                  {formatted.secondary}
-                </div>
-              ) : null}
-            </div>
-          );
+    () => {
+      const baseColumns = [
+        {
+          title: "Srl",
+          width: 48,
+          render: (_: any, __: any, index: number) =>
+            (safeCurrentPage - 1) * pageSize + index + 1,
         },
-      },
-      {
-        title: "Ticket No.",
-        width: 96,
-        render: (_: any, record: any) =>
-          String(
-            getFieldValue(record, [
-              "TicketNo",
-              "cTicketNo",
-              "cTicketNumber",
-              "nTicketNo",
-            ]) || "-"
-          ),
-      },
-      {
-        title: "Customer Name",
-        render: (_: any, record: any) =>
-          String(
-            getFieldValue(record, [
-              "CustomerName",
-              "cCustomerName",
-              "Customer",
-              "cCustomer",
-            ]) || resolvedCustomerName || "-"
-          ),
-      },
-      {
-        title: "Ticket Summary",
-        render: (_: any, record: any) => {
-          const summary =
-            getFieldValue(record, [
-              "TicketSummary",
-              "cTicketSummary",
-              "cSummary",
-              "cDescription",
-              "TicketDescription",
-            ]) || "-";
+        {
+          title: "Creation Date & Time",
+          width: 210,
+          render: (_: any, record: any) => {
+            const formatted = formatTicketDateTime(
+              getFieldValue(record, [
+                "CreatedDate",
+                "CreatedDateTime",
+                "CreatedOn",
+                "dCreatedDate",
+                "dCreatedOn",
+                "cDate",
+                "FollowupDate",
+                "dFollowupDate",
+              ]),
+            );
 
-          return (
-            <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-              {summary}
-            </div>
-          );
+            return (
+              <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                <div>{formatted.primary}</div>
+                {formatted.secondary ? (
+                  <div style={{ color: "#2563eb", fontSize: 10 }}>
+                    {formatted.secondary}
+                  </div>
+                ) : null}
+              </div>
+            );
+          },
         },
-      },
-      {
-        title: "Priority",
-        width: 88,
-        render: (_: any, record: any) =>
-          getFieldValue(record, [
-            "Priority",
-            "PriorityName",
-            "cPriority",
-            "cPriorityName",
-          ]) || "-",
-      },
-      {
-        title: "Status",
-        width: 140,
-        render: (_: any, record: any) =>
-          getTicketStatusValue(record) || "-",
-      },
-    ],
-    [navigate, pageSize, safeCurrentPage, resolvedCustomerName]
+        {
+          title: "Ticket No.",
+          width: 96,
+          render: (_: any, record: any) =>
+            String(
+              getFieldValue(record, [
+                "TicketNo",
+                "cTicketNo",
+                "cTicketNumber",
+                "nTicketNo",
+              ]) || "-",
+            ),
+        },
+        
+        {
+          title: "Ticket Summary",
+          width: 280,
+          render: (_: any, record: any) => {
+            const summary =
+              getFieldValue(record, [
+                "TicketSummary",
+                "cTicketSummary",
+                "cSummary",
+                "cDescription",
+                "TicketDescription",
+              ]) || "-";
+
+            return (
+              <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                {summary}
+              </div>
+            );
+          },
+        },
+        {
+          title: "Priority",
+          width: 88,
+          render: (_: any, record: any) =>
+            getFieldValue(record, [
+              "Priority",
+              "PriorityName",
+              "cPriority",
+              "cPriorityName",
+            ]) || "-",
+        },
+        {
+          title: "Status",
+          width: 140,
+          render: (_: any, record: any) =>
+            getFieldValue(record, [
+              
+              "cTicketStatus",
+            ]) || "-",
+        },
+      ];
+
+      if (isCustomerTicketsRoute) {
+        baseColumns.push({
+          title: "",
+          width: 124,
+          render: (_: any, record: any) => (
+            <Button
+              type="primary"
+              size="small"
+              style={{
+                minWidth: 98,
+                fontFamily:"semibold",
+                background: "#009966",
+                borderColor: "#009966",
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                openFollowUp(record);
+              }}
+            >
+              FollowUp
+            </Button>
+          ),
+        });
+      }
+
+      return baseColumns;
+    },
+    [isCustomerTicketsRoute, openFollowUp, pageSize, resolvedCustomerName, safeCurrentPage],
   );
 
-  const pageTitle = customerName
-    ? `${customerName} Tickets`
-    : "Customer Tickets";
-
   return (
-    <>
-      <Card
-      bordered={false}
-      bodyStyle={{
-        background: "#ffffff",
-        borderRadius: 8,
-        height: "100%",
+    <div
+      style={{
         display: "flex",
         flexDirection: "column",
-        padding: 14,
-        minHeight: 0,
-        boxSizing: "border-box",
+        gap: 12,
+        height: "calc(100vh - 96px)",
+        minHeight: "calc(100vh - 96px)",
       }}
+    >
+      <div
         style={{
           background: "#ffffff",
           width: "100%",
-          height: "calc(100vh - 96px)",
-          minHeight: "calc(100vh - 96px)",
-          borderRadius: 8,
-        overflow: "visible",
-        }}
-      >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
+          flex: 1,
           minHeight: 0,
-          height: "100%",
-          background: "#ffffff",
+          overflow: "hidden",
         }}
       >
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            flexDirection: "column",
             gap: 12,
-            marginBottom: 8,
-            flexWrap: "wrap",
+            minHeight: 0,
+            height: "100%",
+            background: "#ffffff",
           }}
         >
-          <Typography.Title
-            level={3}
+          <div
             style={{
-              margin: 0,
-              color: "#1f2a37",
-              fontSize: 18,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
-            {pageTitle}
-          </Typography.Title>
-
-          <Space size={10} wrap>
-            <Input
-              prefix={<SearchOutlined />}
-              placeholder="Search"
-              value={searchText}
-              onChange={(event) =>
-                setSearchText(event.target.value)
-              }
+            <Typography.Title
+              level={3}
               style={{
-                width: 280,
-                height: 28,
-                borderRadius: 8,
+                margin: 0,
+                color: "#111827",
+                fontSize: 18,
+                fontWeight: 500,
               }}
-              styles={{
-                input: {
-                  fontSize: 10,
-                },
-              }}
-            />
-
-            <Button
-              type="text"
-              icon={<CloseOutlined />}
-              onClick={goBackWithDraft}
-            />
-          </Space>
-        </div>
-
-        <div style={{ flex: 1, minHeight: 0, overflow: "visible" }}>
-          <AntTable
-            className="ticket-list-table"
-            rowKey={(record) =>
-              getFieldValue(record, [
-                "TicketId",
-                "nTicketId",
-                "nTicketid",
-                "TicketNo",
-                "nTicketNo",
-              ]) || getFieldValue(record, ["id", "ID"])
-            }
-            columns={columns as any}
-            dataSource={pagedRows}
-            loading={isFetching}
-            size="small"
-            disableHorizontalScroll
-            scroll={undefined}
-            onRow={(record) => ({
-              onClick: () => openTicketView(record),
-              style: { cursor: "pointer" },
-            })}
-            locale={{
-              emptyText: isError ? (
-                <Empty description="Unable to load customer tickets" />
-              ) : (
-                <Empty description="No tickets found" />
-              ),
-            }}
-            showPagination={false}
-          />
-        </div>
-
-        {!hideSkipButton && (
-          <div className="mt-auto flex justify-end pt-2">
-            <Button
-              type="primary"
-              style={{
-                minWidth: 78,
-                height: 38,
-                background: "#22c55e",
-                borderColor: "#22c55e",
-              }}
-              onClick={goBackWithDraft}
             >
-              Skip
-            </Button>
-          </div>
-        )}
-      </div>
-      </Card>
+              {isPreviousTicketsRoute
+                ? "Previous Tickets"
+                : `${resolvedCustomerName} Tickets`}
+            </Typography.Title>
 
-      <TicketModulePagination
-        className="mt-3"
-        current={safeCurrentPage}
-        pageSize={pageSize}
-        total={totalRows}
-        onChange={handlePageChange}
-        onShowSizeChange={handlePageChange}
-      />
-    </>
+            <Space size={8} wrap>
+              <Input
+                prefix={<SearchOutlined style={{ color: "#6b7280" }} />}
+                placeholder="Search"
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                allowClear
+                style={{
+                  width: 280,
+                  height: 30,
+                  borderRadius: 8,
+                }}
+                styles={{
+                  input: {
+                    fontSize: 12,
+                  },
+                }}
+              />
+
+              <Button
+                type="text"
+                icon={<CloseOutlined />}
+                aria-label="Close previous tickets"
+                onClick={goBackWithDraft}
+                style={{
+                  color: "#111827",
+                  fontSize: 16,
+                  width: 32,
+                  height: 32,
+                }}
+              />
+            </Space>
+          </div>
+
+          <div
+           
+          >
+           
+            
+          </div>
+
+          <div>
+            <AntTable
+              elevated={false}
+              height={300}
+              className="ticket-list-table"
+              rowKey={(record) =>
+                getFieldValue(record, [
+                  "TicketId",
+                  "nTicketId",
+                  "nTicketid",
+                  "TicketNo",
+                  "nTicketNo",
+                ]) || getFieldValue(record, ["id", "ID"])
+              }
+              columns={columns as any}
+              dataSource={pagedRows}
+              loading={isFetching}
+              size="small"
+              disableHorizontalScroll
+              tableLayout="fixed"
+              scroll={{ y: "calc(100vh - 270px)" }}
+              onRow={(record) => ({
+                onClick: () =>
+                  isCustomerTicketsRoute
+                    ? openFollowUp(record)
+                    : openPreviousCall(record),
+                style: { cursor: "pointer" },
+              })}
+              locale={{
+                emptyText: isError ? (
+                  <Empty description="Unable to load customer tickets" />
+                ) : (
+                  <Empty description="No tickets found" />
+                ),
+              }}
+              showPagination={false}
+            />
+          </div>
+
+          {!shouldHideSkipButton ? (
+            <div className="flex justify-end -pt-50 z-10">
+              <Button
+                type="primary"
+                style={{
+                  minWidth: 100,
+                  height: 38,
+                  background: "#009966",
+                  borderColor: "#009966",
+                }}
+                onClick={goBackWithDraft}
+              >
+                Skip
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="w-full -mt-20 -mb-15">
+        <TicketModulePagination
+          elevated={false}
+          current={safeCurrentPage}
+          pageSize={pageSize}
+          total={totalRows}
+          onChange={handlePageChange}
+          onShowSizeChange={handlePageChange}
+        />
+      </div>
+    </div>
   );
 };
 

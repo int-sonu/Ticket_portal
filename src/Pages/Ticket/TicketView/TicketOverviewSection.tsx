@@ -41,6 +41,7 @@ type TicketOverviewSectionProps = {
   onFollowUpClick?: () => void;
   showFilesInDetails?: boolean;
   showFilesTab?: boolean;
+  showAssetEditIcon?: boolean;
   extraRows?: Array<{
     label: string;
     value: string;
@@ -83,6 +84,7 @@ const TicketOverviewSection = ({
   onFollowUpClick,
   showFilesInDetails = true,
   showFilesTab = true,
+  showAssetEditIcon = true,
   extraRows = [],
   showFollowUpAction = true,
   previousCallReport = null,
@@ -309,7 +311,7 @@ const TicketOverviewSection = ({
     <Spin spinning={isLoading}>
       <div className="relative z-10 flex min-h-0 w-full flex-col pb-3 sm:pb-5">
         <div className="rounded-tl-2xl flex min-h-0 w-full flex-col bg-white pb-3">
-          <div className="rounded-tl-2xl sticky top-0 z-20 flex w-full items-end rounded-tr-2xl border border-slate-200 bg-white">
+          <div className="sticky top-0 z-30 flex w-full items-end rounded-tl-2xl rounded-tr-2xl border border-slate-200 bg-white">
             <button
               type="button"
               onClick={() => onTabChange("details")}
@@ -349,7 +351,7 @@ const TicketOverviewSection = ({
             ) : null}
           </div>
 
-          <div className="min-h-0 w-full pt-0">
+          <div className="relative z-0 min-h-0 w-full pt-0">
             {activeTab !== "files" ? (
               <div className="border-b border-slate-200 px-4 py-3">
                 <div className="flex items-start justify-between gap-4">
@@ -398,7 +400,7 @@ const TicketOverviewSection = ({
               </div>
             ) : null}
 
-            <div className="min-h-0 w-full flex-1 py-3 pr-4">
+            <div className="relative z-0 min-h-0 w-full flex-1 py-3 pr-4">
               {activeTab === "details" ? (
                 <>
                   <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
@@ -422,7 +424,12 @@ const TicketOverviewSection = ({
                               </div>
                               <div className="flex items-center gap-2 break-words text-sm text-slate-800">
                                 <span>{item.value || "N/A"}</span>
-                                {item.label === "Asset" && onEditAssetClick ? (
+                                {item.label === "Asset" &&
+                                showAssetEditIcon &&
+                                onEditAssetClick &&
+                                String(item.value ?? "").trim() &&
+                                String(item.value).trim().toUpperCase() !==
+                                  "N/A" ? (
                                   <button
                                     type="button"
                                     onClick={onEditAssetClick}
@@ -497,12 +504,12 @@ const TicketOverviewSection = ({
                       </div>
 
                       {alternativeContactList.length > 0 ? (
-                        <div className="rounded-xl border border-slate-200 bg-white">
-                          <div className="px-3 py-3 sm:px-4">
-                            <div className="mb-2 text-sm font-semibold text-slate-900">
+                        <div className="rounded-xl border border-slate-200 bg-white ">
+                          <div className="px-3 py-3 sm:px-4 ">
+                            <div className="mb-2 text-sm font-semibold text-slate-900 ">
                               Alternative Contacts
                             </div>
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-3 ">
                               {alternativeContactList.map(
                                 (contact: any, index: number) => {
                                   const altName =

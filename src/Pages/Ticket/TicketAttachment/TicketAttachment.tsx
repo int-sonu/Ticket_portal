@@ -39,7 +39,6 @@ export const useTicketAttachments = () => {
     useMutation({
       mutationFn:
         ticketApis.ticketAttachmentDelete,
-
       onSuccess: refreshTickets,
     });
 

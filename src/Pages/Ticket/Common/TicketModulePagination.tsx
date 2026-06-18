@@ -4,6 +4,7 @@ import type { PaginationProps } from "antd";
 type TicketModulePaginationProps = PaginationProps & {
   className?: string;
   showSizeChanger?: boolean;
+  elevated?: boolean;
 };
 
 const buildPageWindow = (current: number, maxPage: number) => {
@@ -26,6 +27,7 @@ const buildPageWindow = (current: number, maxPage: number) => {
 const TicketModulePagination = ({
   className = "",
   showSizeChanger = true,
+  elevated = true,
   ...props
 }: TicketModulePaginationProps) => {
   const total = props.total ?? 0;
@@ -55,8 +57,12 @@ const TicketModulePagination = ({
   return (
     <div className={className || "w-full"}>
       <div className="overflow-x-auto">
-        <div className="flex w-full min-w-[800px] items-center justify-between gap-4 rounded-xl border border-sky-200 bg-white px-0 py-3 text-sm text-slate-700 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
-          <div className="whitespace-nowrap">
+        <div
+          className={`flex w-full min-w-[820px] items-center justify-between gap-4 rounded-xl border border-slate-300 bg-white px-0 py-2 text-sm text-slate-700 ${
+            elevated ? "shadow-[0_4px_20px_rgba(0,0,0,0.08)]" : "shadow-none"
+          }`}
+        >
+          <div className="whitespace-nowrap px-2">
             Showing {start}-{end} of {total} entries
           </div>
 
@@ -104,7 +110,7 @@ const TicketModulePagination = ({
                 }))}
                 className="w-[68px]"
               />
-              <span>Items per page</span>
+              <span className="px-2">Items per page</span>
             </div>
           ) : null}
         </div>

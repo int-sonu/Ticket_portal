@@ -4,20 +4,20 @@
 }
 
 .ticket-list-table .ant-table {
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .ticket-list-table .ant-table-thead > tr > th {
-  padding: 7px 7px !important;
-  font-size: 10px;
+  padding: 10px 10px !important;
+  font-size: 11px;
   font-weight: 600;
   color: #060707;
   background: #fff;
 }
 
 .ticket-list-table .ant-table-tbody > tr > td {
-  padding: 8px 7px !important;
-  font-size: 10.5px;
+  padding: 11px 10px !important;
+  font-size: 11px;
   color: #0f272a;
   vertical-align: middle;
 }
@@ -37,35 +37,35 @@
 }
 
 .ticket-list-table .custom-pagination {
-  min-height: 40px;
-  padding: 7px 10px;
-  font-size: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 11px;
 }
 
 .ticket-list-table .custom-pagination__controls .ant-btn {
-  min-width: 34px;
-  height: 24px;
-  padding: 0 8px;
-  font-size: 10px;
+  min-width: 38px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
 }
 
 .ticket-list-table .custom-pagination__page {
-  min-width: 26px !important;
-  padding-inline: 8px !important;
+  min-width: 30px !important;
+  padding-inline: 10px !important;
 }
 
 .ticket-list-table .custom-pagination__select {
-  width: 52px;
+  width: 60px;
 }
 
 .ticket-list-table .custom-pagination__select .ant-select-selector {
-  height: 24px !important;
-  padding: 0 6px !important;
-  font-size: 10px;
+  height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 11px;
 }
 
 .ticket-list-table .custom-pagination__select .ant-select-selection-item {
-  line-height: 22px !important;
+  line-height: 26px !important;
 }
 
 .ticket-filter-panel {

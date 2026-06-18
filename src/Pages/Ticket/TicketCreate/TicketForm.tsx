@@ -186,23 +186,12 @@ const formatRequestDate = (date: Date) => {
   return `${year}/${month}/${day}`;
 };
 
-const formatDateTimeForApi = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
-
 const PRIORITY_VALUE_MAP: Record<string, number> = {
   "Very Low": 1,
-  Low: 2,
-  Medium: 3,
-  High: 4,
-  "Very High": 5,
+  Low: 1,
+  Medium: 2,
+  High: 3,
+  "Very High": 4,
 };
 
 const normalizeAssignedAgentPayload = (agents: any[] = []) =>
@@ -259,6 +248,55 @@ const getOptionLabelByValue = (
 
   return match?.label ?? normalizedValue;
 };
+
+const normalizeServiceTypeId = (
+  value: any
+) => {
+  const numericValue = Number(
+    value?.value ?? value?.id ?? value?.nServiceTypeId ?? value ?? 0
+  );
+
+  return Number.isFinite(numericValue) && numericValue > 0
+    ? numericValue
+    : 0;
+};
+
+const serializeFileMappings = (files: any[]) =>
+  JSON.stringify(
+    (Array.isArray(files) ? files : []).map((file, index) => ({
+      uid: file?.uid ?? `file-${index}`,
+      name: file?.name ?? `attachment-${index + 1}`,
+      cFileName: file?.name ?? `attachment-${index + 1}`,
+      cFilePath: file?.url ?? file?.thumbUrl ?? "",
+      cUrl: file?.url ?? file?.thumbUrl ?? "",
+      url: file?.url ?? file?.thumbUrl ?? "",
+      thumbUrl: file?.thumbUrl ?? file?.url ?? "",
+    }))
+  );
+
+const serializeRepairPartList = (repairParts: any[]) =>
+  JSON.stringify(
+    (Array.isArray(repairParts) ? repairParts : []).map((item, index) => ({
+      key: item?.key ?? item?.assetId ?? item?.assetName ?? index,
+      assetId: Number(item?.assetId ?? 0) || 0,
+      assetName: item?.assetName ?? "",
+      amc: Boolean(item?.amc),
+      warranty: Boolean(item?.warranty),
+      comment: item?.comment ?? "",
+      files: Array.isArray(item?.files)
+        ? item.files.map((file: any, fileIndex: number) => ({
+            uid: file?.uid ?? `repair-${index}-file-${fileIndex}`,
+            name: file?.name ?? `repair-${index + 1}-attachment-${fileIndex + 1}`,
+            cFileName:
+              file?.name ?? `repair-${index + 1}-attachment-${fileIndex + 1}`,
+            cFilePath: file?.url ?? file?.thumbUrl ?? "",
+            cUrl: file?.url ?? file?.thumbUrl ?? "",
+            url: file?.url ?? file?.thumbUrl ?? "",
+            thumbUrl: file?.thumbUrl ?? file?.url ?? "",
+          }))
+        : [],
+    }))
+  );
 
 const searchOptions = (
   options: Array<{ label: string; value: any }>,
@@ -1837,16 +1875,18 @@ const TicketForm = ({
     const normalizedPriority =
       typeof values.nPriority === "number"
         ? values.nPriority
-        : PRIORITY_VALUE_MAP[String(values.Priority ?? "").trim()] ?? 2;
+        : PRIORITY_VALUE_MAP[String(values.Priority ?? "").trim()] ?? 1;
     const normalizedSourceId = normalizeSourceId(
       values.Source ?? values.SourceId,
       ticketSourceOptions
+    );
+    const normalizedServiceTypeId = normalizeServiceTypeId(
+      values.ServiceType ?? values.nServiceType
     );
     const normalizedSourceLabel = getOptionLabelByValue(
       normalizedSourceId,
       ticketSourceOptions
     );
-    const assignedDateTime = formatDateTimeForApi(new Date());
     const normalizedGroupId =
       Number(
         values.Group ??
@@ -1859,48 +1899,54 @@ const TicketForm = ({
         ? selectedAssignAgentDetails
         : []
     );
+    const hasRepairItems = repairAssets.length > 0;
+    const cRepairPartList = serializeRepairPartList(repairAssets);
+    const cFileMappings = serializeFileMappings(fileList);
 
     const payload = {
-      ...sessionPayload,
-      ...values,
       nCustomerId:
         Number(values.CustomerId ?? selectedCustomerId ?? 0) || 0,
       cCustomerName: selectedCustomerName ?? values.CustomerName ?? "",
       nSourceId: normalizedSourceId,
+      nServiceType: normalizedServiceTypeId,
       cContactPerson: values.ContactPerson ?? "",
       cContactNumber: values.ContactNo ?? values.ContactNumber ?? "",
       cEmail: values.Email ?? "",
       cTicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
       cDescription: values.Description ?? "",
       cAssignedId: normalizedAssignedAgents,
-      Status: values.Status ?? values.TicketStatus ?? "Open",
-      TicketStatus: values.TicketStatus ?? values.Status ?? "Open",
+      bOnSite: Boolean(values.OnsiteRequired ?? values.bOnSite),
+      dFollowupDate: normalizedFollowupDate ?? "",
+      nAssetId:
+        Number(
+          values.AssetId ?? values.nAssetId ?? sessionPayload.nAssetId ?? 0
+        ) || 0,
+      nPriority: normalizedPriority,
       nTicketStatus:
         Number(
-          values.TicketStatus ??
-            values.nTicketStatus ??
+          values.nTicketStatus ??
+            values.TicketStatus ??
+            values.Status ??
             sessionPayload.nTicketStatus ??
             1
         ) || 1,
-      nAssetId:
-        Number(values.AssetId ?? values.nAssetId ?? sessionPayload.nAssetId ?? 0) || 0,
-      nPriority: normalizedPriority,
-      bOnSite: Boolean(values.OnsiteRequired ?? values.bOnSite),
-      dFollowupDate: normalizedFollowupDate ?? "",
-      TicketId: ticketId,
-      dDate: normalizedFollowupDate,
-      FollowupDate: normalizedFollowupDate,
+      bAddItemRepair: hasRepairItems,
+      cRepairPartList,
+      cFileMappings,
+      cDbName: sessionPayload.cDbName ?? "",
+      cSchemaName: sessionPayload.cSchemaName ?? "",
+      nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
     };
 
     if (normalizedGroupId > 0) {
       payload.nGroupId = normalizedGroupId;
-      payload.dAssignedDate = assignedDateTime;
-      payload.dassigneddate = assignedDateTime;
     }
 
-    if (normalizedAssignedAgents.length > 0) {
-      payload.dAssignedDate = assignedDateTime;
-      payload.dassigneddate = assignedDateTime;
+    if (isEdit) {
+      payload.TicketId = Number(ticketId ?? values.TicketId ?? 0) || 0;
+      payload.nModifiedBy = Number(sessionPayload.nModifiedBy ?? 0) || 0;
+    } else {
+      payload.nCreatedBy = Number(sessionPayload.nModifiedBy ?? 0) || 0;
     }
 
     const mutation = isEdit
@@ -1926,7 +1972,7 @@ const TicketForm = ({
             .map((file) => {
               const formData = new FormData();
 
-              formData.append("file", file as Blob);
+              formData.append("files", file as Blob);
               formData.append("TicketId", String(savedTicketId));
               formData.append("nTicketId", String(savedTicketId));
               formData.append(
@@ -2258,6 +2304,7 @@ const TicketForm = ({
           ticketRows: rows,
           draftValues: form.getFieldsValue(true),
           returnTo: `${location.pathname}${location.search}`,
+          isFrom: "created",
         },
       });
     } catch (error: any) {
@@ -2980,6 +3027,8 @@ const TicketForm = ({
                 <Button
                   type="primary"
                   block
+                    className="!bg-sky-400 !border-sky-400 hover:!bg-sky-400"
+
                   onClick={() => setQuickCallOpen(true)}
                 >
                   Quick Call Report
@@ -3763,7 +3812,7 @@ const TicketForm = ({
                 (JPEG, PNG, format, up to 10MB)
               </span>
             </p>
-            <Button type="primary" className="mt-3 bg-black hover:!bg-black">
+            <Button type="primary" className="mt-8 bg-black hover:!bg-black">
               Choose
             </Button>
           </Upload.Dragger>

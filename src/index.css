@@ -449,11 +449,12 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .ticket-create-shell {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh-350px);
   min-height: 0;
   width: 100%;
-  overflow: visible;
+  overflow: hidden;
   background: #ffffff;
+  overflow-y: auto;
 }
 
 .ticket-create-header {
@@ -534,7 +535,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   .priority-radio-group
   .ant-radio-input:focus
   + .ant-radio-inner {
-  border-color: #0284c7;
+  border-color: #53b6e7;
 }
 
 .ticket-create-form .ant-input-group-addon {

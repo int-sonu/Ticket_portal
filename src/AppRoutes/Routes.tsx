@@ -143,6 +143,11 @@ const Routes: React.FC = () => {
             />
 
             <Route
+              path="/tickets/previoustickets"
+              element={<CustomerTickets />}
+            />
+
+            <Route
               path="/tickets/agenttickets"
               element={<AssignAgentTickets />}
             />
