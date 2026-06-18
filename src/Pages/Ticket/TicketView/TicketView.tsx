@@ -581,6 +581,7 @@ const TicketView = () => {
   const isFollowupPage = location.pathname
     .toLowerCase()
     .includes("/tickets/followup/");
+  const isFollowupContext = state.isFrom === "followup";
   const isFromCustomer = state.isFrom === "customerView";
   const showFilesTab = true;
   const pageHeading =
@@ -1215,7 +1216,7 @@ const TicketView = () => {
           alternativeContacts={alternativeContacts}
           showFilesTab={showFilesTab}
           showFilesInDetails={true}
-          showAssetEditIcon={!isFollowupPage}
+          showAssetEditIcon={!isFollowupPage && !isFollowupContext}
           extraRows={detailRows}
           showFollowUpAction={showFollowupAction}
           previousCallReport={detailPreviousCallReport}

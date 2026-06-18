@@ -400,6 +400,7 @@ const TicketList = () => {
   const [draftStage, setDraftStage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchText, setSearchText] = useState("");
 
   const basePayload = getRequestPayload();
   const quickCallTicketValues =
@@ -465,7 +466,7 @@ const TicketList = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterPriority, filterStage, pageSize]);
+  }, [activeTab, filterPriority, filterStage, pageSize, searchText]);
 
   const getTableData = () => {
     switch (activeTab) {
@@ -599,12 +600,40 @@ const TicketList = () => {
   };
 
   const filteredRows = getTableData().filter((record: any) => {
+    const query = searchText.trim().toLowerCase();
     const priorityValue = getPriorityValue(record);
+    const ticketNo = getFieldValue(record, [
+      "TicketNo",
+      "cTicketNo",
+      "cTicketNumber",
+      "nTicketNo",
+    ]);
+    const customerName = getFieldValue(record, [
+      "CustomerName",
+      "cCustomerName",
+      "cCustName",
+      "Customer",
+    ]);
+    const summary = getFieldValue(record, [
+      "TicketSummary",
+      "cTicketSummary",
+      "cSummary",
+      "cDescription",
+      "cComplaint",
+    ]);
+    const statusText = getStageValue(record);
+
+    const searchMatches =
+      !query ||
+      [ticketNo, customerName, summary, priorityValue, statusText]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
 
     const priorityMatches =
       !filterPriority || matchesFilterValue(priorityValue, filterPriority);
 
-    return priorityMatches && matchesStageFilter(record);
+    return searchMatches && priorityMatches && matchesStageFilter(record);
   }).sort((a: any, b: any) => getTicketIdValue(b) - getTicketIdValue(a));
 
   const totalRows = filteredRows.length;
@@ -983,6 +1012,9 @@ const TicketList = () => {
             <Input
               prefix={<SearchOutlined />}
               placeholder="Search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              allowClear
               style={{
                 width: 280,
                 height: 28,

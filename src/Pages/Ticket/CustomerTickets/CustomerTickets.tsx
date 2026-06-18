@@ -244,15 +244,15 @@ const CustomerTickets = () => {
     navigate(-1);
   };
 
-  const openFollowUp = (record: any) => {
+  const openTicketView = (record: any) => {
     const ticketId = getTicketIdValue(record);
 
     if (!ticketId) return;
 
-    navigate(`/tickets/followup/${ticketId}`, {
+    navigate(`/tickets/view/${ticketId}`, {
       state: {
         selectedRow: record,
-        isFrom: "ongoing",
+        isFrom: "followup",
       },
     });
   };
@@ -361,7 +361,7 @@ const CustomerTickets = () => {
 
       if (isCustomerTicketsRoute) {
         baseColumns.push({
-          title: "",
+          title: "Action",
           width: 124,
           render: (_: any, record: any) => (
             <Button
@@ -369,13 +369,12 @@ const CustomerTickets = () => {
               size="small"
               style={{
                 minWidth: 98,
-                fontFamily:"semibold",
-                background: "#009966",
-                borderColor: "#009966",
+                background: "#22c55e",
+                borderColor: "#22c55e",
               }}
               onClick={(event) => {
                 event.stopPropagation();
-                openFollowUp(record);
+                openTicketView(record);
               }}
             >
               FollowUp
@@ -386,7 +385,7 @@ const CustomerTickets = () => {
 
       return baseColumns;
     },
-    [isCustomerTicketsRoute, openFollowUp, pageSize, resolvedCustomerName, safeCurrentPage],
+    [isCustomerTicketsRoute, openTicketView, pageSize, resolvedCustomerName, safeCurrentPage],
   );
 
   return (
@@ -506,7 +505,7 @@ const CustomerTickets = () => {
               onRow={(record) => ({
                 onClick: () =>
                   isCustomerTicketsRoute
-                    ? openFollowUp(record)
+                    ? openTicketView(record)
                     : openPreviousCall(record),
                 style: { cursor: "pointer" },
               })}
