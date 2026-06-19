@@ -261,6 +261,21 @@ const normalizeServiceTypeId = (
     : 0;
 };
 
+const hasFutureFollowup = (value: any) => {
+  if (!value) return false;
+
+  const text = String(value).trim();
+  if (!text) return false;
+
+  const parsed = new Date(text.replace(" ", "T"));
+
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  return parsed.getTime() > Date.now();
+};
+
 const serializeFileMappings = (files: any[]) =>
   JSON.stringify(
     (Array.isArray(files) ? files : []).map((file, index) => ({
@@ -297,6 +312,99 @@ const serializeRepairPartList = (repairParts: any[]) =>
         : [],
     }))
   );
+
+const normalizeAttachmentList = (files: any[]) =>
+  (Array.isArray(files) ? files : []).map((file, index) => {
+    const resolvedUrl =
+      file?.cUrl ??
+      file?.cFilePath ??
+      file?.url ??
+      file?.thumbUrl ??
+      file?.FilePath ??
+      file?.AttachmentPath ??
+      "";
+
+    return {
+      uid: file?.uid ?? file?.nAttachementId ?? file?.AttachmentId ?? `file-${index}`,
+      name: file?.name ?? file?.FileName ?? `attachment-${index + 1}`,
+      cFileName: file?.cFileName ?? file?.name ?? file?.FileName ?? `attachment-${index + 1}`,
+      cUrl: resolvedUrl,
+      cFilePath: resolvedUrl,
+      url: resolvedUrl,
+      thumbUrl: resolvedUrl,
+    };
+  });
+
+const pickAttachmentList = (value: any) => {
+  const candidates = [
+    value?.attachments,
+    value?.Attachments,
+    value?.TicketAttachments,
+    value?.ticketAttachments,
+    value?.data?.attachments,
+    value?.data?.Attachments,
+    value?.data?.TicketAttachments,
+    value?.data?.ticketAttachments,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate;
+    }
+  }
+
+  return [];
+};
+
+const getTicketIdFromResponse = (response: any) => {
+  const candidates = [
+    response?.nTicketId,
+    response?.TicketId,
+    response?.ticketId,
+    response?.ticketid,
+    response?.nTicketNo,
+    response?.TicketNo,
+    response?.data?.nTicketId,
+    response?.data?.TicketId,
+    response?.data?.ticketId,
+    response?.data?.ticketid,
+    response?.data?.nTicketNo,
+    response?.data?.TicketNo,
+    response?.data?.data?.nTicketId,
+    response?.data?.data?.TicketId,
+    response?.data?.data?.ticketId,
+    response?.data?.data?.ticketid,
+  ];
+
+  for (const candidate of candidates) {
+    const value = Number(candidate ?? 0);
+    if (value > 0) return value;
+  }
+
+  return undefined;
+};
+
+const resolveAttachmentBlob = async (file: UploadFile) => {
+  const directBlob = file?.originFileObj;
+  if (directBlob instanceof Blob) {
+    return directBlob;
+  }
+
+  if (directBlob) {
+    return directBlob as Blob;
+  }
+
+  const preview = String(file?.url ?? file?.thumbUrl ?? "").trim();
+  if (!preview) return null;
+
+  try {
+    const response = await fetch(preview);
+    if (!response.ok) return null;
+    return await response.blob();
+  } catch {
+    return null;
+  }
+};
 
 const searchOptions = (
   options: Array<{ label: string; value: any }>,
@@ -1808,6 +1916,11 @@ const TicketForm = ({
       uploadFile,
     ]);
 
+    form.setFieldsValue({
+      images: [...(form.getFieldValue("images") ?? []), previewUrl],
+      imageFiles: [...(form.getFieldValue("imageFiles") ?? []), uploadFile],
+    });
+
     setImageEditorOpen(false);
     setEditorFile(null);
     setEditorImage("");
@@ -1859,7 +1972,7 @@ const TicketForm = ({
     }
   };
 
-  const handleSubmit = (values: any) => {
+  const handleSubmit = async (values: any) => {
     const missingFields = ticketRequiredFields.filter((field) =>
       field.isMissing(values[field.name])
     );
@@ -1920,7 +2033,11 @@ const TicketForm = ({
     );
     const hasRepairItems = repairAssets.length > 0;
     const cRepairPartList = serializeRepairPartList(repairAssets);
-    const cFileMappings = serializeFileMappings(fileList);
+    const attachmentSourceFiles = Array.isArray(values.imageFiles) &&
+      values.imageFiles.length > 0
+      ? values.imageFiles
+      : fileList;
+    const cFileMappings = serializeFileMappings(attachmentSourceFiles);
 
     const payload = {
       nCustomerId:
@@ -1968,141 +2085,234 @@ const TicketForm = ({
       payload.nCreatedBy = Number(sessionPayload.nModifiedBy ?? 0) || 0;
     }
 
-    const mutation = isEdit
-      ? updateTicket
-      : createTicket;
+    const mutation = isEdit ? updateTicket : createTicket;
+    const flowMessageKey = "ticket-create-flow";
 
-    mutation.mutate(payload as any, {
-      onSuccess: async (response: any) => {
-        const hasAssignedAgent = normalizedAssignedAgents.length > 0;
-        const hasGroup = normalizedGroupId > 0;
-        const targetTab =
-          hasAssignedAgent || hasGroup ? "ONGOING" : "CREATED";
-        const savedTicketId =
-          Number(
-            response?.nTicketId ??
-              0
-          ) || undefined;
+    try {
+      message.loading({
+        content: "Saving ticket...",
+        key: flowMessageKey,
+        duration: 0,
+      });
 
-        if (savedTicketId && fileList.length > 0) {
-          const uploadPromises = fileList
-            .map((file) => file.originFileObj)
-            .filter(Boolean)
-            .map((file) => {
-              const formData = new FormData();
+      const savedTicketResponse = await mutation.mutateAsync(payload as any);
+      const savedTicketId = getTicketIdFromResponse(savedTicketResponse);
 
-              formData.append("files", file as Blob);
-              formData.append("TicketId", String(savedTicketId));
-              formData.append("nTicketId", String(savedTicketId));
-              formData.append(
-                "nCompanyId",
-                String(sessionPayload.nCompanyId ?? 0)
-              );
-              formData.append(
-                "cDbName",
-                String(sessionPayload.cDbName ?? "")
-              );
-              formData.append(
-                "cSchemaName",
-                String(sessionPayload.cSchemaName ?? "")
-              );
-              formData.append(
-                "nModifiedBy",
-                String(sessionPayload.nModifiedBy ?? 0)
-              );
+      const hasAssignedAgent = normalizedAssignedAgents.length > 0;
+      const hasGroup = normalizedGroupId > 0;
+      const targetTab = hasFutureFollowup(normalizedFollowupDate)
+        ? "UPCOMING"
+        : hasAssignedAgent || hasGroup
+          ? "ONGOING"
+          : "CREATED";
 
-              return uploadTicketAttachment.mutateAsync(formData as any);
-            });
+      if (savedTicketId && attachmentSourceFiles.length > 0) {
+        message.loading({
+          content: "Uploading image attachments...",
+          key: flowMessageKey,
+          duration: 0,
+        });
 
-          await Promise.allSettled(uploadPromises);
+        const uploadPromises = attachmentSourceFiles.map(async (file) => {
+          const blob = await resolveAttachmentBlob(file);
+
+          if (!blob) {
+            return null;
+          }
+
+          const uploadName =
+            file?.name || file?.FileName || `attachment-${savedTicketId}.png`;
+
+          const formData = new FormData();
+          formData.append("files", blob, uploadName);
+          formData.append("TicketId", String(savedTicketId));
+          formData.append("nTicketId", String(savedTicketId));
+          formData.append("nCompanyId", String(sessionPayload.nCompanyId ?? 0));
+          formData.append("cDbName", String(sessionPayload.cDbName ?? ""));
+          formData.append("cSchemaName", String(sessionPayload.cSchemaName ?? ""));
+          formData.append("nModifiedBy", String(sessionPayload.nModifiedBy ?? 0));
+
+          return uploadTicketAttachment.mutateAsync(formData as any);
+        });
+
+        await Promise.allSettled(uploadPromises);
+      }
+
+      let backendAttachments = normalizeAttachmentList(
+        pickAttachmentList(savedTicketResponse),
+      );
+      let ticketViewRecord: Record<string, any> | null = null;
+
+      if (savedTicketId) {
+        try {
+          const ticketViewResponse = await ticketApis.ticketView({
+            ...sessionPayload,
+            TicketId: savedTicketId,
+            nTicketId: savedTicketId,
+          });
+
+          ticketViewRecord =
+            ticketViewResponse?.data?.data ??
+            ticketViewResponse?.data ??
+            ticketViewResponse ??
+            null;
+
+          const refreshedAttachments = normalizeAttachmentList(
+            pickAttachmentList(ticketViewResponse),
+          );
+
+          if (refreshedAttachments.length > 0) {
+            backendAttachments = refreshedAttachments;
+          }
+        } catch {
+          // Keep the save response attachments if the refresh fails.
         }
+      }
 
-        const savedTicketRecord = {
-          ...payload,
-          ...response,
+      const attachmentsForState = backendAttachments;
 
-          nTicketId:
-            savedTicketId ??
-            payload.TicketId ??
-            response?.nTicketId ??
-            response?.ticketId,
-          TicketNo:
-            response?.TicketNo ??
-            response?.nTicketNo ??
-            response?.ticketNo ??
-            savedTicketId,
-          nTicketNo:
-            response?.nTicketNo ??
-            response?.TicketNo ??
-            response?.ticketNo ??
-            savedTicketId,
-          CustomerName: selectedCustomerName ?? values.CustomerName ?? "",
-          cCustomerName: selectedCustomerName ?? values.CustomerName ?? "",
-          TicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
-          cTicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
-          Description: values.Description ?? "",
-          cDescription: values.Description ?? "",
-          ContactPerson: values.ContactPerson ?? "",
-          cContactPerson: values.ContactPerson ?? "",
-          ContactNo: values.ContactNo ?? values.ContactNumber ?? "",
-          cContactNumber: values.ContactNo ?? values.ContactNumber ?? "",
-          Email: values.Email ?? "",
-          cEmail: values.Email ?? "",
-          Priority: values.Priority ?? "Medium",
-          nPriority: normalizedPriority,
-          SourceName: normalizedSourceLabel,
-          Source: normalizedSourceId,
-          nSourceId: normalizedSourceId,
-          FollowupDate: normalizedFollowupDate ?? "",
-          dFollowupDate: normalizedFollowupDate ?? "",
-          nGroupId: normalizedGroupId,
-          cAssignedId: normalizedAssignedAgents,
-          TicketStatus: values.TicketStatus ?? values.Status ?? "Open",
-          Status: values.Status ?? values.TicketStatus ?? "Open",
-          nTicketStatus:
-            Number(values.nTicketStatus ?? payload.nTicketStatus ?? 1) || 1,
-          attachments: fileList.map((file, index) => ({
-            uid: file.uid ?? `file-${index}`,
-            name: file.name ?? `attachment-${index + 1}`,
-            cFileName: file.name ?? `attachment-${index + 1}`,
-            cUrl: file.url ?? file.thumbUrl ?? "",
-            cFilePath: file.url ?? file.thumbUrl ?? "",
-            url: file.url ?? file.thumbUrl ?? "",
-            thumbUrl: file.thumbUrl ?? file.url ?? "",
-          })),
-          files: fileList.map((file, index) => ({
-            uid: file.uid ?? `file-${index}`,
-            name: file.name ?? `attachment-${index + 1}`,
-            cFileName: file.name ?? `attachment-${index + 1}`,
-            cUrl: file.url ?? file.thumbUrl ?? "",
-            cFilePath: file.url ?? file.thumbUrl ?? "",
-            url: file.url ?? file.thumbUrl ?? "",
-            thumbUrl: file.thumbUrl ?? file.url ?? "",
-          })),
-        };
+      const responseData =
+        savedTicketResponse?.data?.data ??
+        savedTicketResponse?.data ??
+        savedTicketResponse;
 
-        message.success(
-          isEdit
-            ? "Ticket updated"
-            : "Ticket created"
-        );
-        window.setTimeout(() => {
+      const createdDateFallback = (() => {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, "0");
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const year = now.getFullYear();
+        const hours = now.getHours();
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        const hour12 = hours % 12 || 12;
+        const ampm = hours >= 12 ? "PM" : "AM";
+
+        return `${day}/${month}/${year} ${String(hour12).padStart(2, "0")}:${minutes} ${ampm}`;
+      })();
+
+      const savedTicketRecord = {
+        ...payload,
+        ...responseData,
+        ...ticketViewRecord,
+        ...savedTicketResponse,
+        nTicketId:
+          savedTicketId ??
+          payload.TicketId ??
+          responseData?.nTicketId ??
+          responseData?.ticketId,
+        TicketNo:
+          responseData?.TicketNo ??
+          responseData?.nTicketNo ??
+          responseData?.ticketNo ??
+          savedTicketId,
+        nTicketNo:
+          responseData?.nTicketNo ??
+          responseData?.TicketNo ??
+          responseData?.ticketNo ??
+          savedTicketId,
+        CustomerName: selectedCustomerName ?? values.CustomerName ?? "",
+        cCustomerName: selectedCustomerName ?? values.CustomerName ?? "",
+        TicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
+        cTicketSummary: values.IssueSummary ?? values.TicketSummary ?? "",
+        Description: values.Description ?? "",
+        cDescription: values.Description ?? "",
+        ContactPerson: values.ContactPerson ?? "",
+        cContactPerson: values.ContactPerson ?? "",
+        ContactNo: values.ContactNo ?? values.ContactNumber ?? "",
+        cContactNumber: values.ContactNo ?? values.ContactNumber ?? "",
+        Email: values.Email ?? "",
+        cEmail: values.Email ?? "",
+        Priority: values.Priority ?? "Medium",
+        nPriority: normalizedPriority,
+        SourceName: normalizedSourceLabel,
+        Source: normalizedSourceId,
+        nSourceId: normalizedSourceId,
+        FollowupDate: normalizedFollowupDate ?? "",
+        dFollowupDate: normalizedFollowupDate ?? "",
+        nGroupId: normalizedGroupId,
+        cAssignedId: normalizedAssignedAgents,
+        TicketStatus: values.TicketStatus ?? values.Status ?? "Open",
+        Status: values.Status ?? values.TicketStatus ?? "Open",
+        nTicketStatus:
+          Number(values.nTicketStatus ?? payload.nTicketStatus ?? 1) || 1,
+        dCreatedDate:
+          ticketViewRecord?.dCreatedDate ??
+          responseData?.dCreatedDate ??
+          ticketViewRecord?.CreatedDate ??
+          responseData?.CreatedDate ??
+          createdDateFallback,
+        CreatedDate:
+          ticketViewRecord?.CreatedDate ??
+          responseData?.CreatedDate ??
+          ticketViewRecord?.dCreatedDate ??
+          responseData?.dCreatedDate ??
+          createdDateFallback,
+        CreatedDateTime:
+          ticketViewRecord?.CreatedDateTime ??
+          responseData?.CreatedDateTime ??
+          ticketViewRecord?.dCreatedDate ??
+          responseData?.dCreatedDate ??
+          createdDateFallback,
+        CreatedOn:
+          ticketViewRecord?.CreatedOn ??
+          responseData?.CreatedOn ??
+          ticketViewRecord?.dCreatedDate ??
+          responseData?.dCreatedDate ??
+          createdDateFallback,
+        CreatedFrom:
+          ticketViewRecord?.CreatedFrom ??
+          responseData?.CreatedFrom ??
+          ticketViewRecord?.cSourceName ??
+          responseData?.cSourceName ??
+          normalizedSourceLabel,
+        cCreatedFrom:
+          ticketViewRecord?.cCreatedFrom ??
+          responseData?.cCreatedFrom ??
+          ticketViewRecord?.cSourceName ??
+          responseData?.cSourceName ??
+          normalizedSourceLabel,
+        attachments: attachmentsForState,
+        files: attachmentsForState,
+      };
+
+      message.success({
+        content:
+          !isEdit && attachmentsForState.length > 0
+            ? "Ticket saved, attachments uploaded, opening Ongoing list..."
+            : isEdit
+              ? "Ticket updated"
+              : "Ticket saved",
+        key: flowMessageKey,
+        duration: 2,
+      });
+
+      window.setTimeout(() => {
+        if (!isEdit && savedTicketId) {
           navigate("/tickets", {
             state: {
-              activeTab: targetTab,
-              savedTicketResponse: response,
               savedTicketRecord,
+              savedTicketResponse,
+              isFrom: "created",
+              activeTab: "ONGOING",
             },
           });
-        }, 600);
-      },
-      onError: (error: any) =>
-        message.error(
-          error?.response?.data?.message ||
-            error?.message ||
-            "Unable to save ticket"
-        ),
-    });
+          return;
+        }
+
+        navigate("/tickets", {
+          state: {
+            activeTab: targetTab,
+            savedTicketResponse,
+            savedTicketRecord,
+          },
+        });
+      }, 600);
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to save ticket",
+      );
+    }
   };
 
   const saveCustomerMaster = async () => {
@@ -2364,6 +2574,10 @@ const TicketForm = ({
           Source: initialValues?.Source ?? defaultSource,
           Priority: "Low",
           CustomerId: initialValues?.CustomerId,
+          FollowupDate:
+            initialValues?.FollowupDate ??
+            initialValues?.dFollowupDate ??
+            undefined,
           ...initialValues,
           OnsiteRequired: initialValues?.OnsiteRequired ?? false,
         }}
@@ -3045,6 +3259,14 @@ const TicketForm = ({
                   (item) => item.uid !== file.uid
                 )
               );
+              form.setFieldsValue({
+                images: (form.getFieldValue("images") ?? []).filter(
+                  (_: any, index: number) => index !== fileList.findIndex((item) => item.uid === file.uid),
+                ),
+                imageFiles: (form.getFieldValue("imageFiles") ?? []).filter(
+                  (item: any) => item?.uid !== file.uid,
+                ),
+              });
             }}
           >
             <DeleteOutlined />

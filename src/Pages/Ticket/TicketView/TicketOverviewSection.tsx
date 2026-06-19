@@ -36,6 +36,7 @@ type TicketOverviewSectionProps = {
   contactNumber: string;
   email: string;
   attachments: any[];
+  attachmentsLoading?: boolean;
   createdByTeam?: string;
   alternativeContacts?: any[];
   onFollowUpClick?: () => void;
@@ -79,6 +80,7 @@ const TicketOverviewSection = ({
   contactNumber,
   email,
   attachments,
+  attachmentsLoading = false,
   createdByTeam,
   alternativeContacts = [],
   onFollowUpClick,
@@ -91,6 +93,26 @@ const TicketOverviewSection = ({
   customerId,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
+
+  const getAttachmentPreview = (file: any) =>
+    file?.url ??
+    file?.Url ??
+    file?.thumbUrl ??
+    file?.ThumbUrl ??
+    file?.cFilePath ??
+    file?.cFileUrl ??
+    file?.cUrl ??
+    file?.fileUrl ??
+    file?.FileUrl ??
+    file?.FilePath ??
+    file?.filePath ??
+    file?.AttachmentPath ??
+    file?.attachmentPath ??
+    file?.path ??
+    file?.Path ??
+    file?.Location ??
+    file?.location ??
+    "";
 
   const scrollFiles = (direction: "left" | "right") => {
     const el = filesRef.current;
@@ -143,22 +165,16 @@ const TicketOverviewSection = ({
     variant?: "carousel" | "list";
   }) => {
     const validAttachments = attachments.filter((file: any) => {
-      const preview =
-        file?.url ??
-        file?.Url ??
-        file?.thumbUrl ??
-        file?.ThumbUrl ??
-        file?.cFilePath ??
-        file?.cUrl ??
-        file?.fileUrl ??
-        file?.FileUrl ??
-        file?.path ??
-        file?.Path ??
-        file?.Location ??
-        file?.location ??
-        "";
-      return !!preview;
+      return !!getAttachmentPreview(file);
     });
+
+    if (attachmentsLoading && validAttachments.length === 0) {
+      return (
+        <div className="flex min-h-[280px] items-center justify-center">
+          <Spin size="large" />
+        </div>
+      );
+    }
 
     if (variant === "list") {
       return (
@@ -166,20 +182,7 @@ const TicketOverviewSection = ({
           {validAttachments.length > 0 ? (
             <div className="space-y-6">
               {validAttachments.map((file: any, index: number) => {
-                const preview =
-                  file?.url ??
-                  file?.Url ??
-                  file?.thumbUrl ??
-                  file?.ThumbUrl ??
-                  file?.cFilePath ??
-                  file?.cUrl ??
-                  file?.fileUrl ??
-                  file?.FileUrl ??
-                  file?.path ??
-                  file?.Path ??
-                  file?.Location ??
-                  file?.location ??
-                  "";
+                const preview = getAttachmentPreview(file);
 
                 const displayDate =
                   file?.createdOn ||
@@ -252,20 +255,7 @@ const TicketOverviewSection = ({
                 style={{ scrollbarWidth: "none" }}
               >
                 {validAttachments.map((file: any, index: number) => {
-                  const preview =
-                    file?.url ??
-                    file?.Url ??
-                    file?.thumbUrl ??
-                    file?.ThumbUrl ??
-                    file?.cFilePath ??
-                    file?.cUrl ??
-                    file?.fileUrl ??
-                    file?.FileUrl ??
-                    file?.path ??
-                    file?.Path ??
-                    file?.Location ??
-                    file?.location ??
-                    "";
+                  const preview = getAttachmentPreview(file);
                   const caption =
                     file?.name ??
                     file?.FileName ??

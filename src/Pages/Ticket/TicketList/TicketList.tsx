@@ -115,36 +115,44 @@ const mergeSavedRows = (
     return rows;
   }
 
-  const rowIds = new Set(
-    rows.map((record: any) =>
-      String(
-        getFieldValue(record, [
-          "TicketId",
-          "nTicketId",
-          "ticketId",
-          "TicketNo",
-          "nTicketNo",
-        ])
-      )
-    )
-  );
+  const getRowId = (record: any) =>
+    String(
+      getFieldValue(record, [
+        "TicketId",
+        "nTicketId",
+        "ticketId",
+        "TicketNo",
+        "nTicketNo",
+      ])
+    );
+
+  const rowsById = new Map(rows.map((record: any) => [getRowId(record), record]));
+
+  for (const savedRow of savedRows) {
+    const savedRowId = getRowId(savedRow);
+    const existingRow = rowsById.get(savedRowId);
+
+    if (existingRow) {
+      rowsById.set(savedRowId, {
+        ...existingRow,
+        ...savedRow,
+      });
+      continue;
+    }
+
+    rowsById.set(savedRowId, savedRow);
+  }
+
+  const mergedRows = rows.map((record: any) => {
+    const rowId = getRowId(record);
+    return rowsById.get(rowId) ?? record;
+  });
 
   const missingSavedRows = savedRows.filter(
-    (record: any) =>
-      !rowIds.has(
-        String(
-          getFieldValue(record, [
-            "TicketId",
-            "nTicketId",
-            "ticketId",
-            "TicketNo",
-            "nTicketNo",
-          ])
-        )
-      )
+    (record: any) => !rows.some((row: any) => getRowId(row) === getRowId(record))
   );
 
-  return [...missingSavedRows, ...rows];
+  return [...missingSavedRows, ...mergedRows];
 };
 
 const getFieldValue = (record: any, keys: string[]) => {
@@ -477,7 +485,11 @@ const TicketList = () => {
           locationState.savedTicketRecord
         );
       case "UPCOMING":
-        return getRows(upcoming.data);
+        return mergeSavedRows(
+          getRows(upcoming.data),
+          locationState.savedTicketResponse,
+          locationState.savedTicketRecord
+        );
       case "UNASSIGNED":
         return getRows(unassigned.data);
       case "CLOSED":
@@ -834,9 +846,16 @@ const TicketList = () => {
               wordBreak: "break-word",
             }}
           >
-            <span>{formatted.primary}</span>{" "}
+            <span style={{ whiteSpace: "nowrap" }}>
+              {formatted.primary}
+            </span>{" "}
             {periodText ? (
-              <span style={{ color: "#838383" }}>
+              <span
+                style={{
+                  color: "#838383",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 ( {periodText} )
               </span>
             ) : null}

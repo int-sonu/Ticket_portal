@@ -400,11 +400,20 @@ export const ticketApis = {
   ticketAttachmentUpload: async (
     payload: FormData
   ) => {
+    const nCompanyId = payload.get("nCompanyId");
+    const nTicketId = payload.get("nTicketId");
+    const ticketId = payload.get("TicketId");
+
     const response =
       await axiosInstance.post(
         "/Api/V1/Ticket/TicketAttachmentUpload",
         payload,
         {
+          params: {
+            ...(nCompanyId !== null ? { nCompanyId } : {}),
+            ...(nTicketId !== null ? { nTicketId } : {}),
+            ...(ticketId !== null ? { TicketId: ticketId } : {}),
+          },
           headers: {
             "Content-Type": "multipart/form-data",
           },

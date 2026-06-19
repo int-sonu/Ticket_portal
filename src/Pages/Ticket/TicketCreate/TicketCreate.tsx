@@ -31,9 +31,27 @@ const TicketCreate = () => {
   };
 
   if (locationState.followupSourceTicket) {
-    delete mergedInitialValues.IssueSummary;
-    delete mergedInitialValues.TicketSummary;
-    delete mergedInitialValues.cTicketSummary;
+    const followupSummary =
+      locationState.draftValues?.IssueSummary ??
+      locationState.followupSourceTicket?.summary ??
+      locationState.followupSourceTicket?.cViewSummary ??
+      mergedInitialValues.IssueSummary ??
+      mergedInitialValues.TicketSummary ??
+      mergedInitialValues.cTicketSummary ??
+      "";
+
+    const followupDescription =
+      locationState.draftValues?.Description ??
+      locationState.followupSourceTicket?.description ??
+      mergedInitialValues.Description ??
+      mergedInitialValues.cDescription ??
+      "";
+
+    mergedInitialValues.IssueSummary = followupSummary;
+    mergedInitialValues.TicketSummary = followupSummary;
+    mergedInitialValues.cTicketSummary = followupSummary;
+    mergedInitialValues.Description = followupDescription;
+    mergedInitialValues.cDescription = followupDescription;
   }
 
   return (

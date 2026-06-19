@@ -66,8 +66,8 @@ const FollowupDateTimePicker = ({
   const selectedValue = useMemo(() => parseValue(value), [value]);
   const [open, setOpen] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
-  const [draftValue, setDraftValue] = useState<Dayjs>(
-    selectedValue ?? dayjs()
+  const [draftValue, setDraftValue] = useState<Dayjs | null>(
+    selectedValue ?? null
   );
   const [viewDate, setViewDate] = useState<Dayjs>(
     selectedValue ?? dayjs()
@@ -76,7 +76,7 @@ const FollowupDateTimePicker = ({
   useEffect(() => {
     if (open) {
       setViewDate(selectedValue ?? dayjs());
-      setDraftValue(selectedValue ?? dayjs());
+      setDraftValue(selectedValue ?? null);
       setTimeOpen(true);
     }
   }, [open, selectedValue]);
@@ -92,7 +92,7 @@ const FollowupDateTimePicker = ({
     }
   }, [selectedValue]);
 
-  const activeValue = selectedValue ?? draftValue;
+  const activeValue = selectedValue ?? draftValue ?? dayjs().startOf("day");
   const displayValue = selectedValue
     ? selectedValue.format(DISPLAY_FORMAT)
     : "";
@@ -136,7 +136,7 @@ const FollowupDateTimePicker = ({
     nextMinute: number | null,
     nextMeridiem: "AM" | "PM" | null
   ) => {
-    const base = selectedValue ?? draftValue;
+    const base = selectedValue ?? draftValue ?? dayjs().startOf("day");
     const hourValue = nextHour12 ?? hour12;
     const minuteValue = clampMinute(nextMinute ?? minute);
     const meridiemValue = nextMeridiem ?? meridiem;

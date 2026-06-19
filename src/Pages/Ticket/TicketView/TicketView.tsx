@@ -37,6 +37,7 @@ import AssignTicketModal from "../Common/AssignTicketModal";
 import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
+  savedTicketRecord?: Record<string, any> | null;
   quickCallTicketValues?: Record<string, any> | null;
   assignedAgentDetails?: any[];
   openQuickCall?: boolean;
@@ -264,10 +265,6 @@ const normalizeTicketStatus = (record: any): string => {
 };
 
 const pickRecord = (response: any) => {
-  const rows = extractList(response);
-
-  if (rows.length > 0) return rows[0];
-
   const dataObj = response?.Data ?? response?.data ?? response;
 
   if (dataObj && typeof dataObj === "object" && !Array.isArray(dataObj)) {
@@ -287,6 +284,10 @@ const pickRecord = (response: any) => {
     }
     return dataObj;
   }
+
+  const rows = extractList(response);
+
+  if (rows.length > 0) return rows[0];
 
   return response ?? {};
 };
@@ -325,26 +326,14 @@ const pickAttachments = (record: any) => {
     record?.Attachments,
     record?.TicketAttachments,
     record?.ticketAttachments,
-    record?.Files,
-    record?.files,
-    record?.FileList,
-    record?.fileList,
     record?.AttachmentList,
     record?.attachmentList,
-    record?.Images,
-    record?.images,
-    record?.ImageList,
-    record?.imageList,
-    record?.Photos,
-    record?.photos,
-    record?.cFileMappings,
     record?.data?.attachments,
     record?.data?.Attachments,
-    record?.data?.Files,
-    record?.data?.files,
-    record?.data?.Images,
-    record?.data?.images,
-    record?.data?.cFileMappings,
+    record?.data?.TicketAttachments,
+    record?.data?.ticketAttachments,
+    record?.data?.AttachmentList,
+    record?.data?.attachmentList,
   ];
 
   for (const candidate of candidates) {
@@ -359,6 +348,60 @@ const pickAttachments = (record: any) => {
         ),
       }));
     }
+  }
+
+  const deepFindAttachmentList = (
+    value: any,
+    seen = new Set<any>()
+  ): any[] => {
+    if (!value || typeof value !== "object" || seen.has(value)) {
+      return [];
+    }
+
+    seen.add(value);
+
+    const attachmentKeys = [
+      "attachments",
+      "Attachments",
+      "TicketAttachments",
+      "ticketAttachments",
+      "AttachmentList",
+      "attachmentList",
+    ];
+
+    for (const key of attachmentKeys) {
+      const nextValue = value?.[key];
+      if (Array.isArray(nextValue) && nextValue.length > 0) {
+        return nextValue;
+      }
+
+      const parsedList = parseMaybeJsonList(nextValue);
+      if (parsedList.length > 0) {
+        return parsedList;
+      }
+    }
+
+    for (const entry of Object.values(value)) {
+      if (entry && typeof entry === "object") {
+        const nested = deepFindAttachmentList(entry, seen);
+        if (nested.length > 0) {
+          return nested;
+        }
+      }
+    }
+
+    return [];
+  };
+
+  const deepAttachments = deepFindAttachmentList(record);
+
+  if (deepAttachments.length > 0) {
+    return deepAttachments.map((file: any) => ({
+      ...file,
+      cUrl: resolveImageUrl(
+        file?.cUrl ?? file?.cFilePath ?? file?.url ?? file?.path ?? "",
+      ),
+    }));
   }
 
   return [];
@@ -578,7 +621,7 @@ const TicketView = () => {
   const params = useParams();
 
   const state = (location.state as TicketViewState | null) ?? {};
-  const selectedRow = state.selectedRow ?? {};
+  const selectedRow = state.selectedRow ?? state.savedTicketRecord ?? {};
   const isFollowupPage = location.pathname
     .toLowerCase()
     .includes("/tickets/followup/");
@@ -622,6 +665,7 @@ const TicketView = () => {
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [estimateOpen, setEstimateOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [loadAttachmentHistory, setLoadAttachmentHistory] = useState(true);
   const [tick, setTick] = useState(() => Date.now());
   const [displayAssetName, setDisplayAssetName] = useState("");
   const { acceptTicket } = useTicketActions();
@@ -646,8 +690,28 @@ const TicketView = () => {
   );
 
   useEffect(() => {
-    setActiveTab(state.openQuickCall ? "history" : "details");
-  }, [state.openQuickCall, ticketId]);
+    if (state.openQuickCall) {
+      setActiveTab("history");
+      return;
+    }
+
+    if (
+      state.activeTab === "details" ||
+      state.activeTab === "history" ||
+      state.activeTab === "files"
+    ) {
+      setActiveTab(state.activeTab);
+      return;
+    }
+
+    setActiveTab("details");
+  }, [state.activeTab, state.openQuickCall, ticketId]);
+
+  useEffect(() => {
+    if (activeTab === "files") {
+      setLoadAttachmentHistory(true);
+    }
+  }, [activeTab]);
 
   const payload = useMemo(
     () => ({
@@ -776,14 +840,17 @@ const TicketView = () => {
     historyPayload,
     !!ticketId && !!supportSessionPayload.nCompanyId,
   );
-  const { data: ticketHistoryAttachmentData } = useTicketHistoryAttachment(
-    historyPayload,
-    !!ticketId && !!supportSessionPayload.nCompanyId,
-  );
+  const { data: ticketHistoryAttachmentData, isFetching: isTicketAttachmentFetching } =
+    useTicketHistoryAttachment(
+      historyPayload,
+      loadAttachmentHistory && !!ticketId && !!supportSessionPayload.nCompanyId,
+    );
 
   const attachments = useMemo(() => {
     const directAttachments = pickAllAttachments(resolvedRecord);
-    const historyAttachments = pickAllAttachments(ticketHistoryAttachmentData);
+    const historyAttachments = loadAttachmentHistory
+      ? pickAllAttachments(ticketHistoryAttachmentData)
+      : [];
 
     if (!historyAttachments.length) {
       return directAttachments;
@@ -817,7 +884,7 @@ const TicketView = () => {
     );
 
     return [...directAttachments, ...missingHistoryAttachments];
-  }, [resolvedRecord, ticketHistoryAttachmentData]);
+  }, [loadAttachmentHistory, resolvedRecord, ticketHistoryAttachmentData]);
   const customerAssetList = useMemo(
     () => extractList(customerAssetsData),
     [customerAssetsData],
@@ -1217,6 +1284,7 @@ const TicketView = () => {
           contactNumber={contactNumber}
           email={email}
           attachments={attachments}
+          attachmentsLoading={loadAttachmentHistory && isTicketAttachmentFetching}
           createdByTeam={createdByTeam}
           alternativeContacts={alternativeContacts}
           showFilesTab={showFilesTab}
