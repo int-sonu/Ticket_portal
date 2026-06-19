@@ -16,11 +16,11 @@ export const AGENT_KEYS = {
   detail: (id: string | number) => [...AGENT_KEYS.details(), id] as const,
 };
 
-export const useGetAgents = (payload: AgentPayload) => {
+export const useGetAgents = (payload: AgentPayload, enabled = true) => {
   return useQuery({
     queryKey: AGENT_KEYS.list(JSON.stringify(payload)),
     queryFn: () => agentApis.agentListAll(payload),
-    enabled: !!payload,
+    enabled: enabled && !!payload,
   });
 };
 

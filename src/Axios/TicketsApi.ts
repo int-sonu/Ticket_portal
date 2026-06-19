@@ -373,6 +373,30 @@ export const ticketApis = {
     return response.data;
   },
 
+  transferTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/TransferTicket",
+        payload
+      );
+
+    return response.data;
+  },
+
+  unTransferTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/UnTransferTicket",
+        payload
+      );
+
+    return response.data;
+  },
+
   sendEstimateMail: async (
     payload: TicketPayload
   ) => {
