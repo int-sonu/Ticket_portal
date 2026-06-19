@@ -24,6 +24,8 @@ import type { UploadFile } from "antd";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
 import EmailIcon from "../../../assets/icons/email-icon.svg";
 import closedTicketIcon from "../../../assets/icons/closedTicketIcon.svg";
@@ -57,6 +59,8 @@ import QuickCallReportModal from "../Common/QuickCallReportModal";
 import { useGetServiceTypeDropdown } from "../../Master/ServiceType/Hooks";
 import { useGetTicketSourceDropdown } from "../../Master/TicketSource/Hooks";
 import shareIcon from "../../../assets/icons/shareIcon.svg"
+
+dayjs.extend(customParseFormat);
 
 const { TextArea } = Input;
 type TicketFormProps = {
@@ -184,6 +188,45 @@ const formatRequestDate = (date: Date) => {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}/${month}/${day}`;
+};
+
+const FOLLOWUP_PARSE_FORMATS = [
+  "YYYY-MM-DD HH:mm:ss",
+  "YYYY-MM-DD HH:mm",
+  "YYYY-MM-DD",
+  "DD/MM/YYYY hh:mm A",
+  "DD/MM/YYYY h:mm A",
+  "DD/MM/YYYY",
+];
+
+const formatFollowupDateForApi = (value: any) => {
+  if (!value) {
+    return "";
+  }
+
+  if (dayjs.isDayjs(value)) {
+    return value.format("YYYY-MM-DD HH:mm:ss");
+  }
+
+  if (value instanceof Date) {
+    return dayjs(value).format("YYYY-MM-DD HH:mm:ss");
+  }
+
+  if (typeof value === "string") {
+    for (const format of FOLLOWUP_PARSE_FORMATS) {
+      const parsed = dayjs(value, format, true);
+      if (parsed.isValid()) {
+        return parsed.format("YYYY-MM-DD HH:mm:ss");
+      }
+    }
+
+    const fallback = dayjs(value);
+    if (fallback.isValid()) {
+      return fallback.format("YYYY-MM-DD HH:mm:ss");
+    }
+  }
+
+  return String(value);
 };
 
 const PRIORITY_VALUE_MAP: Record<string, number> = {
@@ -362,18 +405,21 @@ const getTicketIdFromResponse = (response: any) => {
     response?.TicketId,
     response?.ticketId,
     response?.ticketid,
+    response?.nticketid,
     response?.nTicketNo,
     response?.TicketNo,
     response?.data?.nTicketId,
     response?.data?.TicketId,
     response?.data?.ticketId,
     response?.data?.ticketid,
+    response?.data?.nticketid,
     response?.data?.nTicketNo,
     response?.data?.TicketNo,
     response?.data?.data?.nTicketId,
     response?.data?.data?.TicketId,
     response?.data?.data?.ticketId,
     response?.data?.data?.ticketid,
+    response?.data?.data?.nticketid,
   ];
 
   for (const candidate of candidates) {
@@ -639,6 +685,20 @@ const TicketForm = ({
     initialValues?.Description ??
     initialValues?.cDescription ??
     "";
+
+  useEffect(() => {
+    if (followupSourceTicket) {
+      form.setFieldsValue({
+        IssueSummary: followupSummaryText,
+        Description: followupDescriptionText,
+      });
+    }
+  }, [
+    form,
+    followupDescriptionText,
+    followupSourceTicket,
+    followupSummaryText,
+  ]);
 
   const paintEditorCanvas = (sourceUrl: string) => {
     const canvas = editorCanvasRef.current;
@@ -975,9 +1035,15 @@ const TicketForm = ({
         "cCustomerName",
         "CustomerName",
         "name",
-      ]) || ""
+    ]) || ""
     );
   }, [customerLookup, selectedCustomerId]);
+  const selectedCustomerInitial = String(
+    selectedCustomerName || initialValues?.CustomerName || "C"
+  )
+    .replace(/[^a-z0-9]/gi, "")
+    .charAt(0)
+    .toUpperCase();
   const filteredCustomers = useMemo(() => {
     const search = customerSearch.trim().toLowerCase();
     if (!search) return customers;
@@ -2000,9 +2066,9 @@ const TicketForm = ({
       return;
     }
 
-    const normalizedFollowupDate = values.FollowupDate?.format?.(
-      "YYYY-MM-DD HH:mm:ss"
-    ) ?? values.FollowupDate;
+    const normalizedFollowupDate = formatFollowupDateForApi(
+      values.FollowupDate
+    );
 
     const normalizedPriority =
       typeof values.nPriority === "number"
@@ -2037,7 +2103,7 @@ const TicketForm = ({
       values.imageFiles.length > 0
       ? values.imageFiles
       : fileList;
-    const cFileMappings = serializeFileMappings(attachmentSourceFiles);
+    const cFileMappings = "[]";
 
     const payload = {
       nCustomerId:
@@ -2097,6 +2163,11 @@ const TicketForm = ({
 
       const savedTicketResponse = await mutation.mutateAsync(payload as any);
       const savedTicketId = getTicketIdFromResponse(savedTicketResponse);
+      console.log("[TicketCreate] save response", {
+        savedTicketResponse,
+        savedTicketId,
+        attachmentCount: attachmentSourceFiles.length,
+      });
 
       const hasAssignedAgent = normalizedAssignedAgents.length > 0;
       const hasGroup = normalizedGroupId > 0;
@@ -2114,6 +2185,10 @@ const TicketForm = ({
         });
 
         const uploadPromises = attachmentSourceFiles.map(async (file) => {
+          console.log("[TicketCreate] uploading attachment", {
+            savedTicketId,
+            fileName: file?.name || file?.FileName,
+          });
           const blob = await resolveAttachmentBlob(file);
 
           if (!blob) {
@@ -2132,7 +2207,7 @@ const TicketForm = ({
           formData.append("cSchemaName", String(sessionPayload.cSchemaName ?? ""));
           formData.append("nModifiedBy", String(sessionPayload.nModifiedBy ?? 0));
 
-          return uploadTicketAttachment.mutateAsync(formData as any);
+          return ticketApis.ticketAttachmentUpload(formData as any);
         });
 
         await Promise.allSettled(uploadPromises);
@@ -2737,6 +2812,17 @@ const TicketForm = ({
                 <Input />
               </Form.Item>
             )}
+
+            {followupSourceTicket ? (
+              <>
+                <Form.Item name="IssueSummary" hidden>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="Description" hidden>
+                  <Input />
+                </Form.Item>
+              </>
+            ) : null}
 
             <Form.Item
               label="Description"

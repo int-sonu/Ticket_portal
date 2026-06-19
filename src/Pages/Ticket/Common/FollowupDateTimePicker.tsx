@@ -96,15 +96,12 @@ const FollowupDateTimePicker = ({
   const displayValue = selectedValue
     ? selectedValue.format(DISPLAY_FORMAT)
     : "";
-  const today = dayjs().startOf("day");
 
   const updateValue = (next: Dayjs) => {
     onChange?.(next);
   };
 
   const handleDayClick = (day: Dayjs) => {
-    if (day.isBefore(today, "day")) return;
-
     const next = day
       .hour(activeValue.hour())
       .minute(activeValue.minute())
@@ -154,9 +151,7 @@ const FollowupDateTimePicker = ({
     setDraftValue(nextValue);
     setViewDate(nextValue);
 
-    if (selectedValue) {
-      updateValue(nextValue);
-    }
+    updateValue(nextValue);
   };
 
   const startOfGrid = viewDate
@@ -234,9 +229,6 @@ const FollowupDateTimePicker = ({
 
           <div className="followup-days-grid">
             {days.map((day) => {
-              const isCurrentMonth = day.month() === viewDate.month();
-              const isDisabled =
-                !isCurrentMonth || day.isBefore(today, "day");
               const isSelected = selectedValue
                 ? day.isSame(selectedValue, "day")
                 : false;
@@ -248,14 +240,11 @@ const FollowupDateTimePicker = ({
                   type="button"
                   className={[
                     "followup-day",
-                    isCurrentMonth ? "" : "is-muted",
-                    isDisabled ? "is-disabled" : "",
                     isSelected ? "is-selected" : "",
                     isToday ? "is-today" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  disabled={isDisabled}
                   onClick={() => handleDayClick(day)}
                 >
                   <span>{day.date()}</span>

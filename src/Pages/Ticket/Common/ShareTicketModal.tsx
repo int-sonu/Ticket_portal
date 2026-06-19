@@ -1,105 +1,186 @@
-import {
-  Button,
-  Form,
-  Input,
-  Modal,
-  Select,
-  message,
-} from "antd";
+import { Button, Modal, Radio, message } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { CloseOutlined } from "@ant-design/icons";
 
-import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
-
-const { TextArea } = Input;
+import { ticketApis } from "../../../Axios/TicketsApi";
+import { getApiImageBaseUrl } from "../../../Axios/config";
+import { getRequestPayload } from "../../../Utils/requestPayload";
 
 interface ShareTicketModalProps {
   open: boolean;
   onClose: () => void;
   ticketId: number;
+  ticketNo?: string;
+  customerEmail?: string;
+  attachments?: any[];
 }
+
+type ShareType = "summary" | "detailed";
 
 const ShareTicketModal = ({
   open,
   onClose,
   ticketId,
+  ticketNo,
+  customerEmail,
+  attachments = [],
 }: ShareTicketModalProps) => {
-  const [form] = Form.useForm();
+  const [selectedType, setSelectedType] = useState<ShareType>("summary");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { shareTicket } =
-    useTicketActions();
+  const sessionPayload = useMemo(() => getRequestPayload(), []);
 
-  const handleSubmit = (
-    values: any
-  ) => {
-    shareTicket.mutate(
-      {
-        TicketId: ticketId,
-        AgentId: values.AgentId,
-      },
-      {
-        onSuccess: () => {
-          message.success(
-            "Ticket Shared Successfully"
-          );
+  const resolveAttachmentUrl = (file: any) => {
+    const rawUrl =
+      file?.cUrl ??
+      file?.cFilePath ??
+      file?.url ??
+      file?.thumbUrl ??
+      file?.path ??
+      file?.FilePath ??
+      file?.AttachmentPath ??
+      "";
 
-          form.resetFields();
+    if (!rawUrl) return "";
 
-          onClose();
-        },
+    if (/^https?:\/\//i.test(rawUrl)) {
+      return rawUrl;
+    }
+
+    const base = getApiImageBaseUrl().replace(/\/$/, "");
+    return `${base}/${String(rawUrl).replace(/^\//, "")}`;
+  };
+
+  useEffect(() => {
+    if (open) {
+      setSelectedType("summary");
+      setIsSubmitting(false);
+    }
+  }, [open]);
+
+  const handleSubmit = async () => {
+    try {
+      const attachmentUrl = resolveAttachmentUrl(attachments[0]);
+
+      if (!customerEmail) {
+        message.error("Customer email is missing");
+        return;
       }
-    );
+
+      if (!attachmentUrl) {
+        message.error("Attachment URL is missing");
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      await ticketApis.sendEstimateMail({
+        ...sessionPayload,
+        nTicketId: ticketId,
+        TicketId: ticketId,
+        Subject: `${selectedType === "summary" ? "Summary information" : "Detailed Information"} - Ticket No : ${ticketNo || ticketId}`,
+        ToEmail: customerEmail,
+        AttachmentUrl: attachmentUrl,
+        cMailType: selectedType,
+        MailType: selectedType,
+        cType: selectedType,
+        Type: selectedType,
+        cSendType: selectedType,
+        SendType: selectedType,
+        cInfoType:
+          selectedType === "summary"
+            ? "Summary information"
+            : "Detailed Information",
+        InfoType:
+          selectedType === "summary"
+            ? "Summary information"
+            : "Detailed Information",
+      });
+
+      message.success(
+        selectedType === "summary"
+          ? "Summary email sent successfully"
+          : "Detailed email sent successfully"
+      );
+      onClose();
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to send email"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Modal
-      title="Share Ticket"
       open={open}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      centered
       width={400}
-      height={400}
+      height={500}
+      destroyOnClose
+      title={null}
+      closeIcon={<CloseOutlined className="text-xl text-black" />}
+      className="ticket-share-modal"
+      styles={{
+        body: {
+          padding: "14px 16px 16px",
+        },
+        header: {
+          marginBottom: 0,
+          padding: 0,
+          borderBottom: "none",
+        },
+        content: {
+          borderRadius: 10,
+        },
+      }}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-      >
-        <Form.Item
-          label="Agent"
-          name="AgentId"
-          rules={[
-            {
-             
-              message:
-                "Please Select Agent",
-            },
-          ]}
-        >
-          <Select
-            placeholder="Select Agent"
-          />
-        </Form.Item>
+      <div className="space-y-4">
+        <div className="text-[18px] font-medium text-slate-900">
+          Choose a type of information
+        </div>
 
-        <Form.Item
-          label="Remarks"
-          name="Remarks"
-        >
-          <TextArea rows={4} />
-        </Form.Item>
+        <div className="h-px w-full bg-slate-200" />
 
-        <Form.Item>
+        <div className="text-sm text-slate-700 -pt-7">
+          Please choose a type of ticket information to share
+        </div>
+
+        <Radio.Group
+          value={selectedType}
+          onChange={(event) => setSelectedType(event.target.value)}
+          className="flex flex-col gap-6 pt-1"
+        >
+          <Radio value="summary" className="text-slate-400">
+            Summary information
+          </Radio>
+          <Radio value="detailed" className="text-slate-400">
+            Detailed Information
+          </Radio>
+        </Radio.Group>
+
+        <div className="flex justify-end gap-3 pt-7">
+          <Button
+            onClick={onClose}
+            className="!border-emerald-500 !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600"
+          >
+            Cancel
+          </Button>
           <Button
             type="primary"
-            htmlType="submit"
-            loading={
-              shareTicket.isPending
-            }
-            block
+            onClick={handleSubmit}
+            loading={isSubmitting}
+            className="!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-600 hover:!border-emerald-600"
           >
-          Save
+            Ok
           </Button>
-        </Form.Item>
-      </Form>
+        </div>
+      </div>
     </Modal>
   );
 };

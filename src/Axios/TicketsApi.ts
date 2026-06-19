@@ -373,6 +373,18 @@ export const ticketApis = {
     return response.data;
   },
 
+  sendEstimateMail: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Estimate/SendEstimateMail",
+        payload
+      );
+
+    return response.data;
+  },
+
   ticketHistory: async (
     payload: TicketPayload
   ) => {

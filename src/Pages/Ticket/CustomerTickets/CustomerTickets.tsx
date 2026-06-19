@@ -573,12 +573,39 @@ const CustomerTickets = () => {
             </Space>
           </div>
 
-          <div
-           
-          >
-           
-            
-          </div>
+          {isPreviousTicketsRoute ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 14px",
+                borderRadius: 12,
+                background: "#f3f4f6",
+              }}
+            >
+              <Avatar
+                size={32}
+                style={{
+                  background: "#e5e7eb",
+                  color: "#2563eb",
+                  fontWeight: 700,
+                  border: "1px solid #d1d5db",
+                }}
+              >
+                {customerInitial || "C"}
+              </Avatar>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "#111827",
+                }}
+              >
+                {resolvedCustomerName}
+              </div>
+            </div>
+          ) : null}
 
           <div>
             <AntTable

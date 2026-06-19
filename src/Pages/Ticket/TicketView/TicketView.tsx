@@ -321,6 +321,18 @@ const parseMaybeJsonList = (value: any) => {
 
 const pickAttachments = (record: any) => {
   // API returns lowercase 'attachments' — add both cases
+  if (Array.isArray(record)) {
+    return record;
+  }
+
+  if (Array.isArray(record?.data)) {
+    return record.data;
+  }
+
+  if (Array.isArray(record?.data?.data)) {
+    return record.data.data;
+  }
+
   const candidates = [
     record?.attachments,
     record?.Attachments,
@@ -1237,6 +1249,7 @@ const TicketView = () => {
           <button
             type="button"
             aria-label="Share"
+            onClick={() => setShareOpen(true)}
             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
           >
             <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
@@ -1523,6 +1536,9 @@ const TicketView = () => {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         ticketId={ticketId}
+        ticketNo={ticketNo}
+        customerEmail={email}
+        attachments={attachments}
       />
       <TransferTicketModal
         open={transferOpen}
