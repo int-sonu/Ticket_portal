@@ -1,16 +1,15 @@
+import { Button, Form, Input, Modal, message } from "antd";
+import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
+
 import {
+  CalendarOutlined,
   ClockCircleOutlined,
   LeftOutlined,
   DownOutlined,
   UpOutlined,
   RightOutlined,
 } from "@ant-design/icons";
-import {
-  Input,
-  InputNumber,
-  Button,
-  Popover,
-} from "antd";
+
 import dayjs, { type Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
@@ -29,10 +28,9 @@ const PARSE_FORMATS = [
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-type FollowupDateTimePickerProps = {
+type FollowupModalSimpleProps = {
   value?: Dayjs | string | null;
   onChange?: (value: Dayjs | null) => void;
-  defaultOpen?: boolean;
 };
 
 const parseValue = (value?: Dayjs | string | null) => {
@@ -59,13 +57,12 @@ const parseValue = (value?: Dayjs | string | null) => {
 const clampMinute = (minute: number) =>
   Math.min(59, Math.max(0, minute));
 
-const FollowupDateTimePicker = ({
+const FollowupModalSimple = ({
   value,
   onChange,
-  defaultOpen = false,
-}: FollowupDateTimePickerProps) => {
+}: FollowupModalSimpleProps) => {
   const selectedValue = useMemo(() => parseValue(value), [value]);
-  const [open, setOpen] = useState(Boolean(defaultOpen));
+  const [open, setOpen] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const [draftValue, setDraftValue] = useState<Dayjs | null>(
     selectedValue ?? null
@@ -81,13 +78,6 @@ const FollowupDateTimePicker = ({
       setTimeOpen(true);
     }
   }, [open, selectedValue]);
-
-  useEffect(() => {
-    if (defaultOpen) {
-      setOpen(true);
-      setTimeOpen(true);
-    }
-  }, [defaultOpen]);
 
   useEffect(() => {
     if (!open) setTimeOpen(false);
@@ -424,7 +414,7 @@ const FollowupDateTimePicker = ({
           readOnly
           value={displayValue}
           placeholder="Select follow up date & time"
-          suffix={<img src={calenderiCon} alt="calendar" />}
+          suffix=<img src={calenderiCon} />
           className="followup-date-input pointer-events-none"
         />
           
@@ -433,4 +423,5 @@ const FollowupDateTimePicker = ({
   );
 };
 
-export default FollowupDateTimePicker;
+
+export default FollowupModalSimple;

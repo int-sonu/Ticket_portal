@@ -99,6 +99,11 @@ export const useTicketMutations = () => {
     onSuccess: refreshTickets,
   });
 
+  const postponeTicket = useMutation({
+    mutationFn: ticketApis.postponeTicket,
+    onSuccess: refreshTickets,
+  });
+
   // Status
   const updateTicketStatus = useMutation({
     mutationFn: ticketApis.updateTicketStatus,
@@ -131,6 +136,7 @@ export const useTicketMutations = () => {
     reopenTicket,
 
     followupSave,
+    postponeTicket,
 
     updateTicketStatus,
 

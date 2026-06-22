@@ -347,6 +347,18 @@ export const ticketApis = {
     return response.data;
   },
 
+  postponeTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response = await sendWithMethodFallback(
+      "post",
+      "/Api/V1/Ticket/PostponeTicket",
+      payload
+    );
+
+    return response.data;
+  },
+
   ticketDelete: async (
     payload: TicketPayload
   ) => {

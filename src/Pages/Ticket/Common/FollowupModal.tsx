@@ -1,8 +1,9 @@
-import { Button, DatePicker, Form, Input, Modal, Select, Spin, message } from "antd";
+import { Button, Form, Input, Modal, Select, Spin, message } from "antd";
 import { useMemo } from "react";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
 import { useCustomerWiseActiveTicketList } from "../../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../../Utils/requestPayload";
+import FollowupDateTimePicker from "./FollowupDateTimePicker";
 
 const { TextArea } = Input;
 
@@ -23,7 +24,7 @@ const FollowupModal = ({
   defaultTicketId,
 }: FollowupModalProps) => {
   const [form] = Form.useForm();
-  const { followupSave } = useTicketMutations();
+  const { postponeTicket } = useTicketMutations();
 
   // Fetch active tickets for the customer so user can pick which ticket to follow-up
   const payload = useMemo(
@@ -51,7 +52,7 @@ const FollowupModal = ({
 
   const handleSubmit = (values: any) => {
     const resolvedTicketId = values.TicketId ?? ticketId;
-    followupSave.mutate(
+    postponeTicket.mutate(
       {
         TicketId: resolvedTicketId,
         nTicketId: resolvedTicketId,
@@ -77,11 +78,11 @@ const FollowupModal = ({
   return (
     <Modal
       open={open}
-      title="Ticket Follow Up"
+      title="Postpone"
       onCancel={handleCancel}
       footer={null}
       destroyOnClose
-      width={480}
+      width={720}
     >
       <Spin spinning={ticketsLoading}>
         <Form
@@ -107,11 +108,11 @@ const FollowupModal = ({
           )}
 
           <Form.Item
-            label="Follow Up Date"
+            label="Follow Up Date & Time"
             name="FollowupDate"
             rules={[{ required: true, message: "Select Follow Up Date" }]}
           >
-            <DatePicker style={{ width: "100%" }} showTime format="DD/MM/YYYY hh:mm A" />
+            <FollowupDateTimePicker />
           </Form.Item>
 
           <Form.Item
@@ -128,10 +129,10 @@ const FollowupModal = ({
               <Button
                 type="primary"
                 htmlType="submit"
-                loading={followupSave.isPending}
+                loading={postponeTicket.isPending}
                 style={{ backgroundColor: "#10b981" }}
               >
-                Save Follow Up
+                Save
               </Button>
             </div>
           </Form.Item>

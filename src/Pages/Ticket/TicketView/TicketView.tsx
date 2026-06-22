@@ -32,7 +32,7 @@ import {
 } from "../../Master/CustomerMaster/Hooks";
 import TransferTicketModal from "../Common/TransferTicketModal";
 import ShareTicketModal from "../Common/ShareTicketModal";
-import FollowupModal from "../Common/FollowupModal";
+import FollowupModal from "../Common/FollowupPostponeModal";
 import AssignTicketModal from "../Common/AssignTicketModal";
 import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
 type TicketViewState = {
@@ -917,6 +917,14 @@ const TicketView = () => {
     () => extractList(ticketHistoryData),
     [ticketHistoryData],
   );
+  const estimateHistoryId = Number(
+    getFieldValue(historyItems[0], [
+      "nHistoryId",
+      "HistoryId",
+      "Id",
+      "id",
+    ]) || 0,
+  );
   const assignedAgentDetails = useMemo(
     () => state.assignedAgentDetails ?? pickAssignedAgents(resolvedRecord),
     [resolvedRecord, state.assignedAgentDetails],
@@ -1549,13 +1557,13 @@ const TicketView = () => {
         open={postponeOpen}
         onClose={() => setPostponeOpen(false)}
         ticketId={ticketId}
-        customerId={customerId}
-        defaultTicketId={ticketId}
       />
       <EstimateModal
         open={estimateOpen}
         onClose={() => setEstimateOpen(false)}
         ticketId={ticketId}
+        customerId={customerId}
+        historyId={estimateHistoryId}
         customerName={customerName}
         sessionPayload={getRequestPayload()}
       />
