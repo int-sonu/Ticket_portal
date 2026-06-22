@@ -4,14 +4,12 @@ import {
   RightOutlined,
   UpOutlined,
 } from "@ant-design/icons";
-import { Button, InputNumber } from "antd";
+import { Button } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { useEffect, useMemo, useState } from "react";
 
 dayjs.extend(customParseFormat);
-
-const DISPLAY_FORMAT = "DD/MM/YYYY hh:mm A";
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 type Props = {
@@ -92,6 +90,16 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
     );
   };
 
+  const stepHour = (delta: number) => {
+    const next = ((hour12 - 1 + delta + 12) % 12) + 1;
+    setTime(next, null, null);
+  };
+
+  const stepMinute = (delta: number) => {
+    const next = clampMinute(minute + delta);
+    setTime(null, next, null);
+  };
+
   const startOfGrid = viewDate
     .startOf("month")
     .subtract(viewDate.startOf("month").day(), "day");
@@ -101,9 +109,9 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
   );
 
   return (
-    <div className="grid grid-cols-[340px_285px] items-start gap-4">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+    <div className="mr-9 grid grid-cols-[337px_285px] items-start gap-4">
+      <div className="h-[304px] rounded-xl bg-white p-0">
+        <div className="flex items-center justify-between px-1 pb-2 pt-1">
           <div className="flex items-center gap-2">
             <button type="button" className="followup-nav-btn" onClick={() => handleYearChange(-1)}>
               <LeftOutlined />
@@ -124,13 +132,13 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500">
+        <div className="mt-2.5 grid grid-cols-7 gap-1 px-1 text-center text-xs font-medium text-slate-500">
           {WEEKDAYS.map((day) => (
             <span key={day}>{day}</span>
           ))}
         </div>
 
-        <div className="mt-2 grid grid-cols-7 gap-1">
+        <div className="mt-1.5 grid grid-cols-7 gap-1 px-1">
           {days.map((day) => {
             const isSelected = selectedValue ? day.isSame(selectedValue, "day") : false;
             const isToday = day.isSame(dayjs(), "day");
@@ -143,7 +151,7 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
                   "h-9 rounded-md text-sm transition",
                   isSelected
                     ? "bg-blue-600 text-white"
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100",
+                    : "bg-white text-slate-700 hover:bg-slate-100",
                   isToday && !isSelected ? "ring-1 ring-blue-400" : "",
                 ].join(" ")}
                 onClick={() => handleDayClick(day)}
@@ -155,48 +163,52 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3">
+      <div className="h-[134px] rounded-xl bg-white p-3 ">
         <div className="text-sm font-medium text-slate-700">Select Time</div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <InputNumber
-              min={1}
-              max={12}
-              value={hour12}
-              onChange={(nextHour) =>
-                setTime(typeof nextHour === "number" ? nextHour : null, null, null)
-              }
-              controls={false}
-              className="h-24 w-24 rounded-lg border border-blue-400 bg-blue-500 text-center text-4xl font-semibold text-white shadow-sm"
-            />
-            <div className="pointer-events-none absolute right-2 top-2 flex flex-col text-white/90">
+        <div className="mt-3 flex items-start gap-2">
+          <div className="relative h-[82px] w-[95px] overflow-hidden rounded-lg bg-blue-500 ">
+            <button
+              type="button"
+              className="absolute left-0 top-0 flex h-5 w-full items-center justify-center text-white/90"
+              onClick={() => stepHour(1)}
+            >
               <UpOutlined />
+            </button>
+            <button
+              type="button"
+              className="absolute left-0 bottom-0 flex h-5 w-full items-center justify-center text-white/90"
+              onClick={() => stepHour(-1)}
+            >
               <DownOutlined />
+            </button>
+            <div className="flex h-full items-center justify-center px-3 text-[31px] font-semibold text-white">
+              {hour12}
             </div>
           </div>
 
           <span className="px-1 text-2xl font-medium text-slate-300">:</span>
 
-          <div className="relative">
-            <InputNumber
-              min={0}
-              max={59}
-              value={minute}
-              formatter={(inputValue) => String(inputValue ?? "0").padStart(2, "0")}
-              parser={(inputValue) => Number(inputValue || 0)}
-              onChange={(nextMinute) =>
-                setTime(null, typeof nextMinute === "number" ? nextMinute : null, null)
-              }
-              controls={false}
-              className="h-24 w-24 rounded-lg border border-blue-400 bg-blue-500 text-center text-4xl font-semibold text-white shadow-sm"
-            />
-            <div className="pointer-events-none absolute right-2 top-2 flex flex-col text-white/90">
+          <div className="relative h-[82px] w-[95px] overflow-hidden rounded-lg bg-blue-500 shadow-sm">
+            <button
+              type="button"
+              className="absolute left-0 top-0 flex h-5 w-full items-center justify-center text-white/90"
+              onClick={() => stepMinute(1)}
+            >
               <UpOutlined />
+            </button>
+            <button
+              type="button"
+              className="absolute left-0 bottom-0 flex h-5 w-full items-center justify-center text-white/90"
+              onClick={() => stepMinute(-1)}
+            >
               <DownOutlined />
+            </button>
+            <div className="flex h-full items-center justify-center px-3 text-[31px] font-semibold text-white">
+              {String(minute).padStart(2, "0")}
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 self-start pt-1">
             <Button
               size="small"
               className={

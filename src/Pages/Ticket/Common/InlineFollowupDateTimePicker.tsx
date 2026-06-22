@@ -102,7 +102,7 @@ const InlineFollowupDateTimePicker = ({ value, onChange }: Props) => {
   );
 
   return (
-    <div className="grid grid-cols-[340px_285px] items-start gap-4">
+    // <div className="grid grid-cols-[340px_285px] items-start gap-4">
       <div className="w-[350px] bg-white">
         <div className="flex items-center justify-between pb-3">
           <div className="flex items-center justify-between  pb-3">
@@ -157,9 +157,9 @@ const InlineFollowupDateTimePicker = ({ value, onChange }: Props) => {
           </div>
         </div>
 
-      </div>
+      {/* </div> */}
 
-      <div className="flex w-[285px] flex-none flex-col gap-3">
+      {/* <div className="flex w-[285px] flex-none flex-col gap-3"> */}
           <div className="text-sm font-medium text-slate-700">Select Time</div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
@@ -232,7 +232,7 @@ const InlineFollowupDateTimePicker = ({ value, onChange }: Props) => {
 
         </div>
       </div>
-    </div>
+    // </div>
   );
 };
 

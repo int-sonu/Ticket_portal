@@ -145,7 +145,7 @@ export const ticketApis = {
     try {
       const response =
         await axiosInstance.post(
-          "/Api/V1/Dashboard/PostponededTicketList",
+"/Api/V1/Ticket/PostponeTicket",
           payload
         );
 

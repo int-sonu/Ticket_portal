@@ -1,7 +1,9 @@
 import { Button, Input, Modal, message } from "antd";
+import { AudioOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import dayjs, { type Dayjs } from "dayjs";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
+import { getRequestPayload } from "../../../Utils/requestPayload";
 import InlineFollowupDateTimePickerV2 from "./InlineFollowupDateTimePickerV2";
 
 const { TextArea } = Input;
@@ -38,13 +40,26 @@ const FollowupPostponeModal = ({
       return;
     }
 
+    const note = remarks.trim();
+    if (!note) {
+      message.error("Enter postpone comments");
+      return;
+    }
+
+    const requestPayload = getRequestPayload();
+    const postponeDate = followupDate.format("YYYY-MM-DD HH:mm:ss");
+
     postponeTicket.mutate(
       {
+        ...requestPayload,
         TicketId: ticketId,
         nTicketId: ticketId,
-        dDate: followupDate.format("DD/MM/YYYY hh:mm A"),
-        FollowupDate: followupDate.format("DD/MM/YYYY hh:mm A"),
-        Remarks: remarks,
+        dPostponeDate: postponeDate,
+        cPostponeNote: note,
+        // Keep legacy fields for backward compatibility with any existing code paths.
+        dDate: postponeDate,
+        FollowupDate: postponeDate,
+        Remarks: note,
       } as any,
       {
         onSuccess: () => {
@@ -62,32 +77,43 @@ const FollowupPostponeModal = ({
       onCancel={handleCancel}
       footer={null}
       destroyOnClose
-      width={690}
+      width={712}
       styles={{
         body: {
-          padding: "0px 0px 0px",
-          background: "#f8fafc",
+          padding: "8px 12px 12px",
+          background: "#ffffff",
         },
       }}
     >
-      <div className="flex flex-col gap-4">
-        <InlineFollowupDateTimePickerV2 value={followupDate} onChange={setFollowupDate} />
+      <div className="grid grid-cols-[347px_285px] items-start gap-x-4 gap-y-3">
+        <div className="col-span-2">
+          <InlineFollowupDateTimePickerV2 value={followupDate} onChange={setFollowupDate} />
+        </div>
 
-        <div className="grid grid-cols-[340px_285px] gap-5 scroll">
-          <div />
-          <div className="flex flex-col gap-2 -mt-[190px]">
-            <div className="text-sm font-medium text-slate-700">Comments</div>
+        <div className="col-start-2 flex flex-col gap-2 pt-0">
+          <div className="text-sm font-medium text-slate-700 -mt-[175px]">
+            Comments
+          </div>
+          <div className="relative">
             <TextArea
               rows={4}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               placeholder="Enter comments..."
-              className=""
+              className="min-h-[98px] 
+               pr-10"
             />
+            <button
+              type="button"
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Voice input"
+            >
+              <AudioOutlined />
+            </button>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2  -mt-[65px]">
+        <div className="col-start-2 flex justify-end gap-2 -mt-[20px]">
           <Button onClick={handleCancel}>Cancel</Button>
           <Button
             type="primary"
