@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Table, Select, InputNumber, Button, message, Popover, Input, Modal } from 'antd';
 import { PlusOutlined, CloseOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../Axios/axios';
+import { billingApis } from '../../../Axios/MasterApis';
 import { getConfig } from '../../../Axios/config';
 import deleteRed from '../../../assets/icons/delete-red.svg';
 import narrationIcon from '../../../assets/icons/NarrationIcon.svg';
@@ -33,6 +35,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   customerName,
   sessionPayload,
 }) => {
+  const navigate = useNavigate();
   const [estimateNo, setEstimateNo] = useState<string>('01');
   const [partList, setPartList] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([
@@ -48,7 +51,206 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('');
   const [isPdfRendering, setIsPdfRendering] = useState(false);
   const [pdfRenderError, setPdfRenderError] = useState<string>('');
+  const [pdfPageCount, setPdfPageCount] = useState<number>(0);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const getPartTaxRows = (part: any) => {
+    const rawTaxes =
+      part?.taxes ??
+      part?.taxSettings ??
+      part?.partTaxes ??
+      part?.tax ??
+      part?.partTax ??
+      part?.partTaxSetting ??
+      [];
+
+    const taxArray = Array.isArray(rawTaxes)
+      ? rawTaxes
+      : rawTaxes
+        ? [rawTaxes]
+        : [];
+
+    return taxArray
+      .map((tax: any) => ({
+        taxId: Number(
+          tax?.nTaxId ??
+            tax?.taxId ??
+            tax?.id ??
+            tax?.nPartTaxId ??
+            tax?.nTaxMasterId ??
+            0,
+        ),
+        taxName: String(
+          tax?.cTaxName ??
+            tax?.taxName ??
+            tax?.name ??
+            tax?.cName ??
+            '',
+        ),
+        taxRate: Number(
+          tax?.nTaxRate ??
+            tax?.taxRate ??
+            tax?.nRate ??
+            tax?.rate ??
+            0,
+        ),
+        applyAfterDisc: Boolean(
+          tax?.bApplyAfterDisc ??
+            tax?.applyAfterDisc ??
+            tax?.bAfterDiscount ??
+            tax?.afterDiscount ??
+            false,
+        ),
+      }))
+      .filter(
+        (tax) =>
+          tax.taxId > 0 ||
+          String(tax.taxName).trim() ||
+          tax.taxRate > 0,
+      );
+  };
+
+  const getPartTaxMeta = (part: any) => {
+    const taxRows = getPartTaxRows(part);
+    const taxRate = taxRows.reduce(
+      (sum, tax) => sum + Number(tax.taxRate || 0),
+      0,
+    );
+
+    return {
+      taxRows,
+      taxId: taxRows[0]?.taxId ?? 0,
+      taxRate: Number(taxRate || 0),
+    };
+  };
+
+  const calculateLocalTaxAmount = (taxRows: any[], baseAmount: number, taxableAmount: number) =>
+    Number(
+      taxRows
+        .reduce((sum, tax) => {
+          const taxBase = tax.applyAfterDisc ? taxableAmount : baseAmount;
+          return sum + ((Number(taxBase || 0) * Number(tax.taxRate || 0)) / 100);
+        }, 0)
+        .toFixed(2),
+    );
+
+  const isServiceChargePart = (part: any) =>
+    Boolean(
+      part?.bservicecharge ??
+        part?.bServiceCharge ??
+        part?.serviceCharge ??
+        false,
+    );
+
+  const resolveTaxAmount = (response: any) => {
+    const responseData = response?.data ?? response;
+    const possibleValues = [
+      responseData?.data?.nTaxAmount,
+      responseData?.data?.taxAmount,
+      responseData?.data?.nTaxValue,
+      responseData?.data?.taxValue,
+      responseData?.data?.amount,
+      responseData?.data?.nAmount,
+      responseData?.nTaxAmount,
+      responseData?.taxAmount,
+      responseData?.nTaxValue,
+      responseData?.taxValue,
+      responseData?.amount,
+      responseData?.nAmount,
+      responseData?.tax,
+      responseData?.data?.tax,
+      responseData?.data?.result?.nTaxAmount,
+      responseData?.data?.result?.taxAmount,
+      responseData?.data?.result?.taxValue,
+      responseData?.result?.nTaxAmount,
+      responseData?.result?.taxAmount,
+      responseData?.result?.taxValue,
+      Array.isArray(responseData?.data) ? responseData.data[0]?.nTaxAmount : undefined,
+      Array.isArray(responseData?.data) ? responseData.data[0]?.taxAmount : undefined,
+      Array.isArray(responseData?.data) ? responseData.data[0]?.taxValue : undefined,
+      Array.isArray(responseData?.data) ? responseData.data[0]?.amount : undefined,
+    ];
+
+    const parsedTax = Number(
+      possibleValues.find((value) => {
+        const num = Number(value);
+        return Number.isFinite(num) && num > 0;
+      }) ?? 0,
+    );
+
+    return Number.isFinite(parsedTax) ? parsedTax : 0;
+  };
+
+  const updateItemTax = (
+    key: number,
+    taxAmount: number,
+    options?: { preserveTotal?: boolean },
+  ) => {
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.key !== key) {
+          return item;
+        }
+
+        const nextTax = Number(taxAmount || 0);
+        const nextValue = Number(item.value || 0);
+        const nextDiscount = Number(item.discount || 0);
+
+        return {
+          ...item,
+          tax: nextTax,
+          total: options?.preserveTotal
+            ? Number(item.total || 0)
+            : nextValue - nextDiscount + nextTax,
+        };
+      }),
+    );
+  };
+
+  const fetchAndApplyTax = async (item: any, taxableAmount: number) => {
+    const part = partList.find((p) => p.nPartId === item.partId);
+    const isServiceCharge = isServiceChargePart(part);
+    const taxMeta = getPartTaxMeta(part);
+
+    if (!item.partId || isServiceCharge) {
+      updateItemTax(item.key, 0);
+      return;
+    }
+
+    const localTaxAmount = calculateLocalTaxAmount(
+      taxMeta.taxRows,
+      Number(item.value || 0),
+      Number(taxableAmount || 0),
+    );
+
+    try {
+      const payload = {
+        ...sessionPayload,
+        nCompanyId: Number(sessionPayload?.nCompanyId ?? 0),
+        cSchemaName: sessionPayload?.cSchemaName,
+        cDbName: sessionPayload?.cDbName,
+        nTicketId: Number(ticketId || 0),
+        nCustomerId: Number(customerId || 0),
+        nPartId: Number(item.partId || 0),
+        nTaxId: taxMeta.taxId,
+        nTaxRate: taxMeta.taxRate,
+        nQty: Number(item.qty || 0),
+        nRate: Number(item.rate || 0),
+        nDiscAmt: Number(item.discount || 0),
+        nAmount: Number(taxableAmount || 0),
+        nTaxableAmount: Number(taxableAmount || 0),
+        nGrossAmount: Number(taxableAmount || 0),
+      };
+
+      const response = await billingApis.getTaxValue(payload);
+      const apiTaxAmount = resolveTaxAmount(response);
+      const taxAmount = apiTaxAmount > 0 ? apiTaxAmount : localTaxAmount;
+      updateItemTax(item.key, taxAmount);
+    } catch (error) {
+      console.error(error);
+      updateItemTax(item.key, localTaxAmount);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -106,12 +308,14 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         const updated = { ...item, [field]: value };
 
         const part = partList.find(p => p.nPartId === updated.partId);
-        const isServiceCharge = part?.bservicecharge;
+        const isServiceCharge = isServiceChargePart(part);
+        const taxMeta = getPartTaxMeta(part);
 
         if (field === 'partId') {
           if (part) {
             updated.rate = part.nRate || 0;
             updated.qty = isServiceCharge ? 0 : 1;
+            updated.tax = 0;
             if (isServiceCharge) {
               updated.total = part.nRate || 0;
             }
@@ -120,9 +324,16 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
 
         if (!isServiceCharge) {
           updated.value = (updated.qty || 0) * (updated.rate || 0);
-          updated.total = updated.value - (updated.discount || 0) + (updated.tax || 0);
+          const taxableValue = Math.max(updated.value - (updated.discount || 0), 0);
+          updated.tax = calculateLocalTaxAmount(
+            taxMeta.taxRows,
+            Number(updated.value || 0),
+            taxableValue,
+          );
+          updated.total = taxableValue + (updated.tax || 0);
         } else if (field === 'total') {
           updated.total = value;
+          updated.tax = 0;
         }
 
         return updated;
@@ -130,6 +341,25 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       return item;
     });
     setItems(newItems);
+
+    const updatedItem = newItems.find((item) => item.key === key);
+    if (updatedItem) {
+      const part = partList.find((p) => p.nPartId === updatedItem.partId);
+      const isServiceCharge = isServiceChargePart(part);
+
+      if (!isServiceCharge && updatedItem.partId && ['partId', 'qty', 'rate', 'discount'].includes(field)) {
+        const taxableAmount = Math.max(
+          Number(updatedItem.value || 0) - Number(updatedItem.discount || 0),
+          0,
+        );
+
+        void fetchAndApplyTax(updatedItem, taxableAmount);
+      }
+
+      if (isServiceCharge) {
+        updateItemTax(key, 0, { preserveTotal: true });
+      }
+    }
   };
 
   const totalValue = items.reduce((sum, item) => sum + (item.total || 0), 0);
@@ -187,6 +417,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       URL.revokeObjectURL(pdfPreviewUrl);
     }
     setPdfPreviewUrl('');
+    setPdfPageCount(0);
     setPdfRenderError('');
     setIsPdfRendering(false);
     setIsPreviewOpen(false);
@@ -221,36 +452,45 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const loadPdfJs = async () => {
     if (window.pdfjsLib) return window.pdfjsLib;
 
-    await new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>(
-        'script[data-pdfjs-lib="true"]',
-      );
+    try {
+      const module = await import(/* @vite-ignore */ 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.mjs');
+      const pdfjsLib = (module as any).default ?? module;
+      window.pdfjsLib = pdfjsLib;
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.worker.mjs';
+      return pdfjsLib;
+    } catch (moduleError) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.querySelector<HTMLScriptElement>(
+          'script[data-pdfjs-lib="true"]',
+        ) ?? document.createElement('script');
 
-      if (existingScript) {
-        existingScript.addEventListener('load', () => resolve(), { once: true });
-        existingScript.addEventListener('error', () => reject(new Error('Failed to load PDF renderer')), {
-          once: true,
-        });
-        return;
+        if (!script.src) {
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.min.js';
+          script.async = true;
+          script.dataset.pdfjsLib = 'true';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load PDF renderer'));
+          document.body.appendChild(script);
+        } else if (window.pdfjsLib) {
+          resolve();
+        } else {
+          script.addEventListener('load', () => resolve(), { once: true });
+          script.addEventListener('error', () => reject(new Error('Failed to load PDF renderer')), {
+            once: true,
+          });
+        }
+      });
+
+      if (!window.pdfjsLib) {
+        throw new Error('PDF renderer not available');
       }
 
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.min.js';
-      script.async = true;
-      script.dataset.pdfjsLib = 'true';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load PDF renderer'));
-      document.body.appendChild(script);
-    });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.worker.min.js';
 
-    if (!window.pdfjsLib) {
-      throw new Error('PDF renderer not available');
+      return window.pdfjsLib;
     }
-
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.31/pdf.worker.min.js';
-
-    return window.pdfjsLib;
   };
 
   const renderPdfPreview = async (url: string) => {
@@ -263,6 +503,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       const pdfjsLib = await loadPdfJs();
       const loadingTask = pdfjsLib.getDocument({ url });
       const pdf = await loadingTask.promise;
+      setPdfPageCount(pdf.numPages);
 
       if (!previewContainerRef.current) return;
       previewContainerRef.current.innerHTML = '';
@@ -280,11 +521,29 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         canvas.style.width = '100%';
         canvas.style.height = 'auto';
         canvas.style.display = 'block';
-        canvas.style.margin = '0 auto 16px';
+        canvas.style.margin = '0 auto';
         canvas.style.background = '#fff';
 
+        const pageWrapper = document.createElement('div');
+        pageWrapper.style.margin = '0 auto 18px';
+        pageWrapper.style.maxWidth = '100%';
+        pageWrapper.style.background = '#fff';
+        pageWrapper.style.border = '1px solid #e2e8f0';
+        pageWrapper.style.borderRadius = '12px';
+        pageWrapper.style.padding = '12px';
+        pageWrapper.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.08)';
+
+        const pageLabel = document.createElement('div');
+        pageLabel.textContent = `Page ${pageNumber}`;
+        pageLabel.style.fontSize = '12px';
+        pageLabel.style.fontWeight = '600';
+        pageLabel.style.color = '#475569';
+        pageLabel.style.marginBottom = '10px';
+
         await page.render({ canvasContext: context, viewport }).promise;
-        previewContainerRef.current.appendChild(canvas);
+        pageWrapper.appendChild(pageLabel);
+        pageWrapper.appendChild(canvas);
+        previewContainerRef.current.appendChild(pageWrapper);
       }
     } catch (error: any) {
       console.error(error);
@@ -308,72 +567,46 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
     };
   }, [isPreviewOpen, pdfPreviewUrl]);
 
-  const tryOpenPdfFromResponse = async (response: any) => {
+  const getPdfUrlFromResponse = (response: any) => {
     const responseData = response?.data;
     const responseUrl =
+      responseData?.data?.pdfPath ??
+      responseData?.data?.cPdfPath ??
+      responseData?.data?.filePath ??
+      responseData?.data?.path ??
       responseData?.data?.cFileUrl ??
       responseData?.cFileUrl ??
       responseData?.data?.fileUrl ??
       responseData?.fileUrl ??
+      responseData?.data?.pdfUri ??
+      responseData?.pdfUri ??
       responseData?.data?.pdfUrl ??
       responseData?.data?.cPdfUrl ??
       responseData?.data?.url ??
       responseData?.data?.fileUrl ??
       responseData?.data?.path ??
+      responseData?.pdfPath ??
+      responseData?.cPdfPath ??
+      responseData?.filePath ??
+      responseData?.path ??
       responseData?.pdfUrl ??
       responseData?.cPdfUrl ??
       responseData?.url ??
       responseData?.fileUrl ??
       responseData?.path;
 
-    if (typeof responseUrl === 'string' && responseUrl.trim()) {
-      await openPdfPreviewFromUrl(responseUrl.trim());
+    return typeof responseUrl === 'string' && responseUrl.trim()
+      ? responseUrl.trim()
+      : '';
+  };
+
+  const openEstimatePdfPage = (pdfUrl: string) => {
+    if (!pdfUrl) {
+      message.error('Unable to open estimate PDF');
       return;
     }
 
-    const blob = response?.data;
-    const contentType = String(response?.headers?.['content-type'] || '');
-
-    if (blob instanceof Blob) {
-      if (contentType.includes('json') || contentType.includes('text/plain')) {
-        try {
-          const text = await blob.text();
-          const parsed = JSON.parse(text);
-          const parsedUrl =
-            parsed?.data?.pdfUrl ??
-            parsed?.data?.cPdfUrl ??
-            parsed?.data?.url ??
-            parsed?.data?.fileUrl ??
-            parsed?.data?.path ??
-            parsed?.pdfUrl ??
-            parsed?.cPdfUrl ??
-            parsed?.url ??
-            parsed?.fileUrl ??
-            parsed?.path;
-
-          if (typeof parsedUrl === 'string' && parsedUrl.trim()) {
-            await openPdfPreviewFromUrl(parsedUrl.trim());
-            return;
-          }
-        } catch (parseError) {
-          console.error(parseError);
-        }
-      }
-
-      const objectUrl = URL.createObjectURL(blob);
-      setIsPreviewOpen(true);
-      setPdfPreviewUrl(objectUrl);
-      return;
-    }
-
-    if (contentType.includes('pdf')) {
-      const objectUrl = URL.createObjectURL(new Blob([response?.data], { type: 'application/pdf' }));
-      setIsPreviewOpen(true);
-      setPdfPreviewUrl(objectUrl);
-      return;
-    }
-
-    message.error('Unable to open estimate PDF');
+    navigate(`/estimate-invoice?pdfUrl=${encodeURIComponent(pdfUrl)}`);
   };
 
   const buildEstimatePayload = () => {
@@ -488,7 +721,8 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         payload,
       );
 
-      await tryOpenPdfFromResponse(response);
+      const pdfUrl = getPdfUrlFromResponse(response);
+      openEstimatePdfPage(pdfUrl);
       setShowPreviewPrompt(false);
     } catch (error) {
       message.error(getErrorMessage(error));
@@ -851,7 +1085,12 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         }}
       >
         <div className="flex items-center justify-between border-b border-slate-700 bg-[#111827] px-4 py-3">
-          <div className="text-sm font-medium text-white">Estimate Preview</div>
+          <div className="flex flex-col">
+            <div className="text-sm font-medium text-white">PDF Viewer</div>
+            <div className="text-[11px] text-slate-300">
+              {pdfPageCount ? `${pdfPageCount} page${pdfPageCount > 1 ? 's' : ''}` : 'Rendering document'}
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               type="text"
@@ -890,7 +1129,12 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
               {pdfRenderError}
             </div>
           ) : null}
-          <div ref={previewContainerRef} className="mx-auto max-w-5xl" />
+          <div className="mx-auto w-full max-w-5xl">
+            <div className="mb-4 rounded-xl border border-white/10 bg-[#0b1220] px-4 py-3 text-xs text-slate-300">
+              Custom PDF.js viewer with share and close controls in the header.
+            </div>
+            <div ref={previewContainerRef} className="space-y-4" />
+          </div>
         </div>
       </Modal>
     </div>

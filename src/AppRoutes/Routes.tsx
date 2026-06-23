@@ -44,6 +44,7 @@ import AssignAgentTickets from "../Pages/Ticket/AssignAgentTickets/AssignAgentTi
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
 import TicketView from "../Pages/Ticket/TicketView/TicketView";
+import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 
 const Routes: React.FC = () => {
   return (
@@ -162,6 +163,8 @@ const Routes: React.FC = () => {
 
             <Route path="/tickets/followup/:id" element={<TicketFollowUp />} />
           </Route>
+
+          <Route path="/estimate-invoice" element={<EstimatePdfViewer />} />
         </Route>
 
         {/* Default Route */}
