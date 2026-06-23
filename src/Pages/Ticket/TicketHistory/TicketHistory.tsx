@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import { useTicketHistory } from "../../../Hooks/Ticket/useTicketQueries";
+import { getConfig } from "../../../Axios/config";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import clockgrey from "../../../Assets/icons/clock-grey.svg";
+import pdfIcon from "../../../assets/icons/pdfIcon.png";
 interface Props {
   ticketId?: number;
   customerId?: number;
@@ -16,6 +18,48 @@ const formatText = (value: any) => {
   if (value === null || value === undefined) return "";
   const text = String(value).trim();
   return text === "0" || text === "undefined" || text === "null" ? "" : text;
+};
+
+const resolvePdfUrl = (value: string) => {
+  if (!value) return "";
+
+  const text = String(value).trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) return text;
+
+  const apiBaseUrl = getConfig().API_BASE_URL.replace(/\/$/, "");
+  const apiOrigin = (() => {
+    try {
+      const parsed = new URL(apiBaseUrl);
+      return parsed.origin;
+    } catch {
+      return apiBaseUrl.replace(/\/Api\/V1\/?$/i, "").replace(/\/$/, "");
+    }
+  })();
+
+  return `${apiOrigin}/${text.replace(/^\//, "")}`;
+};
+
+const isPdfPathLike = (value: any) => {
+  const text = String(value ?? "").trim();
+  if (!text) return false;
+
+  return (
+    /\.pdf(\?.*)?$/i.test(text) ||
+    text.includes("/Uploads/") ||
+    text.includes("\\Uploads\\") ||
+    text.toLowerCase().includes("pdf")
+  );
+};
+
+const getPdfExtension = (value: string) => {
+  const text = String(value ?? "").trim();
+  if (!text) return ".pdf";
+
+  const withoutQuery = text.split("?")[0];
+  const fileName = withoutQuery.split("/").pop() || "";
+  const match = fileName.match(/\.[a-z0-9]+$/i);
+  return match?.[0] || ".pdf";
 };
 
 const pickHistoryList = (response: any) => {
@@ -225,6 +269,15 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
                 const actor = getHistoryActor(item);
                 const remarks = getHistoryRemarks(item);
                 const key = item.Id ?? item.id ?? `${title}-${index}`;
+                const pdfSource = [remarks, title].find(isPdfPathLike) || "";
+                const pdfUrl = pdfSource ? resolvePdfUrl(pdfSource) : "";
+                const pdfExtension = getPdfExtension(pdfSource || remarks || title);
+                const visibleTitle = pdfUrl ? "" : title;
+                const visibleRemarks = pdfUrl
+                  ? title
+                  : remarks && !isPdfPathLike(remarks)
+                    ? remarks
+                    : "";
 
                 return (
                   <div
@@ -240,26 +293,49 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
                       ) : null}
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {dateText ? (
                         <div className="text-sm font-medium text-slate-700">
                           {dateText}
                         </div>
                       ) : null}
 
-                      <div className="text-base font-semibold text-teal-700">
-                        {title}
-                      </div>
+                      {pdfUrl ? (
+                        <button
+                          type="button"
+                          className="mt-2 flex w-full items-start gap-3  bg-sky-50 px-4 py-3 text-left text-sm text-slate-700 "
+                          onClick={() => {
+                            navigate(`/tickets/estimate`, {
+                              state: {
+                                ticketId: resolvedTicketId,
+                                customerId,
+                                customerName,
+                                estimateId: Number(item.nId ?? item.Id ?? item.id ?? item.nEstimateId ?? 0),
+                              },
+                            });
+                          }}
+                        >
+                          <img src={pdfIcon} alt="PDF" className="mt-0.5 h-7 w-7 shrink-0 object-contain" />
+                          <div className="min-w-0 flex-1">
+                            <div className="break-words font-medium text-slate-700">
+                              {pdfExtension}
+                            </div>
+                            <div className="mt-1 break-words text-sm font-semibold text-gray-700 ">
+                              {title}
+                            </div>
+                          </div>
+                        </button>
+                      ) : visibleTitle ? (
+                        <div className="text-sm font-semibold text-teal-700">
+                          {visibleTitle}
+                        </div>
+                      ) : null}
 
                       {actor ? (
                         <div className="text-sm text-slate-500">{actor}</div>
                       ) : null}
 
-                      {remarks ? (
-                        <div className="rounded-md bg-sky-50 px-3 py-2 text-sm leading-6 text-slate-700">
-                          {remarks}
-                        </div>
-                      ) : null}
+                     
                     </div>
                   </div>
                 );

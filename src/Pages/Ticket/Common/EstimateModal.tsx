@@ -16,6 +16,7 @@ interface EstimateModalProps {
   ticketId: number;
   customerId?: number;
   historyId?: number;
+  estimateId?: number;
   customerName: string;
   sessionPayload: any;
 }
@@ -32,6 +33,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   ticketId,
   customerId,
   historyId,
+  estimateId,
   customerName,
   sessionPayload,
 }) => {
@@ -52,7 +54,10 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const [isPdfRendering, setIsPdfRendering] = useState(false);
   const [pdfRenderError, setPdfRenderError] = useState<string>('');
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [loadedCustomerName, setLoadedCustomerName] = useState<string>('');
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const resolvedEstimateId = Number(estimateId || historyId || 0);
+  const displayCustomerName = customerName || loadedCustomerName;
 
   const getPartTaxRows = (part: any) => {
     const rawTaxes =
@@ -252,14 +257,164 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
     }
   };
 
-  useEffect(() => {
-    if (open) {
-      fetchEstimateData();
-      setItems([{ key: Date.now(), partId: null, qty: 0, rate: 0, value: 0, discount: 0, tax: 0, total: 0, narration: '' }]);
-      setShowPreviewPrompt(false);
-      setSavedEstimateId(0);
+  const getFirstNumber = (source: any, keys: string[], fallback = 0) => {
+    for (const key of keys) {
+      const value = Number(source?.[key]);
+      if (Number.isFinite(value) && value > 0) {
+        return value;
+      }
     }
-  }, [open]);
+    return fallback;
+  };
+
+  const getEstimateRows = (responseData: any) => {
+    const candidates = [
+      responseData?.partDetails,
+      responseData?.estimateHdrData?.[0]?.itemDtls,
+      responseData?.estimateDtlData,
+      responseData?.estimateDtlData?.[0]?.data,
+      responseData?.estimateDetails,
+      responseData?.EstimateDetails,
+      responseData?.estimateDtlsData,
+      responseData?.EstimateDtlsData,
+      responseData?.itemDtls,
+      responseData?.itemDetails,
+      responseData?.details,
+      responseData?.data,
+      responseData?.TicketTimeline,
+    ];
+
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        return candidate;
+      }
+    }
+
+    return [];
+  };
+
+  const mapEstimateRows = (rows: any[]) =>
+    rows.map((row: any) => {
+      const qty = Number(row?.nQty ?? row?.qty ?? row?.quantity ?? 0);
+      const rate = Number(row?.nRate ?? row?.rate ?? row?.nUnitRate ?? row?.nPrice ?? row?.price ?? 0);
+      const value = Number(
+        row?.nValue ??
+          row?.value ??
+          row?.nAmount ??
+          row?.amount ??
+          (qty * rate) ??
+          0,
+      );
+      const discount = Number(row?.nDiscAmt ?? row?.discount ?? row?.discAmt ?? 0);
+      const tax = Number(row?.nTaxAmount ?? row?.tax ?? row?.taxAmount ?? 0);
+      const total = Number(row?.nTotalAmount ?? row?.total ?? row?.amount ?? (value - discount + tax) ?? 0);
+
+      return {
+        key: Number(row?.key ?? row?.Id ?? row?.id ?? Date.now() + Math.floor(Math.random() * 1000)),
+        partId: Number(row?.nPartId ?? row?.partId ?? row?.PartId ?? 0) || null,
+        qty,
+        rate,
+        value,
+        discount,
+        tax,
+        total,
+        narration: String(row?.cNarration ?? row?.narration ?? row?.nDescription ?? row?.description ?? '').trim(),
+      };
+    });
+
+  const loadExistingEstimateData = async () => {
+    try {
+      setLoading(true);
+      const payload = {
+        nCompanyId: sessionPayload?.nCompanyId,
+        nEstimateId: resolvedEstimateId,
+        cSchemaName: sessionPayload?.cSchemaName,
+        cDbName: sessionPayload?.cDbName,
+      };
+
+      const response = await axiosInstance.post('/Api/V1/Estimate/EstimateDetails', payload);
+      const responseData = response?.data?.data ?? response?.data ?? {};
+      const header =
+        responseData?.estimateHdrData?.[0] ??
+        responseData?.EstimateHdrData?.[0] ??
+        responseData?.estimateHeader ??
+        responseData?.header ??
+        responseData?.TicketSummary ??
+        responseData?.summary ??
+        responseData ??
+        {};
+
+      const rows = getEstimateRows(responseData);
+      const mappedRows = mapEstimateRows(rows);
+      const nextCustomerName =
+        String(
+          header?.cCustomerName ??
+            header?.CustomerName ??
+            responseData?.cCustomerName ??
+            responseData?.CustomerName ??
+            customerName ??
+            '',
+        ).trim();
+
+      if (mappedRows.length > 0) {
+        setItems(mappedRows);
+      } else {
+        setItems([{ key: Date.now(), partId: null, qty: 0, rate: 0, value: 0, discount: 0, tax: 0, total: 0, narration: '' }]);
+      }
+
+      if (nextCustomerName) {
+        setLoadedCustomerName(nextCustomerName);
+      }
+
+      setEstimateNo(
+        String(
+          header?.nEstimateNo ??
+            header?.cEstimateNo ??
+            header?.EstimateNo ??
+            header?.estimateNo ??
+            responseData?.nEstimateNo ??
+            responseData?.cEstimateNo ??
+            responseData?.EstimateNo ??
+            responseData?.estimateNo ??
+            header?.nNumber ??
+            estimateNo,
+        ),
+      );
+      setSavedEstimateId(
+        getFirstNumber(
+          header,
+          ['nEstimateId', 'EstimateId', 'estimateId', 'id', 'Id'],
+          getFirstNumber(responseData, ['nEstimateId', 'EstimateId', 'estimateId', 'id', 'Id']),
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to load estimate details');
+      setItems([{ key: Date.now(), partId: null, qty: 0, rate: 0, value: 0, discount: 0, tax: 0, total: 0, narration: '' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+
+    setShowPreviewPrompt(false);
+    setSavedEstimateId(0);
+
+    const loadScreen = async () => {
+      await fetchEstimateData();
+
+      if (resolvedEstimateId && Number(resolvedEstimateId) > 0) {
+        await loadExistingEstimateData();
+        return;
+      }
+
+      setItems([{ key: Date.now(), partId: null, qty: 0, rate: 0, value: 0, discount: 0, tax: 0, total: 0, narration: '' }]);
+    };
+
+    loadScreen();
+  }, [open, resolvedEstimateId]);
 
   const fetchEstimateData = async () => {
     try {
@@ -644,11 +799,11 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
     const totalAmount = Number(grandTotal || 0);
     const createdBy = Number(sessionPayload?.nCreatedBy ?? sessionPayload?.id ?? sessionPayload?.nAgentId ?? 0);
 
-    return {
+      return {
       ...sessionPayload,
       nTicketId: ticketId,
       TicketId: ticketId,
-      nHistoryId: Number(historyId || 0),
+      nEstimateId: resolvedEstimateId,
       nEstimateNo: estimateNo,
       cEstimateNo: estimateNo,
       EstimateNo: estimateNo,
@@ -932,7 +1087,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         </div>
         <div>
           <span className="text-[#64748b]">Customer Name : </span>
-          <span className="text-[#64748b]">{customerName}</span>
+          <span className="text-[#64748b]">{displayCustomerName}</span>
         </div>
       </div>
 
