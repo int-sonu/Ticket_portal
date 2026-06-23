@@ -397,12 +397,36 @@ export const ticketApis = {
     return response.data;
   },
 
+  shareTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/ShareTicket",
+        payload
+      );
+
+    return response.data;
+  },
+
   unTransferTicket: async (
     payload: TicketPayload
   ) => {
     const response =
       await axiosInstance.post(
         "/Api/V1/Ticket/UnTransferTicket",
+        payload
+      );
+
+    return response.data;
+  },
+
+  unShareTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/UnShareTicket",
         payload
       );
 
@@ -516,4 +540,3 @@ export const ticketApis = {
     return response.data;
   },
 };
-

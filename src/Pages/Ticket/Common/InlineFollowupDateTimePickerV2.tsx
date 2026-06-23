@@ -110,7 +110,7 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
 
   return (
     <div className="mr-9 grid grid-cols-[337px_285px] items-start gap-4">
-      <div className="h-[304px] rounded-xl bg-white p-0">
+      <div className="h-[304px] rounded-xl bg-white  p-0">
         <div className="flex items-center justify-between px-1 pb-2 pt-1">
           <div className="flex items-center gap-2">
             <button type="button" className="followup-nav-btn" onClick={() => handleYearChange(-1)}>
@@ -148,7 +148,7 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
                 key={day.format("YYYY-MM-DD")}
                 type="button"
                 className={[
-                  "h-9 rounded-md text-sm transition",
+                  "h-9 rounded-md text-sm transition ",
                   isSelected
                     ? "bg-blue-600 text-white"
                     : "bg-white text-slate-700 hover:bg-slate-100",
@@ -163,10 +163,10 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
         </div>
       </div>
 
-      <div className="h-[134px] rounded-xl bg-white p-3 ">
+      <div className="h-[134px]  rounded-xl bg-white p-3 ">
         <div className="text-sm font-medium text-slate-700">Select Time</div>
         <div className="mt-3 flex items-start gap-2">
-          <div className="relative h-[82px] w-[95px] overflow-hidden rounded-lg bg-blue-500 ">
+          <div className="relative h-[82px] w-[95px] overflow-hidden rounded-lg bg-sky-500/80 ">
             <button
               type="button"
               className="absolute left-0 top-0 flex h-5 w-full items-center justify-center text-white/90"
@@ -188,7 +188,7 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
 
           <span className="px-1 text-2xl font-medium text-slate-300">:</span>
 
-          <div className="relative h-[82px] w-[95px] overflow-hidden rounded-lg bg-blue-500 shadow-sm">
+          <div className="relative h-[82px] w-[95px] overflow-hidden rounded-lg bg-sky-500/80 shadow-sm">
             <button
               type="button"
               className="absolute left-0 top-0 flex h-5 w-full items-center justify-center text-white/90"
@@ -213,8 +213,8 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
               size="small"
               className={
                 meridiem === "AM"
-                  ? "!border-blue-500 !bg-blue-500 !text-white"
-                  : "!border-blue-500 !bg-white !text-blue-500"
+                  ? "!border-sky-500/80 !bg-sky-500/80 !text-white"
+                  : "!border-sky-500/80 !bg-white !text-sky-500/80"
               }
               onClick={() => setTime(null, null, "AM")}
             >
@@ -224,8 +224,8 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
               size="small"
               className={
                 meridiem === "PM"
-                  ? "!border-blue-500 !bg-blue-500 !text-white"
-                  : "!border-blue-500 !bg-white !text-blue-500"
+                  ? "!border-sky-500/80 !bg-sky-500/80 !text-white"
+                  : "!border-sky-500/80 !bg-white !text-sky-500/80"
               }
               onClick={() => setTime(null, null, "PM")}
             >

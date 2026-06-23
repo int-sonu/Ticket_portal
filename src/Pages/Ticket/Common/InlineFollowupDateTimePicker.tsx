@@ -171,7 +171,7 @@ const InlineFollowupDateTimePicker = ({ value, onChange }: Props) => {
                   onChange={(nextHour) =>
                     setTime(typeof nextHour === "number" ? nextHour : null, null, null)
                   }
-                  className="h-24 w-24 rounded-lg border border-blue-400 bg-blue-500 text-center text-4xl font-semibold text-white shadow-sm"
+                  className="h-24 w-24 rounded-lg border border-blue-400 bg-sky-500/90 text-center text-4xl font-semibold text-white shadow-sm"
                   controls={false}
                 />
                 <div className="pointer-events-none absolute right-2 top-2 flex flex-col text-white/90">

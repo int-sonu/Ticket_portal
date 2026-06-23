@@ -1,186 +1,235 @@
-import { Button, Modal, Radio, message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Avatar,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Select,
+  message,
+} from "antd";
 import { CloseOutlined } from "@ant-design/icons";
+import { useMemo } from "react";
 
-import { ticketApis } from "../../../Axios/TicketsApi";
-import { getApiImageBaseUrl } from "../../../Axios/config";
+import { useGetAgents } from "../../Master/Agent/Hooks";
+import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import { getRequestPayload } from "../../../Utils/requestPayload";
+import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
+
+const { TextArea } = Input;
+
+const avatarColors = [
+  "#22c55e",
+  "#4ade80",
+  "#86efac",
+  "#16a34a",
+  "#bbf7d0",
+  "#15803d",
+];
+
+const getAvatarColor = (index: number) =>
+  avatarColors[index % avatarColors.length];
+
+const getErrorMessage = (error: any) => {
+  const responseData = error?.response?.data;
+  const validationErrors = responseData?.errors;
+
+  if (validationErrors && typeof validationErrors === "object") {
+    const messages = Object.values(validationErrors).reduce<string[]>(
+      (allMessages, value) => {
+        const nextValues = Array.isArray(value) ? value : [value];
+
+        return allMessages.concat(
+          nextValues.filter(Boolean).map((item) => String(item))
+        );
+      },
+      []
+    );
+
+    if (messages.length > 0) {
+      return messages.join(" | ");
+    }
+  }
+
+  return (
+    responseData?.message ||
+    responseData?.title ||
+    error?.message ||
+    "Unable to share ticket"
+  );
+};
 
 interface ShareTicketModalProps {
   open: boolean;
   onClose: () => void;
   ticketId: number;
   ticketNo?: string;
-  customerEmail?: string;
-  attachments?: any[];
 }
-
-type ShareType = "summary" | "detailed";
 
 const ShareTicketModal = ({
   open,
   onClose,
   ticketId,
   ticketNo,
-  customerEmail,
-  attachments = [],
 }: ShareTicketModalProps) => {
-  const [selectedType, setSelectedType] = useState<ShareType>("summary");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form] = Form.useForm();
 
   const sessionPayload = useMemo(() => getRequestPayload(), []);
+  const agentPayload = useMemo(
+    () => ({
+      ...sessionPayload,
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    [sessionPayload]
+  );
 
-  const resolveAttachmentUrl = (file: any) => {
-    const rawUrl =
-      file?.cUrl ??
-      file?.cFilePath ??
-      file?.url ??
-      file?.thumbUrl ??
-      file?.path ??
-      file?.FilePath ??
-      file?.AttachmentPath ??
-      "";
+  const { data: agentData, isFetching: isFetchingAgents } = useGetAgents(
+    agentPayload,
+    open
+  );
 
-    if (!rawUrl) return "";
+  const agentOptions = useMemo(
+    () =>
+      extractList(agentData).map((agent: any) => {
+        const agentId = Number(
+          agent?.nAgentId ?? agent?.agentId ?? agent?.id ?? agent?.value ?? 0
+        );
+        const agentName =
+          agent?.cAgentName ??
+          agent?.agentName ??
+          agent?.name ??
+          agent?.cName ??
+          `Agent ${agentId || ""}`;
 
-    if (/^https?:\/\//i.test(rawUrl)) {
-      return rawUrl;
-    }
+        return {
+          value: String(agentId),
+          label: (
+            <div className="flex items-center gap-2">
+              <Avatar
+                size={24}
+                style={{
+                  backgroundColor: getAvatarColor(agentId || 0),
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {agentName
+                  .replace(/[^a-z0-9]/gi, "")
+                  .slice(0, 2)
+                  .toUpperCase() || "A"}
+              </Avatar>
+              <span>{agentName}</span>
+            </div>
+          ),
+          searchLabel: agentName,
+        };
+      }),
+    [agentData]
+  );
 
-    const base = getApiImageBaseUrl().replace(/\/$/, "");
-    return `${base}/${String(rawUrl).replace(/^\//, "")}`;
-  };
+  const { shareTicket } = useTicketActions();
 
-  useEffect(() => {
-    if (open) {
-      setSelectedType("summary");
-      setIsSubmitting(false);
-    }
-  }, [open]);
+  const handleSubmit = (values: any) => {
+    const agentId = Number(values.AgentId || 0);
+    const sharedByAgentId = Number(
+      sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0
+    );
 
-  const handleSubmit = async () => {
-    try {
-      const attachmentUrl = resolveAttachmentUrl(attachments[0]);
-
-      if (!customerEmail) {
-        message.error("Customer email is missing");
-        return;
-      }
-
-      if (!attachmentUrl) {
-        message.error("Attachment URL is missing");
-        return;
-      }
-
-      setIsSubmitting(true);
-
-      await ticketApis.sendEstimateMail({
-        ...sessionPayload,
+    shareTicket.mutate(
+      {
+        id: Number(sessionPayload.id ?? 0),
+        nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
+        cSchemaName: sessionPayload.cSchemaName ?? "",
+        cDbName: sessionPayload.cDbName ?? "",
         nTicketId: ticketId,
-        TicketId: ticketId,
-        Subject: `${selectedType === "summary" ? "Summary information" : "Detailed Information"} - Ticket No : ${ticketNo || ticketId}`,
-        ToEmail: customerEmail,
-        AttachmentUrl: attachmentUrl,
-        cMailType: selectedType,
-        MailType: selectedType,
-        cType: selectedType,
-        Type: selectedType,
-        cSendType: selectedType,
-        SendType: selectedType,
-        cInfoType:
-          selectedType === "summary"
-            ? "Summary information"
-            : "Detailed Information",
-        InfoType:
-          selectedType === "summary"
-            ? "Summary information"
-            : "Detailed Information",
-      });
-
-      message.success(
-        selectedType === "summary"
-          ? "Summary email sent successfully"
-          : "Detailed email sent successfully"
-      );
-      onClose();
-    } catch (error: any) {
-      message.error(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Unable to send email"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+        cShareReason: values.ShareReason,
+        nSharedByAgentId: sharedByAgentId,
+        nSharedToAgentId: agentId,
+      },
+      {
+        onSuccess: () => {
+          message.success("Ticket Shared Successfully");
+          form.resetFields();
+          onClose();
+        },
+        onError: (error: any) => {
+          message.error(getErrorMessage(error));
+        },
+      }
+    );
   };
 
   return (
     <Modal
+      title="Share Ticket"
       open={open}
       onCancel={onClose}
-      footer={null}
-      centered
-      width={400}
-      height={500}
-      destroyOnClose
-      title={null}
-      closeIcon={<CloseOutlined className="text-xl text-black" />}
-      className="ticket-share-modal"
-      styles={{
-        body: {
-          padding: "14px 16px 16px",
-        },
-        header: {
-          marginBottom: 0,
-          padding: 0,
-          borderBottom: "none",
-        },
-        content: {
-          borderRadius: 10,
-        },
-      }}
-    >
-      <div className="space-y-4">
-        <div className="text-[18px] font-medium text-slate-900">
-          Choose a type of information
-        </div>
-
-        <div className="h-px w-full bg-slate-200" />
-
-        <div className="text-sm text-slate-700 -pt-7">
-          Please choose a type of ticket information to share
-        </div>
-
-        <Radio.Group
-          value={selectedType}
-          onChange={(event) => setSelectedType(event.target.value)}
-          className="flex flex-col gap-6 pt-1"
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          Cancel
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          loading={shareTicket.isPending}
+          onClick={() => form.submit()}
         >
-          <Radio value="summary" className="text-slate-400">
-            Summary information
-          </Radio>
-          <Radio value="detailed" className="text-slate-400">
-            Detailed Information
-          </Radio>
-        </Radio.Group>
+          Save
+        </Button>,
+      ]}
+      destroyOnClose
+      width={400}
+      height={300}
+      closeIcon={<CloseOutlined className="text-xl text-black" />}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        onFinish={handleSubmit}
+      >
+        <Form.Item
+          label="Agent"
+          name="AgentId"
+          rules={[
+            {
+              required: true,
+              message: "Please Select Agent",
+            },
+          ]}
+        >
+          <Select
+            placeholder="Select Agent"
+            options={agentOptions}
+            loading={isFetchingAgents}
+            showSearch
+            optionFilterProp="searchLabel"
+            filterOption={(input, option) =>
+              String((option as any)?.searchLabel ?? "")
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+          />
+        </Form.Item>
 
-        <div className="flex justify-end gap-3 pt-7">
-          <Button
-            onClick={onClose}
-            className="!border-emerald-500 !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="primary"
-            onClick={handleSubmit}
-            loading={isSubmitting}
-            className="!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-600 hover:!border-emerald-600"
-          >
-            Ok
-          </Button>
-        </div>
-      </div>
+        <Form.Item
+          label="Reason for Share"
+          name="ShareReason"
+          rules={[
+            {
+              required: true,
+              message: "Please Enter Share Reason",
+            },
+          ]}
+        >
+          <TextArea rows={6} />
+        </Form.Item>
+
+        <Form.Item>
+          <div className="hidden" />
+        </Form.Item>
+      </Form>
     </Modal>
   );
 };

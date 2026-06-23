@@ -31,6 +31,7 @@ import {
   useGetCustomerWiseAssets,
 } from "../../Master/CustomerMaster/Hooks";
 import TransferTicketModal from "../Common/TransferTicketModal";
+import ShareInfoModal from "../Common/ShareInfoModal";
 import ShareTicketModal from "../Common/ShareTicketModal";
 import FollowupModal from "../Common/FollowupPostponeModal";
 import AssignTicketModal from "../Common/AssignTicketModal";
@@ -262,6 +263,32 @@ const normalizeTicketStatus = (record: any): string => {
   }
 
   return statusText;
+};
+
+const findDeepFieldValue = (
+  value: any,
+  keys: string[],
+  seen = new Set<any>(),
+): any => {
+  if (!value || typeof value !== "object" || seen.has(value)) return undefined;
+  seen.add(value);
+
+  for (const key of keys) {
+    if (value?.[key] !== undefined && value?.[key] !== null) {
+      return value[key];
+    }
+  }
+
+  for (const entry of Object.values(value)) {
+    if (entry && typeof entry === "object") {
+      const nested = findDeepFieldValue(entry, keys, seen);
+      if (nested !== undefined && nested !== null && nested !== "") {
+        return nested;
+      }
+    }
+  }
+
+  return undefined;
 };
 
 const pickRecord = (response: any) => {
@@ -672,6 +699,7 @@ const TicketView = () => {
   const [assetSearch, setAssetSearch] = useState("");
   const [assetDepartmentFilter, setAssetDepartmentFilter] = useState("All");
   const [assetBrandFilter, setAssetBrandFilter] = useState("All");
+  const [shareInfoOpen, setShareInfoOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
@@ -680,7 +708,8 @@ const TicketView = () => {
   const [loadAttachmentHistory, setLoadAttachmentHistory] = useState(true);
   const [tick, setTick] = useState(() => Date.now());
   const [displayAssetName, setDisplayAssetName] = useState("");
-  const { acceptTicket } = useTicketActions();
+  const { acceptTicket, unShareTicket } = useTicketActions();
+  const sessionPayload = useMemo(() => getRequestPayload(), []);
 
   useEffect(() => {
     if (!showFilesTab && activeTab === "files") {
@@ -917,6 +946,48 @@ const TicketView = () => {
     () => extractList(ticketHistoryData),
     [ticketHistoryData],
   );
+  const latestShareHistoryRecordId = useMemo(() => {
+    const reversedItems = [...historyItems].reverse();
+
+    const sharedHistoryItem = reversedItems.find((item: Record<string, any>) => {
+      const title = normalizeText(
+        getFieldValue(item, [
+          "cViewSummary",
+          "ViewSummary",
+          "Summary",
+          "Title",
+          "Action",
+          "Activity",
+        ]),
+      );
+      const remarks = normalizeText(
+        getFieldValue(item, [
+          "Remarks",
+          "Remark",
+          "Comment",
+          "Description",
+          "cDescription",
+          "CallSummary",
+          "cCallSummary",
+        ]),
+      );
+
+      return title.includes("shared") || remarks.includes("shared");
+    });
+
+    return Number(
+      getFieldValue(sharedHistoryItem, [
+        "nSharedId",
+        "SharedId",
+        "nShareId",
+        "ShareId",
+        "nShareDataId",
+        "ShareDataId",
+        "Id",
+        "id",
+      ]) || 0,
+    );
+  }, [historyItems]);
   const estimateHistoryId = Number(
     getFieldValue(historyItems[0], [
       "nHistoryId",
@@ -1024,6 +1095,76 @@ const TicketView = () => {
       "cGroupName",
     ]),
   );
+  const isSharedTicket = (() => {
+    const value = getFieldValue(resolvedRecord, ["bShared", "isShared"]);
+
+    return value === true || value === "true" || value === 1 || value === "1";
+  })();
+  const sharedAgentName = formatDisplayValue(
+    findDeepFieldValue(resolvedRecord, [
+      "ShareTo",
+      "cShareTo",
+      "SharedTo",
+      "cSharedTo",
+      "SharedAgentName",
+      "cSharedAgentName",
+      "ShareAgentName",
+      "cShareAgentName",
+    ]),
+  );
+  const sharedAgentId = Number(
+    findDeepFieldValue(resolvedRecord, [
+      "nSharedId",
+      "SharedId",
+      "ShareId",
+      "nShareId",
+      "nShareDataId",
+      "ShareDataId",
+      "nSharedToAgentId",
+      "SharedToAgentId",
+      "sharedToAgentId",
+      "nSharedWithAgentId",
+      "SharedWithAgentId",
+      "sharedWithAgentId",
+      "nShareToAgentId",
+      "ShareToAgentId",
+      "nShareWithAgentId",
+      "ShareWithAgentId",
+    ]) || 0,
+  );
+  const sharedRecordId = sharedAgentId;
+  const currentAgentId = Number(sessionPayload.nAgentId ?? sessionPayload.id ?? 0);
+  const resolvedSharedRecordId = sharedRecordId || latestShareHistoryRecordId;
+  const handleUnShare = () => {
+    if (!isSharedTicket) return;
+
+    if (!resolvedSharedRecordId || !currentAgentId) {
+      message.error("Unable to resolve unshare identifiers");
+      return;
+    }
+
+    const payload: Record<string, any> = {
+      nSharedId: resolvedSharedRecordId,
+      nAgentId: currentAgentId,
+      nTicketId: ticketId,
+      nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
+      cSchemaName: sessionPayload.cSchemaName ?? "",
+      cDbName: sessionPayload.cDbName ?? "",
+    };
+
+    unShareTicket.mutate(payload, {
+      onSuccess: () => {
+        message.success("Ticket Unshared Successfully");
+      },
+      onError: (error: any) => {
+        message.error(
+          error?.response?.data?.message ||
+            error?.message ||
+            "Unable to unshare ticket",
+        );
+      },
+    });
+  };
   const detailRows = useMemo(
     () => (isFollowupPage ? buildFollowupDetailRows(resolvedRecord) : []),
     [isFollowupPage, resolvedRecord],
@@ -1247,8 +1388,8 @@ const TicketView = () => {
     previousCallReportFromTicket || latestCallReport || null;
 
   return (
-    <TicketPageShell contentClassName="relative flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between px-4 pb-2 pt-0">
+    <TicketPageShell contentClassName="relative flex h-5 min-h-0 flex-col overflow-hidden">
+      <div className="flex w-full items-center justify-between px-0 pb-2 pt-0">
         <h1 className="text-2xl font-medium leading-none text-slate-900">
           {pageHeading}
         </h1>
@@ -1257,7 +1398,7 @@ const TicketView = () => {
           <button
             type="button"
             aria-label="Share"
-            onClick={() => setShareOpen(true)}
+            onClick={() => setShareInfoOpen(true)}
             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
           >
             <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
@@ -1273,6 +1414,29 @@ const TicketView = () => {
           </button>
         </div>
       </div>
+
+      {isSharedTicket ? (
+        <div className="mx-2 mt-3 w-170  my-5 rounded-md bg-teal-600/10 px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-slate-900 h-5">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-emerald-500 ">
+                <img src={sendIcon} alt="not found" className="w-5 h-5 "/>
+              </span>
+              <span className="px-2 w-20">
+                Share to : {sharedAgentName || `Agent ${resolvedSharedRecordId || ""}`}
+              </span>
+            </div>
+            <Button
+              type="primary"
+              loading={unShareTicket.isPending}
+              onClick={handleUnShare}
+              className="!border-emerald-500 !bg-white !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600 ml-106 "
+            >
+              Un Share
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div
         className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${
@@ -1514,7 +1678,14 @@ const TicketView = () => {
           </Button>
           <Button
             className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
-            onClick={() => setShareOpen(true)}
+            onClick={() => {
+              if (isSharedTicket) {
+                message.info("Ticket already shared");
+                return;
+              }
+
+              setShareOpen(true);
+            }}
           >
             <img src={sendIcon} alt="" className="h-5 w-5 " /> Share
           </Button>
@@ -1540,13 +1711,19 @@ const TicketView = () => {
         onClose={() => setAssignOpen(false)}
         ticketId={ticketId}
       />
+      <ShareInfoModal
+        open={shareInfoOpen}
+        onClose={() => setShareInfoOpen(false)}
+        ticketId={ticketId}
+        ticketNo={ticketNo}
+        customerEmail={email}
+        attachments={attachments}
+      />
       <ShareTicketModal
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         ticketId={ticketId}
         ticketNo={ticketNo}
-        customerEmail={email}
-        attachments={attachments}
       />
       <TransferTicketModal
         open={transferOpen}
