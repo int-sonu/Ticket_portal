@@ -132,6 +132,7 @@ const ShareTicketModal = ({
 
   const handleSubmit = (values: any) => {
     const agentId = Number(values.AgentId || 0);
+    const shareReason = String(values.ShareReason ?? "").trim();
     const sharedByAgentId = Number(
       sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0
     );
@@ -139,13 +140,19 @@ const ShareTicketModal = ({
     shareTicket.mutate(
       {
         id: Number(sessionPayload.id ?? 0),
+        TicketId: ticketId,
+        nTicketId: ticketId,
         nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
         cSchemaName: sessionPayload.cSchemaName ?? "",
         cDbName: sessionPayload.cDbName ?? "",
-        nTicketId: ticketId,
-        cShareReason: values.ShareReason,
+        cShareReason: shareReason,
+        Remarks: shareReason,
+        cRemarks: shareReason,
+        ShareReason: shareReason,
         nSharedByAgentId: sharedByAgentId,
         nSharedToAgentId: agentId,
+        AgentId: agentId,
+        nAgentId: agentId,
       },
       {
         onSuccess: () => {

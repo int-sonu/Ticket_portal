@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Select, message } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -36,6 +37,7 @@ import ShareTicketModal from "../Common/ShareTicketModal";
 import FollowupModal from "../Common/FollowupPostponeModal";
 import AssignTicketModal from "../Common/AssignTicketModal";
 import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
+const MERGE_BANNER_STORAGE_KEY = "ticket_portal_merge_banner";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
   savedTicketRecord?: Record<string, any> | null;
@@ -44,6 +46,13 @@ type TicketViewState = {
   openQuickCall?: boolean;
   isFrom?: string;
   activeTab?: "details" | "history" | "files";
+  mergeBanner?: {
+    text?: string;
+    primaryTicketId?: number;
+    mergedTicketId?: number;
+    primaryTicketNo?: number;
+    mergedTicketNo?: number;
+  } | null;
 };
 
 const getFieldValue = (record: any, keys: string[]) => {
@@ -654,6 +663,117 @@ const buildFollowupDetailRows = (record: any) => {
   return rows.filter((item) => String(item.value ?? "").trim());
 };
 
+const getMergedTicketBanner = (
+  historyItems: any[],
+  currentTicketId: number,
+  currentTicketNo: string,
+) => {
+  const mergeHistoryItem = [...historyItems].reverse().find((item: any) => {
+    const title = normalizeText(
+      getFieldValue(item, [
+        "cViewSummary",
+        "ViewSummary",
+        "Summary",
+        "Title",
+        "Action",
+        "Activity",
+      ]),
+    );
+    const remarks = normalizeText(
+      getFieldValue(item, [
+        "Remarks",
+        "Remark",
+        "Comment",
+        "Description",
+        "cDescription",
+        "CallSummary",
+        "cCallSummary",
+      ]),
+    );
+
+    return title.includes("merge") || remarks.includes("merge");
+  });
+
+  if (!mergeHistoryItem) return null;
+
+  const title = formatDisplayValue(
+    getFieldValue(mergeHistoryItem, [
+      "cViewSummary",
+      "ViewSummary",
+      "Summary",
+      "Title",
+      "Action",
+      "Activity",
+    ]),
+  );
+  const remarks = formatDisplayValue(
+    getFieldValue(mergeHistoryItem, [
+      "Remarks",
+      "Remark",
+      "Comment",
+      "Description",
+      "cDescription",
+      "CallSummary",
+      "cCallSummary",
+    ]),
+  );
+
+  const primaryTicketNo = formatDisplayValue(
+    getFieldValue(mergeHistoryItem, [
+      "nPrimaryTicketNo",
+      "PrimaryTicketNo",
+      "nPrimaryTicketNumber",
+      "PrimaryTicketNumber",
+    ]),
+  );
+  const mergedTicketNo = formatDisplayValue(
+    getFieldValue(mergeHistoryItem, [
+      "nMergedTicketNo",
+      "MergedTicketNo",
+      "nMergedWithTicketNo",
+      "MergedWithTicketNo",
+      "nMergeTicketNo",
+      "MergeTicketNo",
+    ]),
+  );
+
+  const mergedText =
+    (title && /merged/i.test(title) && /into/i.test(title) && title) ||
+    (remarks && /merged/i.test(remarks) && /into/i.test(remarks) && remarks) ||
+    (mergedTicketNo || primaryTicketNo
+      ? `Merged : Ticket No. ${mergedTicketNo || ""} Into Ticket No. ${
+          primaryTicketNo || currentTicketNo || currentTicketId || ""
+        }`
+      : "");
+
+  if (!mergedText) return null;
+
+  const primaryTicketId = Number(
+    getFieldValue(mergeHistoryItem, ["nPrimaryTicketId", "PrimaryTicketId"]) ||
+      currentTicketId ||
+      0,
+  );
+  const mergedTicketId = Number(
+    getFieldValue(mergeHistoryItem, [
+      "nMergedTicketId",
+      "MergedTicketId",
+      "MergedWithTicketId",
+      "nMergeTicketId",
+      "MergeTicketId",
+      "TargetTicketId",
+      "nTargetTicketId",
+    ]) || 0,
+  );
+
+  return {
+    text: mergedText,
+    primaryTicketId,
+    mergedTicketId,
+    primaryTicketNo: Number(primaryTicketNo || currentTicketNo || currentTicketId || 0),
+    mergedTicketNo: Number(mergedTicketNo || 0),
+  };
+};
+
 const TicketView = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -708,7 +828,10 @@ const TicketView = () => {
   const [loadAttachmentHistory, setLoadAttachmentHistory] = useState(true);
   const [tick, setTick] = useState(() => Date.now());
   const [displayAssetName, setDisplayAssetName] = useState("");
-  const { acceptTicket, unShareTicket } = useTicketActions();
+  const [sessionMergeBanner, setSessionMergeBanner] = useState<TicketViewState["mergeBanner"] | null>(null);
+  const [hideMergedBanner, setHideMergedBanner] = useState(false);
+  const queryClient = useQueryClient();
+  const { acceptTicket, unShareTicket, unMergeTicket } = useTicketActions();
   const sessionPayload = useMemo(() => getRequestPayload(), []);
 
   useEffect(() => {
@@ -728,6 +851,14 @@ const TicketView = () => {
       selectedRow?.TicketId ??
       selectedRow?.ticketId ??
       0,
+  );
+
+  const selectedCustomerId = Number(
+    getFieldValue(selectedRow, [
+      "nCustomerId",
+      "CustomerId",
+      "customerId",
+    ]) || 0,
   );
 
   useEffect(() => {
@@ -754,13 +885,32 @@ const TicketView = () => {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    const raw = sessionStorage.getItem(MERGE_BANNER_STORAGE_KEY);
+
+    if (!raw) {
+      setSessionMergeBanner(null);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      setSessionMergeBanner(parsed);
+    } catch {
+      setSessionMergeBanner(null);
+    } finally {
+      sessionStorage.removeItem(MERGE_BANNER_STORAGE_KEY);
+    }
+  }, [ticketId]);
+
   const payload = useMemo(
     () => ({
       ...getRequestPayload(),
-      TicketId: ticketId,
-      nTicketId: ticketId,
+      nCustomerId: selectedCustomerId,
+      CustomerId: selectedCustomerId,
+      customerId: selectedCustomerId,
     }),
-    [ticketId],
+    [selectedCustomerId],
   );
 
   const { data, isLoading } = useTicketView(payload, !!ticketId);
@@ -1386,6 +1536,55 @@ const TicketView = () => {
     state.isFrom === "postponed";
   const detailPreviousCallReport =
     previousCallReportFromTicket || latestCallReport || null;
+  const mergedBanner = useMemo(
+    () =>
+      hideMergedBanner
+        ? null
+        : state.mergeBanner ??
+          sessionMergeBanner ??
+          getMergedTicketBanner(historyItems, ticketId, ticketNo),
+    [hideMergedBanner, historyItems, sessionMergeBanner, state.mergeBanner, ticketId, ticketNo],
+  );
+
+  const handleSplitMerge = () => {
+    if (!mergedBanner) return;
+
+    if (!mergedBanner.primaryTicketId || !mergedBanner.mergedTicketId) {
+      message.error("Unable to resolve merge details");
+      return;
+    }
+
+    const payload = {
+      cDbName: supportSessionPayload.cDbName,
+      cSchemaName: supportSessionPayload.cSchemaName,
+      nCompanyId: supportSessionPayload.nCompanyId,
+      nMergedBy: Number(
+        supportSessionPayload.nAgentId ?? supportSessionPayload.id ?? 0,
+      ),
+      nPrimaryTicketId: mergedBanner.primaryTicketId,
+      nMergedTicketId: mergedBanner.mergedTicketId,
+      nPrimaryTicketNo: mergedBanner.primaryTicketNo,
+      nMergedTicketNo: mergedBanner.mergedTicketNo,
+    };
+
+    unMergeTicket.mutate(payload as any, {
+      onSuccess: () => {
+        message.success("Ticket split successfully");
+        setHideMergedBanner(true);
+        setSessionMergeBanner(null);
+        sessionStorage.removeItem(MERGE_BANNER_STORAGE_KEY);
+        queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+        queryClient.invalidateQueries({ queryKey: ["ticket-history"] });
+      },
+      onError: (error: any) => {
+        message.error(
+          error?.response?.data?.message ||
+            error?.message ||
+            "Unable to split ticket",
+        );
+      },
+    });
+  };
 
   return (
     <TicketPageShell contentClassName="relative flex h-5 min-h-0 flex-col overflow-hidden">
@@ -1414,6 +1613,27 @@ const TicketView = () => {
           </button>
         </div>
       </div>
+
+      {mergedBanner ? (
+        <div className="mx-2 mt-3 rounded-md bg-teal-600/10 px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2 text-sm text-slate-900">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-emerald-500">
+                <img src={mergeIcon} alt="" className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="truncate">{mergedBanner.text}</span>
+            </div>
+            <Button
+              type="primary"
+              loading={unMergeTicket.isPending}
+              onClick={handleSplitMerge}
+              className="!border-emerald-500 !bg-white !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600"
+            >
+              Split
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {isSharedTicket ? (
         <div className="mx-2 mt-3 w-170  my-5 rounded-md bg-teal-600/10 px-3 py-2">
@@ -1691,7 +1911,15 @@ const TicketView = () => {
           </Button>
           <Button
             className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
-            onClick={() => message.info("Merge action will be added next")}
+            onClick={() =>
+              navigate("/tickets/merge", {
+                state: {
+                  selectedRow: resolvedRecord,
+                  ticketId,
+                  ticketNo,
+                },
+              })
+            }
           >
             <img src={mergeIcon} alt="" className="h-5 w-5 " /> Merge
           </Button>

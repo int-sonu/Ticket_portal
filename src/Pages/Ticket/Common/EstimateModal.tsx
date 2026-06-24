@@ -55,6 +55,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const [pdfRenderError, setPdfRenderError] = useState<string>('');
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
   const [loadedCustomerName, setLoadedCustomerName] = useState<string>('');
+  const [manualGrandTotal, setManualGrandTotal] = useState<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const resolvedEstimateId = Number(estimateId || historyId || 0);
   const displayCustomerName = customerName || loadedCustomerName;
@@ -366,6 +367,13 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         setLoadedCustomerName(nextCustomerName);
       }
 
+      const existingGrandTotal = getFirstNumber(
+        header,
+        ['nTotalAmount', 'TotalAmount', 'totalAmount', 'grandTotal', 'nGrandTotal'],
+        getFirstNumber(responseData, ['nTotalAmount', 'TotalAmount', 'totalAmount', 'grandTotal', 'nGrandTotal']),
+      );
+      setManualGrandTotal(existingGrandTotal > 0 ? existingGrandTotal : null);
+
       setEstimateNo(
         String(
           header?.nEstimateNo ??
@@ -401,6 +409,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
 
     setShowPreviewPrompt(false);
     setSavedEstimateId(0);
+    setManualGrandTotal(null);
 
     const loadScreen = async () => {
       await fetchEstimateData();
@@ -520,9 +529,9 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const totalValue = items.reduce((sum, item) => sum + (item.total || 0), 0);
   const totalDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0);
   const totalTax = items.reduce((sum, item) => sum + (item.tax || 0), 0);
-  const totalAmount = items.reduce((sum, item) => sum + (item.total || 0), 0);
-  const roundOff = Math.round(totalAmount) - totalAmount;
-  const grandTotal = Math.round(totalAmount);
+  const calculatedGrandTotal = Math.round(totalValue);
+  const grandTotal = manualGrandTotal ?? calculatedGrandTotal;
+  const roundOff = grandTotal - totalValue;
   const notes = items.filter((item) => (item.cNarration || '').trim());
 
   const handleOpenNarration = (key: number) => {
@@ -997,6 +1006,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
             <InputNumber
               className="w-full"
               min={0}
+              prefix="₹"
               value={val}
               onChange={(v) => handleItemChange(record.key, 'total', v || 0)}
             />
@@ -1162,10 +1172,14 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
             <span className="text-slate-600">Round Off</span>
             <span>₹{roundOff.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between font-semibold mt-2 pt-2 border-t border-slate-200">
-            <span className="text-slate-800">Grand Total</span>
-            <span>₹{grandTotal.toFixed(2)}</span>
+
+           <div className="flex justify-between">
+            <span className="text-slate-600">Grand Total</span>
+            <span>₹{grandTotal.toFixed(2) }</span>
           </div>
+
+          
+          
         </div>
         <Button
           type="primary"
@@ -1242,11 +1256,11 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-700 bg-[#111827] px-4 py-3">
           <div className="flex flex-col">
             <div className="text-sm font-medium text-white">PDF Viewer</div>
-            <div className="text-[11px] text-slate-300">
+            {/* <div className="text-[11px] text-slate-300">
               {pdfPageCount ? `${pdfPageCount} page${pdfPageCount > 1 ? 's' : ''}` : 'Rendering document'}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+            </div> */}
+         
+          {/* <div className="flex items-center gap-2"> */}
             <Button
               type="text"
               className="flex items-center justify-center rounded-md p-2 hover:bg-white/10"
@@ -1270,7 +1284,8 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
               icon={<img src={closeBlack} alt="close" className="h-4 w-4 invert" />}
               onClick={closePdfPreview}
             />
-          </div>
+          {/* </div> */}
+           </div>
         </div>
 
         <div className="max-h-[85vh] overflow-auto bg-[#1f2937] p-4">

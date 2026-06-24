@@ -46,6 +46,7 @@ import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
 import TicketView from "../Pages/Ticket/TicketView/TicketView";
 import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
 import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
+import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
 
 const Routes: React.FC = () => {
   return (
@@ -159,6 +160,8 @@ const Routes: React.FC = () => {
             <Route path="/tickets/view" element={<TicketView />} />
 
             <Route path="/tickets/view/:id" element={<TicketView />} />
+
+            <Route path="/tickets/merge" element={<MergeTicketsPage />} />
 
             <Route path="/tickets/estimate" element={<TicketEstimatePage />} />
 

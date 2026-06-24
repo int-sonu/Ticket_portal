@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, message } from 'antd';
+import { Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../../../Axios/axios';
 import { getConfig } from '../../../Axios/config';
 import shareIcon from '../../../assets/icons/shareIcon.svg';
+import EstimateShareModal from './EstimateShareModal';
 
 declare global {
   interface Window {
@@ -37,7 +38,8 @@ const EstimatePdfViewer = () => {
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [pageCount, setPageCount] = useState(0);
+  const [, setPageCount] = useState(0);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const pdfUrl = resolvePdfUrl(searchParams.get('pdfUrl') ?? searchParams.get('pdf') ?? '');
 
@@ -184,48 +186,27 @@ const EstimatePdfViewer = () => {
   }, [pdfUrl]);
 
   return (
-    <div className="flex h-screen  overflow-hidden bg-black ">
-      {/* <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#111827]/95 px-4 py-3 backdrop-blur"> */}
-        {/* <div className="flex flex-col">
-          <div className="text-sm font-medium text-white">PDF Viewer</div>
-          <div className="text-[11px] text-slate-300">
-            {pageCount ? `${pageCount} page${pageCount > 1 ? 's' : ''}` : 'Rendering document'}
+    <div className="flex h-screen overflow-hidden bg-black">
+      <div className="flex flex-1 justify-center overflow-hidden bg-[#060606] px-4 pt-4">
+        <div className="relative flex h-full w-full max-w-[560px] flex-col overflow-hidden bg-white shadow-[0_18px_60px_rgba(15,23,42,0.25)]">
+          <div className="absolute right-2 top-2 z-30 flex items-center justify-end gap-1 rounded-full bg-transparent px-1 py-1">
+            <Button
+              type="text"
+              className="flex h-8 w-8 items-center justify-center p-0 text-slate-700 hover:bg-slate-100"
+              icon={<img src={shareIcon} alt="share" className="h-4 w-4" />}
+              aria-label="Share estimate PDF"
+              onClick={() => setShareModalOpen(true)}
+            />
+            <Button
+              type="text"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
+              icon={<CloseOutlined className="text-base" />}
+              aria-label="Close estimate PDF"
+              onClick={closeViewer}
+            />
           </div>
-        </div> */}
-        <div className="flex items-center gap-2 ">
-          <Button
-            type="text"
-            className="flex items-center justify-center rounded-md p-2 hover:bg-black/10"
-            icon={<img src={shareIcon} alt="share" className="h-4 w-4 mr-50 bg-white" />}
-            onClick={async () => {
-              try {
-                if (navigator.share && pdfUrl) {
-                  await navigator.share({ title: 'Estimate PDF', url: pdfUrl });
-                } else if (pdfUrl) {
-                  await navigator.clipboard.writeText(pdfUrl);
-                  message.success('PDF link copied');
-                }
-              } catch (error) {
-                console.error(error);
-              }
-            }}
-          />
-          <Button
-            type="text"
-            className="flex items-center justify-center rounded-md p-2 hover:bg-white/10"
-            icon={<CloseOutlined className="text-base text-white" />}
-            onClick={closeViewer}
-          />
-        {/* </div> */}
-      </div>
 
-      <div className="flex flex-1 justify-center overflow-hidden bg-[#060606] px-4 ">
-        <div className="flex h-full w-full max-w-[560px] flex-col overflow-hidden">
-          {/* <div className="mb-4 rounded-xl border border-white/10 bg-[#0b1220] px-4 py-3 text-xs text-slate-300">
-            PDF.js renders the document below while the page chrome stays custom-built.
-          </div> */}
-
-          <div className="pdf-scrollbar min-h-0 flex-1 overflow-y-auto pr-0">
+          <div className="pdf-scrollbar min-h-0 flex-1 overflow-y-auto pr-0 pt-10">
             {isLoading ? (
               <div className="flex min-h-[320px] items-center justify-center text-sm text-white">
                 Loading preview...
@@ -262,6 +243,12 @@ const EstimatePdfViewer = () => {
           background:blue;
         }
       `}</style>
+      <EstimateShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        pdfUrl={pdfUrl}
+        iconLabel="Mail"
+      />
     </div>
   );
 };

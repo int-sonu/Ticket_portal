@@ -113,6 +113,26 @@ const pickHistoryList = (response: any) => {
   return deepSearch(response);
 };
 
+const getHistorySortValue = (item: Record<string, any>) => {
+  const rawValue =
+    item.dSortDate ??
+    item.SortDate ??
+    item.dCreatedDate ??
+    item.CreatedDate ??
+    item.CreatedOn ??
+    item.CreatedDateTime ??
+    item.dCreatedOn ??
+    item.Date ??
+    item.cDate ??
+    item.Time ??
+    "";
+
+  const parsed = new Date(String(rawValue));
+  const ms = parsed.getTime();
+
+  return Number.isNaN(ms) ? 0 : ms;
+};
+
 const formatDateLabel = (value: any) => {
   const text = formatText(value);
   if (!text) return "";
@@ -212,7 +232,14 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
 
   const { data, isLoading } = useTicketHistory(requestPayload, enabled);
 
-  const historyItems = useMemo(() => pickHistoryList(data), [data]);
+  const historyItems = useMemo(() => {
+    const rows = pickHistoryList(data);
+
+    return [...rows].sort(
+      (a: Record<string, any>, b: Record<string, any>) =>
+        getHistorySortValue(b) - getHistorySortValue(a),
+    );
+  }, [data]);
 
   return (
     <Spin spinning={isLoading}>

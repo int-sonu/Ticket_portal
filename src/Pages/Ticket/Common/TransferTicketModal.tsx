@@ -150,15 +150,31 @@ const TransferTicketModal = ({
   const handleSubmit = (
     values: any
   ) => {
+    const agentId = Number(values.AgentId || 0);
+    const reason = String(values.TransferReason ?? "").trim();
+    const transferringAgentId = Number(
+      sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0
+    );
+
     transferTicket.mutate(
       {
         ...sessionPayload,
         TicketId: ticketId,
         nTicketId: ticketId,
-        AgentId: values.AgentId,
-        nAgentId: values.AgentId,
-        TransferReason: values.TransferReason,
-        cTransferReason: values.TransferReason,
+        AgentId: agentId,
+        nAgentId: transferringAgentId,
+        nTransferringAgentId: transferringAgentId,
+        TransferringAgentId: transferringAgentId,
+        nTransferredByAgentId: transferringAgentId,
+        TransferredByAgentId: transferringAgentId,
+        nTransferToAgentId: agentId,
+        TransferToAgentId: agentId,
+        nTransferredToAgentId: agentId,
+        TransferredToAgentId: agentId,
+        TransferReason: reason,
+        cTransferReason: reason,
+        Remarks: reason,
+        cRemarks: reason,
       },
       {
         onSuccess: () => {
@@ -211,6 +227,7 @@ const TransferTicketModal = ({
           name="AgentId" 
           rules={[
             {  
+              required: true,
               message:
                 "Please Select Agent",
             },
@@ -235,6 +252,7 @@ const TransferTicketModal = ({
           name="TransferReason"
           rules={[
             {
+              required: true,
               message:
                 "Please Enter Transfer Reason",
             },

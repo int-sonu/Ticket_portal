@@ -51,6 +51,61 @@ const sendWithMethodFallback = async (
   }
 };
 
+const postWithUrlFallback = async (
+  urls: string[],
+  payload: any
+) => {
+  let lastError: any;
+
+  for (const url of urls) {
+    try {
+      const response = await axiosInstance.post(url, payload);
+      return response;
+    } catch (error: any) {
+      lastError = error;
+
+      const status = error?.response?.status;
+      if (![404, 405].includes(status)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+const postMultipartWithUrlFallback = async (
+  urls: string[],
+  payload: FormData
+) => {
+  let lastError: any;
+
+  for (const url of urls) {
+    try {
+      const response = await axiosInstance.post(
+        url,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      return response;
+    } catch (error: any) {
+      lastError = error;
+
+      const status = error?.response?.status;
+      if (![404, 405].includes(status)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 export interface AgentPayload {
   [key: string]: any;
 }
@@ -585,6 +640,90 @@ export const partsApis = {
     return response.data;
   },
 
+  partsSaveWithTax: async (
+    payload: PartsPayload
+  ) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Part/PartsSaveWithTax',
+      payload
+    );
+
+    return response.data;
+  },
+
+  multiplePartsWithAttachmentsSave: async (
+    payload: FormData
+  ) => {
+    const response = await postMultipartWithUrlFallback(
+      [
+        '/Api/V1/Part/MultiplePartsWithAttachmentsSave',
+        '/Api/V1/Part/MultiplePartWithAttachmentsSave',
+        '/Api/V1/Part/PartsMultipleWithAttachmentsSave',
+        '/Api/V1/Part/PartsWithAttachmentsSave',
+        '/Api/V1/Part/PartWithAttachmentsSave',
+      ],
+      payload
+    );
+
+    return response.data;
+  },
+
+  partsAttachmentUpload: async (
+    payload: FormData
+  ) => {
+    const response = await postMultipartWithUrlFallback(
+      [
+        '/Api/V1/Part/PartsAttachmentUpload',
+        '/Api/V1/Part/PartAttachmentUpload',
+        '/Api/V1/Part/PartsUploadAttachment',
+        '/Api/V1/Part/PartUploadAttachment',
+      ],
+      payload
+    );
+
+    return response.data;
+  },
+
+  partsAttachmentDelete: async (
+    payload: PartsPayload
+  ) => {
+    const response = await sendWithMethodFallback(
+      'delete',
+      '/Api/V1/Part/PartsAttachmentDelete',
+      payload,
+      ['post']
+    );
+
+    return response.data;
+  },
+
+  partsViewWithTax: async (
+    payload: PartsPayload
+  ) => {
+    const response = await postWithUrlFallback(
+      [
+        '/Api/V1/Part/PartsViewWithTax',
+       
+      ],
+      payload
+    );
+
+    return response.data;
+  },
+
+  partsView: async (
+    payload: PartsPayload
+  ) => {
+    const response = await postWithUrlFallback(
+      [
+        '/Api/V1/Part/PartsView',
+      ],
+      payload
+    );
+
+    return response.data;
+  },
+
   partsUpdate: async (
     payload: PartsPayload
   ) => {
@@ -593,6 +732,17 @@ export const partsApis = {
       '/Api/V1/Part/PartsUpdate',
       payload,
       ['post']
+    );
+
+    return response.data;
+  },
+
+  partsUpdateWithTax: async (
+    payload: PartsPayload
+  ) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Part/PartsUpdateWithTax',
+      payload
     );
 
     return response.data;

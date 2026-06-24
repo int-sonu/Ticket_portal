@@ -433,6 +433,30 @@ export const ticketApis = {
     return response.data;
   },
 
+  mergeTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/MergeTicket",
+        payload
+      );
+
+    return response.data;
+  },
+
+  unMergeTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/UnMergeTicket",
+        payload
+      );
+
+    return response.data;
+  },
+
   sendEstimateMail: async (
     payload: TicketPayload
   ) => {

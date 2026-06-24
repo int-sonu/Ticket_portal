@@ -52,13 +52,18 @@ const FollowupModal = ({
 
   const handleSubmit = (values: any) => {
     const resolvedTicketId = values.TicketId ?? ticketId;
+    const remarks = String(values.Remarks ?? "").trim();
     postponeTicket.mutate(
       {
         TicketId: resolvedTicketId,
         nTicketId: resolvedTicketId,
+        nTicketNo: values.TicketNo ?? undefined,
         dDate: values.FollowupDate,
         FollowupDate: values.FollowupDate,
-        Remarks: values.Remarks,
+        Remarks: remarks,
+        cPostponeNote: remarks,
+        dPostponeDate: values.FollowupDate,
+        cRemarks: remarks,
       } as any,
       {
         onSuccess: () => {

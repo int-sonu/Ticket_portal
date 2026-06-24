@@ -33,7 +33,29 @@ export const useSaveParts = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: PartsPayload) => partsApis.partsSave(payload),
+    mutationFn: (payload: PartsPayload) =>
+      partsApis.partsSaveWithTax(payload),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: PARTS_KEYS.all,
+      });
+      queryClient.invalidateQueries({
+        queryKey: PARTS_KEYS.lists(),
+      });
+      queryClient.refetchQueries({
+        queryKey: PARTS_KEYS.lists(),
+      });
+    },
+  });
+};
+
+export const useMultiplePartsWithAttachmentsSave = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: FormData) =>
+      partsApis.multiplePartsWithAttachmentsSave(payload),
 
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -55,7 +77,8 @@ export const useUpdateParts = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: PartsPayload) => partsApis.partsUpdate(payload),
+    mutationFn: (payload: PartsPayload) =>
+      partsApis.partsUpdateWithTax(payload),
 
     onSuccess: () => {
       queryClient.invalidateQueries({

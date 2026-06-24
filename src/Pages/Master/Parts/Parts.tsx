@@ -7,8 +7,16 @@ import type {
 } from "../Common/SimpleMasterUtils";
 
 import {
+  getSessionPayload,
+} from "../Common/SimpleMasterUtils";
+
+import {
   getApiImageBaseUrl,
 } from "../../../Axios/config";
+
+import {
+  partsApis,
+} from "../../../Axios/MasterApis";
 
 import PartsDrawer from "./PartsDrawer";
 
@@ -18,11 +26,6 @@ import {
   useSaveParts,
   useUpdateParts,
 } from "./Hooks";
-
-const PART_TAX_CACHE_KEY =
-  "partsTaxSettingsCache";
-const PART_IMAGE_CACHE_KEY =
-  "partsImageCache";
 
 const partImageKeys = [
   "cPartImage",
@@ -108,146 +111,77 @@ const normalizePartImage = (value: any) => {
   }
 };
 
-const getPartTaxList = (item: any) =>
-  item?.taxes ??
-  item?.partTaxes ??
-  item?.taxSettings ??
-  item?.PartTaxSettings ??
-  item?.lPartTaxSettings ??
-  [];
+const getPartTaxList = (item: any) => {
+  const candidates = [
+    item?.taxDetails,
+    item?.taxes,
+    item?.partTaxes,
+    item?.taxSettings,
+    item?.PartTaxSettings,
+    item?.lPartTaxSettings,
+  ];
 
-const readPartTaxCache = () => {
-  try {
-    return JSON.parse(
-      localStorage.getItem(PART_TAX_CACHE_KEY) ?? "{}"
-    );
-  } catch {
-    return {};
+  for (const candidate of candidates) {
+    const extracted = extractFirstArrayDeep(candidate);
+    if (extracted.length) {
+      return extracted;
+    }
   }
-};
 
-const readPartImageCache = () => {
-  try {
-    return JSON.parse(
-      localStorage.getItem(PART_IMAGE_CACHE_KEY) ?? "{}"
-    );
-  } catch {
-    return {};
-  }
-};
-
-const getPartTaxCacheKeys = (
-  part: any
-) => {
-  const id =
-    part?.id ??
-    part?.nPartId ??
-    part?.raw?.nPartId;
-  const name =
-    part?.name ??
-    part?.cPartName ??
-    part?.raw?.cPartName;
-
-  return [
-    id !== undefined && id !== null
-      ? `id:${id}`
-      : "",
-    name
-      ? `name:${String(name).trim().toLowerCase()}`
-      : "",
-  ].filter(Boolean);
-};
-
-const getCachedPartTaxes = (
-  part: any
-) => {
-  const cache = readPartTaxCache();
-
-  for (const key of getPartTaxCacheKeys(part)) {
-    if (Array.isArray(cache[key])) {
-      return cache[key];
+  for (const candidate of candidates) {
+    const extracted = extractFirstArrayDeep(candidate);
+    if (Array.isArray(candidate) || extracted.length) {
+      return extracted;
     }
   }
 
   return [];
 };
 
-const getCachedPartImage = (
-  part: any
-) => {
-  const cache = readPartImageCache();
+const extractFirstArrayDeep = (value: any): any[] => {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "object") return [];
 
-  for (const key of getPartTaxCacheKeys(part)) {
-    if (cache[key]) {
-      return cache[key];
-    }
+  const candidates = [
+    value.data,
+    value.result,
+    value.message,
+    value.taxDetails,
+    value.taxes,
+    value.partTaxes,
+    value.taxSettings,
+    value.PartTaxSettings,
+    value.lPartTaxSettings,
+  ];
+
+  for (const candidate of candidates) {
+    const extracted = extractFirstArrayDeep(candidate);
+    if (extracted.length) return extracted;
   }
 
-  return "";
+  return [];
 };
 
-const writePartTaxCache = (
-  part: any,
-  taxes: any[]
-) => {
-  const keys = getPartTaxCacheKeys(part);
+const getPartViewRecord = (response: any) => {
+  const candidates = [
+    response?.data?.data,
+    response?.data?.message,
+    response?.data,
+    response?.message,
+    response?.result,
+    response?.part,
+    response?.Part,
+    response,
+  ];
 
-  if (!keys.length) return;
-
-  const cache = readPartTaxCache();
-
-  keys.forEach((key) => {
-    cache[key] = taxes;
-  });
-
-  try {
-    localStorage.setItem(
-      PART_TAX_CACHE_KEY,
-      JSON.stringify(cache)
-    );
-  } catch (error) {
-    console.warn("Failed to write part tax cache:", error);
-    try {
-      localStorage.removeItem(PART_TAX_CACHE_KEY);
-    } catch {
-      // Ignore
-    }
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate[0];
+    if (Array.isArray(candidate?.data)) return candidate.data[0];
+    if (Array.isArray(candidate?.result)) return candidate.result[0];
+    if (candidate && typeof candidate === "object") return candidate;
   }
-};
 
-const writePartImageCache = (
-  part: any,
-  image: string
-) => {
-  if (!image) return;
-
-  const keys = getPartTaxCacheKeys(part);
-
-  if (!keys.length) return;
-
-  const cache = readPartImageCache();
-
-  keys.forEach((key) => {
-    cache[key] = image;
-  });
-
-  try {
-    localStorage.setItem(
-      PART_IMAGE_CACHE_KEY,
-      JSON.stringify(cache)
-    );
-  } catch (error) {
-    console.warn("Failed to write part image cache (quota exceeded):", error);
-    try {
-      localStorage.removeItem(PART_IMAGE_CACHE_KEY);
-      localStorage.setItem(
-        PART_IMAGE_CACHE_KEY,
-        JSON.stringify({ [keys[0]]: image })
-      );
-    } catch {
-      // Ignore
-    }
-  }
+  return null;
 };
 
 const normalizePartTaxes = (
@@ -379,10 +313,7 @@ const buildPartsFormValues = (row?: SimpleMasterRow | null) => ({
           getFirstPartImage(row?.raw)
         );
 
-      return apiImage ||
-        normalizePartImage(
-          getCachedPartImage(row)
-        );
+      return apiImage;
     })(),
 
   taxes:
@@ -392,11 +323,7 @@ const buildPartsFormValues = (row?: SimpleMasterRow | null) => ({
           getPartTaxList(row?.raw)
         );
 
-      return apiTaxes.length
-        ? apiTaxes
-        : normalizePartTaxes(
-            getCachedPartTaxes(row)
-          );
+      return apiTaxes;
     })(),
 
   active:
@@ -436,22 +363,6 @@ const buildPartsPayload = (
     buildPartTaxPayload(
       values.taxes ?? []
     );
-  writePartTaxCache(
-    {
-      ...selectedRow,
-      name: values.name,
-      nPartId: selectedRow?.id,
-    },
-    taxPayload
-  );
-  writePartImageCache(
-    {
-      ...selectedRow,
-      name: values.name,
-      nPartId: selectedRow?.id,
-    },
-    values.partImage
-  );
 
   const cleanedImage = cleanPartImageForPayload(values.partImage);
 
@@ -497,6 +408,9 @@ const buildPartsPayload = (
     cImageUrl:
       cleanedImage,
 
+    taxDetails:
+      taxPayload,
+
     taxes:
       taxPayload,
 
@@ -538,6 +452,52 @@ const Parts = () => {
   const {
     mutate: deleteParts,
   } = useDeleteParts();
+
+  const loadRowDetails = async (row: SimpleMasterRow) => {
+    const detailPayload = {
+      ...getSessionPayload(),
+      nPartId: row.id,
+    };
+
+    const [detailResponse, taxResponse] = await Promise.all([
+      partsApis.partsView(detailPayload),
+      partsApis.partsViewWithTax(detailPayload).catch(() => null),
+    ]);
+
+    const detailRecord = getPartViewRecord(detailResponse);
+    const taxDetailRecord = taxResponse
+      ? getPartViewRecord(taxResponse)
+      : null;
+    const fallbackTaxes = getPartTaxList(row.raw);
+    const detailTaxes = detailRecord
+      ? getPartTaxList(detailRecord)
+      : [];
+    const taxEndpointTaxes = taxDetailRecord
+      ? getPartTaxList(taxDetailRecord)
+      : [];
+    const resolvedTaxes = taxEndpointTaxes.length
+      ? taxEndpointTaxes
+      : detailTaxes.length
+        ? detailTaxes
+        : fallbackTaxes;
+    const mergedRecord = detailRecord
+      ? {
+          ...row.raw,
+          ...detailRecord,
+          taxDetails: resolvedTaxes,
+          taxes: resolvedTaxes,
+          partTaxes: resolvedTaxes,
+          taxSettings: resolvedTaxes,
+          cPartImage:
+            getFirstPartImage(detailRecord) ||
+            getFirstPartImage(row.raw),
+        }
+      : row.raw;
+
+    return detailRecord
+      ? mapPartsRow(mergedRecord, Math.max((row.srl ?? 1) - 1, 0))
+      : row;
+  };
 
 
 
@@ -586,6 +546,8 @@ const Parts = () => {
       buildFormValues:
         buildPartsFormValues,
 
+      loadRowDetails,
+
 
 
       // CUSTOM DRAWER
@@ -625,6 +587,7 @@ const Parts = () => {
       deleteParts,
       isSaving,
       isUpdating,
+      loadRowDetails,
       saveParts,
       updateParts,
     ]
