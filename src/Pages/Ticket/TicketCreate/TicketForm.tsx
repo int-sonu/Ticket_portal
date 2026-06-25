@@ -2221,8 +2221,9 @@ const TicketForm = ({
       if (savedTicketId) {
         try {
           const ticketViewResponse = await ticketApis.ticketView({
-            ...sessionPayload,
-            TicketId: savedTicketId,
+            nCompanyId: sessionPayload.nCompanyId,
+            cSchemaName: sessionPayload.cSchemaName,
+            cDbName: sessionPayload.cDbName,
             nTicketId: savedTicketId,
           });
 

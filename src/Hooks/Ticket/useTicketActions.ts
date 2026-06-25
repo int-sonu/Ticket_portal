@@ -28,6 +28,11 @@ export const useTicketActions = () => {
     onSuccess: refreshTickets,
   });
 
+  const updateTicket = useMutation({
+    mutationFn: ticketApis.ticketUpdate,
+    onSuccess: refreshTickets,
+  });
+
   const acceptTicket = useMutation({
     mutationFn: ticketApis.acceptTicket,
     onSuccess: refreshTickets,
@@ -77,12 +82,13 @@ export const useTicketActions = () => {
   const updateTicketStatus =
     useMutation({
       mutationFn:
-        ticketApis.updateTicketStatus,
+        ticketApis.ticketUpdate,
       onSuccess: refreshTickets,
     });
 
   return {
     assignTicket,
+    updateTicket,
     acceptTicket,
 
     shareTicket,

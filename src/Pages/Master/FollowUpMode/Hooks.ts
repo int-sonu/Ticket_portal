@@ -20,6 +20,16 @@ export const useGetFollowupModes = (payload: FollowupPayload) => {
   });
 };
 
+export const useGetActiveFollowupModes = (payload: FollowupPayload) => {
+  return useQuery({
+    queryKey: [...FOLLOWUP_KEYS.list(JSON.stringify(payload)), "active"],
+
+    queryFn: () => followupApis.followupActiveList(payload),
+
+    enabled: !!payload,
+  });
+};
+
 export const useSaveFollowupMode = () => {
   const queryClient = useQueryClient();
 

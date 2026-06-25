@@ -144,17 +144,14 @@ const ShareTicketModal = ({
 
     shareTicket.mutate(
       {
-        TicketId: ticketId,
-        nTicketId: ticketId,
         nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
         cSchemaName: sessionPayload.cSchemaName ?? "",
         cDbName: sessionPayload.cDbName ?? "",
+        nTicketId: ticketId,
         nSharedByAgentId: sharedByAgentId,
         nSharedToAgentId: agentId,
-        nAgentId: agentId,
         cShareReason: shareReason,
         cRemarks: shareReason,
-        Remarks: shareReason,
       },
       {
         onSuccess: () => {

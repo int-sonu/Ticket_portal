@@ -32,6 +32,7 @@ import {
   useGetCustomerBrandOptions,
   useGetCustomerWiseAssets,
 } from "../../Master/CustomerMaster/Hooks";
+import { useGetStatuses } from "../../Master/StatusMaster/Hooks";
 import TransferTicketModal from "../Common/TransferTicketModal";
 import ShareInfoModal from "../Common/ShareInfoModal";
 import ShareTicketModal from "../Common/ShareTicketModal";
@@ -664,6 +665,90 @@ const buildFollowupDetailRows = (record: any) => {
   return rows.filter((item) => String(item.value ?? "").trim());
 };
 
+const getCurrentUserName = () => {
+  try {
+    const raw = localStorage.getItem("userCredentials");
+
+    if (!raw) return "";
+
+    const user = JSON.parse(raw);
+
+    return formatDisplayValue(
+      user?.data?.cName ??
+        user?.cName ??
+        user?.data?.name ??
+        user?.name ??
+        user?.data?.userName ??
+        user?.userName ??
+        "",
+    );
+  } catch {
+    return "";
+  }
+};
+
+const buildTicketUpdatePayload = (
+  record: Record<string, any>,
+  sessionPayload: Record<string, any>,
+  nextStatusId: number,
+  nextStatusLabel: string,
+) => {
+  const assignedAgents = pickAssignedAgents(record);
+
+  return {
+    nTicketId: Number(
+      getFieldValue(record, ["nTicketId", "TicketId", "ticketId"]) || 0,
+    ),
+    TicketId: Number(
+      getFieldValue(record, ["nTicketId", "TicketId", "ticketId"]) || 0,
+    ),
+    nCustomerId: Number(
+      getFieldValue(record, ["nCustomerId", "CustomerId", "customerId"]) || 0,
+    ),
+    cCustomerName: formatDisplayValue(
+      getFieldValue(record, ["cCustomerName", "CustomerName"]),
+    ),
+    nSourceId: Number(
+      getFieldValue(record, ["nSourceId", "Source", "TicketSourceId"]) || 0,
+    ),
+    nServiceType: Number(
+      getFieldValue(record, ["nServiceType", "nServiceTypeId", "ServiceTypeId"]) || 0,
+    ),
+    cContactPerson: formatDisplayValue(
+      getFieldValue(record, ["cContactPerson", "ContactPerson"]),
+    ),
+    cContactNumber: formatDisplayValue(
+      getFieldValue(record, ["cContactNumber", "ContactNo", "ContactNumber"]),
+    ),
+    cEmail: formatDisplayValue(getFieldValue(record, ["cEmail", "Email"])),
+    cTicketSummary: formatDisplayValue(
+      getFieldValue(record, ["cTicketSummary", "TicketSummary"]),
+    ),
+    cDescription: formatDisplayValue(
+      getFieldValue(record, ["cDescription", "Description"]),
+    ),
+    cAssignedId: assignedAgents,
+    bOnSite: Boolean(
+      getFieldValue(record, ["bOnSite", "OnsiteRequired", "bOnsite"]),
+    ),
+    dFollowupDate: formatDisplayValue(
+      getFieldValue(record, ["dFollowupDate", "FollowupDate"]),
+    ),
+    nAssetId: Number(getFieldValue(record, ["nAssetId", "AssetId"]) || 0),
+    nPriority: Number(getFieldValue(record, ["nPriority", "Priority"]) || 0),
+    nTicketStatus: Number(nextStatusId || 0),
+    TicketStatus: nextStatusLabel,
+    Status: nextStatusLabel,
+    nGroupId: Number(getFieldValue(record, ["nGroupId", "GroupId"]) || 0),
+    nModifiedBy: Number(
+      sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0,
+    ),
+    cDbName: sessionPayload.cDbName ?? "",
+    cSchemaName: sessionPayload.cSchemaName ?? "",
+    nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
+  };
+};
+
 const getMergedTicketBanner = (
   historyItems: any[],
   currentTicketId: number,
@@ -830,9 +915,13 @@ const TicketView = () => {
   const [displayAssetName, setDisplayAssetName] = useState("");
   const [sessionMergeBanner, setSessionMergeBanner] = useState<TicketViewState["mergeBanner"] | null>(null);
   const [hideMergedBanner, setHideMergedBanner] = useState(false);
+  const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [statusOverride, setStatusOverride] = useState<{ id: number; label: string } | null>(null);
+  const [previousWorkflowStatus, setPreviousWorkflowStatus] = useState<{ id: number; label: string } | null>(null);
   const queryClient = useQueryClient();
-  const { acceptTicket, unShareTicket, unMergeTicket } = useTicketActions();
+  const { acceptTicket, unShareTicket, unMergeTicket, updateTicket } = useTicketActions();
   const sessionPayload = useMemo(() => getRequestPayload(), []);
+  const currentUserName = useMemo(() => getCurrentUserName(), []);
 
   useEffect(() => {
     if (!showFilesTab && activeTab === "files") {
@@ -905,6 +994,14 @@ const TicketView = () => {
     }),
     [supportSessionPayload, ticketId],
   );
+  const statusLookupPayload = useMemo(
+    () => ({
+      ...supportSessionPayload,
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    [supportSessionPayload],
+  );
 
   const canLoadTicketView =
     !!ticketId &&
@@ -913,6 +1010,7 @@ const TicketView = () => {
     !!String(supportSessionPayload.cDbName ?? "").trim();
 
   const { data, isLoading } = useTicketView(payload, canLoadTicketView);
+  const { data: statusLookupData } = useGetStatuses(statusLookupPayload);
 
   const ticketData = useMemo(() => pickRecord(data), [data]);
   const resolvedRecord = useMemo(
@@ -958,6 +1056,40 @@ const TicketView = () => {
       return merged;
     },
     [selectedRow, ticketData],
+  );
+  const statusLookupOptions = useMemo(
+    () =>
+      extractList(statusLookupData)
+        .map((item: any) => ({
+          id: Number(
+            getFieldValue(item, [
+              "nTicketStatusId",
+              "nTicketStatusid",
+              "TicketStatusId",
+              "nStatusId",
+              "StatusId",
+              "id",
+              "value",
+            ]) || 0,
+          ),
+          label: formatDisplayValue(
+            getFieldValue(item, [
+              "cTicketStatusName",
+              "cTicketStatus",
+              "TicketStatusName",
+              "TicketStatus",
+              "cStatusName",
+              "cStatus",
+              "name",
+              "label",
+            ]),
+          ),
+        }))
+        .filter((item: any) => item.id > 0 && String(item.label ?? "").trim()),
+    [statusLookupData],
+  );
+  const currentStatusId = Number(
+    getFieldValue(resolvedRecord, ["nTicketStatus", "TicketStatus", "StatusId"]) || 0,
   );
   const customerId = Number(
     getFieldValue(resolvedRecord, [
@@ -1215,7 +1347,7 @@ const TicketView = () => {
       "cPriority",
     ]),
   );
-  const status = normalizeTicketStatus(resolvedRecord);
+  const status = statusOverride?.label || normalizeTicketStatus(resolvedRecord);
   const scheduledOn = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "cScheduleDate",
@@ -1581,6 +1713,30 @@ const TicketView = () => {
     state.isFrom === "overdue" ||
     state.isFrom === "created" ||
     state.isFrom === "postponed";
+  const showWorkflowStartPanel =
+    state.isFrom === "ongoing" ||
+    state.isFrom === "upcoming" ||
+    state.isFrom === "overdue" ||
+    state.isFrom === "postponed";
+  const pendingStatusOption = useMemo(
+    () =>
+      statusLookupOptions.find(
+        (item: any) =>
+          normalizeText(item.label).replace(/\s+/g, "") === "pending",
+      ) ?? null,
+    [statusLookupOptions],
+  );
+  const inProgressStatusOption = useMemo(
+    () =>
+      statusLookupOptions.find(
+        (item: any) =>
+          normalizeText(item.label).replace(/\s+/g, "") === "inprogress",
+      ) ?? null,
+    [statusLookupOptions],
+  );
+  const isWorkflowStarted =
+    normalizeText(statusOverride?.label ?? status).replace(/\s+/g, "") ===
+    "inprogress";
   const detailPreviousCallReport =
     previousCallReportFromTicket || latestCallReport || null;
   const mergedBanner = useMemo(
@@ -1631,6 +1787,88 @@ const TicketView = () => {
         );
       },
     });
+  };
+
+  const handleStartWorkflow = () => {
+    if (!inProgressStatusOption) {
+      message.error("In Progress status is not available");
+      return;
+    }
+
+    const previousStatus =
+      statusOverride ??
+      (currentStatusId > 0 && status
+        ? {
+            id: currentStatusId,
+            label: status,
+          }
+        : pendingStatusOption);
+
+    updateTicket.mutate(
+      buildTicketUpdatePayload(
+        resolvedRecord,
+        supportSessionPayload,
+        inProgressStatusOption.id,
+        inProgressStatusOption.label,
+      ) as any,
+      {
+        onSuccess: () => {
+          setPreviousWorkflowStatus(previousStatus ?? null);
+          setStatusOverride({
+            id: inProgressStatusOption.id,
+            label: inProgressStatusOption.label,
+          });
+          setStartConfirmOpen(false);
+          message.success("Ticket moved to In Progress");
+          queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+          queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
+        },
+        onError: (error: any) => {
+          message.error(
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to update ticket status",
+          );
+        },
+      },
+    );
+  };
+
+  const handleRevertWorkflowStatus = () => {
+    const revertStatus = previousWorkflowStatus ?? pendingStatusOption;
+
+    if (!revertStatus) {
+      message.error("Previous status is not available");
+      return;
+    }
+
+    updateTicket.mutate(
+      buildTicketUpdatePayload(
+        resolvedRecord,
+        supportSessionPayload,
+        revertStatus.id,
+        revertStatus.label,
+      ) as any,
+      {
+        onSuccess: () => {
+          setStatusOverride({
+            id: revertStatus.id,
+            label: revertStatus.label,
+          });
+          setPreviousWorkflowStatus(null);
+          message.success("Ticket reverted successfully");
+          queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+          queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
+        },
+        onError: (error: any) => {
+          message.error(
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to revert ticket status",
+          );
+        },
+      },
+    );
   };
 
   return (
@@ -1924,53 +2162,95 @@ const TicketView = () => {
         </div>
       ) : null}
       {!isFollowupPage && isWorkflowTicket && !isUnassignedTicket ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2 px-1 ">
-          <Button
-            className="!border-black !text-black !bg-white rounded-full shadow-sm flex items-center gap-3 w-28 "
-            onClick={() => setEstimateOpen(true)}
-          >
-            <img src={EstimateIcon} alt="" className="h-5 w-5 " /> Estimate
-          </Button>
-          <Button
-            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28"
-            onClick={() => setTransferOpen(true)}
-          >
-            <img src={transferIcon} alt="" className="h-5 w-5 " /> Transfer
-          </Button>
-          <Button
-            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
-            onClick={() => setPostponeOpen(true)}
-          >
-            <img src={postponeIcon} alt="" className="h-5 w-5 " />
-            Postpone
-          </Button>
-          <Button
-            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
-            onClick={() => {
-              if (isSharedTicket) {
-                message.info("Ticket already shared");
-                return;
-              }
+        <div className="mt-4 flex flex-col gap-2 px-1 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              className="!border-black !text-black !bg-white rounded-[4px] shadow-none flex items-center gap-2 h-8 px-3"
+              onClick={() => setEstimateOpen(true)}
+            >
+              <img src={EstimateIcon} alt="" className="h-5 w-5 " /> Estimate
+            </Button>
+            <Button
+              className="!border-black !text-black rounded-[4px] border-black bg-white text-black shadow-none h-8 px-3"
+              onClick={() => setTransferOpen(true)}
+            >
+              <img src={transferIcon} alt="" className="h-5 w-5 " /> Transfer
+            </Button>
+            <Button
+              className="!border-black !text-black rounded-[4px] border-black bg-white text-black shadow-none h-8 px-3"
+              onClick={() => setPostponeOpen(true)}
+            >
+              <img src={postponeIcon} alt="" className="h-5 w-5 " />
+              Postpone
+            </Button>
+            <Button
+              className="!border-black !text-black rounded-[4px] border-black bg-white text-black shadow-none h-8 px-3"
+              onClick={() => {
+                if (isSharedTicket) {
+                  message.info("Ticket already shared");
+                  return;
+                }
 
-              setShareOpen(true);
-            }}
-          >
-            <img src={sendIcon} alt="" className="h-5 w-5 " /> Share
-          </Button>
-          <Button
-            className="!border-black !text-black rounded-full border-black bg-white text-black shadow-sm w-28 "
-            onClick={() =>
-              navigate("/tickets/merge", {
-                state: {
-                  selectedRow: resolvedRecord,
-                  ticketId,
-                  ticketNo,
-                },
-              })
-            }
-          >
-            <img src={mergeIcon} alt="" className="h-5 w-5 " /> Merge
-          </Button>
+                setShareOpen(true);
+              }}
+            >
+              <img src={sendIcon} alt="" className="h-5 w-5 " /> Share
+            </Button>
+            <Button
+              className="!border-black !text-black rounded-[4px] border-black bg-white text-black shadow-none h-8 px-3"
+              onClick={() =>
+                navigate("/tickets/merge", {
+                  state: {
+                    selectedRow: resolvedRecord,
+                    ticketId,
+                    ticketNo,
+                    isFrom: state.isFrom,
+                    activeTab,
+                  },
+                })
+              }
+            >
+              <img src={mergeIcon} alt="" className="h-5 w-5 " /> Merge
+            </Button>
+          </div>
+          {showWorkflowStartPanel ? (
+            <div className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[2px] bg-[#6f7d84] px-3 py-2 text-white lg:max-w-[360px]">
+              <div className="text-[11px] leading-4">
+                Hi {currentUserName || "User"}, Please click the Start button to
+                proceed with this ticket.
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {isWorkflowStarted ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleRevertWorkflowStatus}
+                      disabled={updateTicket.isPending}
+                      className="rounded-[3px] border border-white bg-transparent px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-70"
+                    >
+                      Revert
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickCallOpen(true)}
+                      className="rounded-[3px] bg-[#24c276] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#1fad69]"
+                    >
+                      Call Report
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setStartConfirmOpen(true)}
+                    disabled={updateTicket.isPending}
+                    className="rounded-[3px] bg-[#24c276] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#1fad69] disabled:opacity-70"
+                  >
+                    Start
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
       <QuickCallReportModal
@@ -2021,6 +2301,34 @@ const TicketView = () => {
         customerName={customerName}
         sessionPayload={getRequestPayload()}
       />
+      <Modal
+        open={startConfirmOpen}
+        title="Confirmation"
+        centered
+        footer={null}
+        onCancel={() => setStartConfirmOpen(false)}
+        width={360}
+      >
+        <div className="space-y-5">
+          <div className="text-sm leading-6 text-slate-600">
+            Only one ticket can be in 'In Progress' status at a time. If you
+            proceed, the previous tickets will be moved back to 'Pending', and
+            the current ticket will be marked as 'In Progress'. Do you wish to
+            continue?
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button onClick={() => setStartConfirmOpen(false)}>Cancel</Button>
+            <Button
+              type="primary"
+              loading={updateTicket.isPending}
+              className="!border-emerald-500 !bg-emerald-500 hover:!border-emerald-600 hover:!bg-emerald-600"
+              onClick={handleStartWorkflow}
+            >
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
       {/* </div> */}
     </TicketPageShell>
   );

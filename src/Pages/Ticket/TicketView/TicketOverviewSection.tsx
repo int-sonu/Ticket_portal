@@ -50,6 +50,7 @@ type TicketOverviewSectionProps = {
   }>;
   showFollowUpAction?: boolean;
   assignedTo?: string;
+  assignAgentNames?: string[];
   previousCallReport?: {
     title?: string;
     remarks?: string;
@@ -91,6 +92,7 @@ const TicketOverviewSection = ({
   extraRows = [],
   showFollowUpAction = true,
   assignedTo = "",
+  assignAgentNames = [],
   previousCallReport = null,
   customerId,
 }: TicketOverviewSectionProps) => {
@@ -139,6 +141,9 @@ const TicketOverviewSection = ({
     { label: "Follow Up", value: followupDate || "N/A", icon: calendarIcon },
     ...extraRows,
   ];
+  const visibleAssignAgentNames = Array.isArray(assignAgentNames)
+    ? assignAgentNames.filter((name) => String(name ?? "").trim())
+    : [];
 
   const getContactValue = (item: any, keys: string[]) => {
     for (const key of keys) {
@@ -565,6 +570,26 @@ const TicketOverviewSection = ({
                                   );
                                 },
                               )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {visibleAssignAgentNames.length > 0 ? (
+                        <div className="rounded-xl border border-slate-200 bg-white">
+                          <div className="px-3 py-3 sm:px-4">
+                            <div className="mb-2 text-sm font-semibold text-slate-900">
+                              Assign Agent List
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {visibleAssignAgentNames.map((name) => (
+                                <span
+                                  key={name}
+                                  className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-slate-700"
+                                >
+                                  {name}
+                                </span>
+                              ))}
                             </div>
                           </div>
                         </div>

@@ -6,7 +6,7 @@ import TicketPageShell from "./TicketPageShell";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
 import {
-  useCustomerWiseActiveTicketList,
+  useCustomerWiseAllTicketList,
   useTicketView,
 } from "../../../Hooks/Ticket/useTicketQueries";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
@@ -284,22 +284,14 @@ const MergeTicketsPage = () => {
     [state],
   );
 
-  const selectedCustomerId = Number(
-    getFieldValue(selectedRow, [
-      "nCustomerId",
-      "CustomerId",
-      "customerId",
-    ]) || 0,
-  );
-
   const currentTicketPayload = useMemo(
     () => ({
-      ...sessionPayload,
-      nCustomerId: selectedCustomerId,
-      CustomerId: selectedCustomerId,
-      customerId: selectedCustomerId,
+      nCompanyId: sessionPayload.nCompanyId,
+      cSchemaName: sessionPayload.cSchemaName,
+      cDbName: sessionPayload.cDbName,
+      nTicketId: selectedTicketId,
     }),
-    [selectedCustomerId, sessionPayload],
+    [selectedTicketId, sessionPayload],
   );
 
   const { data: currentTicketData } = useTicketView(
@@ -342,19 +334,25 @@ const MergeTicketsPage = () => {
   const customerWisePayload = useMemo(
     () => ({
       ...sessionPayload,
-      pageNumber: 1,
-      pageSize: 1000,
-      nCustomerId: customerId,
       CustomerId: customerId,
       customerId,
+      nCustomerId: customerId,
+      pageNumber: 1,
+      pageSize: 1000,
     }),
     [customerId, sessionPayload],
   );
 
-  const { data: activeTicketData, isLoading: isActiveTicketsLoading } =
-    useCustomerWiseActiveTicketList(customerWisePayload, Boolean(customerId));
+  const {
+    data: activeTicketData,
+    isLoading: isActiveTicketsLoading,
+  } =
+    useCustomerWiseAllTicketList(customerWisePayload, Boolean(customerId));
 
-  const ticketRows = useMemo(() => extractList(activeTicketData), [activeTicketData]);
+  const ticketRows = useMemo(
+    () => extractList(activeTicketData),
+    [activeTicketData],
+  );
 
   const currentTicketHeader =
     ticketNo ||
@@ -467,7 +465,8 @@ const MergeTicketsPage = () => {
     );
   };
 
-  const isLoading = isActiveTicketsLoading && !ticketRows.length;
+  const isLoading =
+    isActiveTicketsLoading && !ticketRows.length;
 
   return (
     <TicketPageShell contentClassName="flex h-full min-h-0 flex-col overflow-hidden">

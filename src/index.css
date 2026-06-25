@@ -1583,6 +1583,55 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   }
 }
 
+.quick-call-drawer .ant-drawer-header {
+  padding: 14px 16px;
+}
+
+.quick-call-drawer .ant-drawer-body {
+  padding: 0 !important;
+}
+
+.quick-call-drawer .ant-drawer-footer {
+  padding: 10px 12px;
+}
+
+.quick-call-drawer .ant-form-item {
+  margin-bottom: 12px !important;
+}
+
+.quick-call-drawer .ant-form-item-label {
+  padding-bottom: 4px !important;
+}
+
+.quick-call-drawer .ant-form-item-label > label {
+  font-size: 11px !important;
+  color: #4b5563 !important;
+}
+
+.quick-call-drawer .ant-radio-wrapper {
+  font-size: 11px !important;
+  color: #374151 !important;
+}
+
+.quick-call-drawer .ant-input,
+.quick-call-drawer .ant-picker,
+.quick-call-drawer .ant-select-selector {
+  min-height: 30px !important;
+  height: 30px !important;
+  border-radius: 4px !important;
+}
+
+.quick-call-drawer textarea.ant-input {
+  min-height: auto !important;
+  height: auto !important;
+}
+
+.quick-call-drawer .ant-select-selection-item,
+.quick-call-drawer .ant-select-selection-placeholder {
+  line-height: 28px !important;
+  font-size: 12px !important;
+}
+
 .followup-date-input {
   height: 33px;
   border-radius: 4px;

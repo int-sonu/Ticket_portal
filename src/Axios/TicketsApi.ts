@@ -102,6 +102,32 @@ const returnEmptyListOnNoTickets = (
   throw error;
 };
 
+const normalizeCustomerWiseListPayload = (
+  payload: TicketPayload
+) => {
+  const companyId =
+    payload?.nCompanyId ??
+    0;
+  const agentId =
+    payload?.nAgentId ??
+    payload?.id ??
+    0;
+  const customerId =
+    payload?.nCustomerId ??
+    0;
+  const schemaName =
+    payload?.cSchemaName ??
+    "";
+
+  return {
+    cDbName: payload?.cDbName,
+    cSchemaName: schemaName,
+    nCompanyId: Number(companyId || 0),
+    nAgentId: Number(agentId || 0),
+    nCustomerId: Number(customerId || 0),
+  };
+};
+
 export interface TicketPayload {
   [key: string]: any;
 }
@@ -194,7 +220,7 @@ export const ticketApis = {
       const response =
         await axiosInstance.post(
           "/Api/V1/Ticket/CustomerWiseActiveTicketList",
-          payload
+          normalizeCustomerWiseListPayload(payload)
         );
 
       return response.data;
@@ -210,7 +236,7 @@ export const ticketApis = {
       const response =
         await axiosInstance.post(
           "/Api/V1/Ticket/CustomerWiseAllTicketList",
-          payload
+          normalizeCustomerWiseListPayload(payload)
         );
 
       return response.data;

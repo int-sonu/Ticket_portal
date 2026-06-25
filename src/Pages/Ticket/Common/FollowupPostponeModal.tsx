@@ -51,15 +51,13 @@ const FollowupPostponeModal = ({
 
     postponeTicket.mutate(
       {
-        ...requestPayload,
-        TicketId: ticketId,
+        nCompanyId: Number(requestPayload.nCompanyId ?? 0),
+        cSchemaName: requestPayload.cSchemaName ?? "",
+        cDbName: requestPayload.cDbName ?? "",
+        nAgentId: Number(requestPayload.nAgentId ?? requestPayload.id ?? 0),
         nTicketId: ticketId,
         dPostponeDate: postponeDate,
         cPostponeNote: note,
-        // Keep legacy fields for backward compatibility with any existing code paths.
-        dDate: postponeDate,
-        FollowupDate: postponeDate,
-        Remarks: note,
       } as any,
       {
         onSuccess: () => {

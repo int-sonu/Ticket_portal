@@ -25,6 +25,7 @@ const FollowupModal = ({
 }: FollowupModalProps) => {
   const [form] = Form.useForm();
   const { postponeTicket } = useTicketMutations();
+  const sessionPayload = useMemo(() => getRequestPayload(), []);
 
   // Fetch active tickets for the customer so user can pick which ticket to follow-up
   const payload = useMemo(
@@ -55,15 +56,13 @@ const FollowupModal = ({
     const remarks = String(values.Remarks ?? "").trim();
     postponeTicket.mutate(
       {
-        TicketId: resolvedTicketId,
+        nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
+        cSchemaName: String(sessionPayload.cSchemaName ?? ""),
+        cDbName: String(sessionPayload.cDbName ?? ""),
+        nAgentId: Number(sessionPayload.nAgentId ?? sessionPayload.id ?? 0),
         nTicketId: resolvedTicketId,
-        nTicketNo: values.TicketNo ?? undefined,
-        dDate: values.FollowupDate,
-        FollowupDate: values.FollowupDate,
-        Remarks: remarks,
-        cPostponeNote: remarks,
         dPostponeDate: values.FollowupDate,
-        cRemarks: remarks,
+        cPostponeNote: remarks,
       } as any,
       {
         onSuccess: () => {

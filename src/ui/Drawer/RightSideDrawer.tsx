@@ -1,6 +1,6 @@
 import { CloseOutlined } from "@ant-design/icons";
 import { Drawer } from "antd";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type RightSideDrawerProps = {
   open: boolean;
@@ -11,6 +11,7 @@ type RightSideDrawerProps = {
   footer?: ReactNode;
   destroyOnClose?: boolean;
   className?: string;
+  bodyStyle?: CSSProperties;
 };
 
 const RightSideDrawer = ({
@@ -22,6 +23,7 @@ const RightSideDrawer = ({
   footer = null,
   destroyOnClose = true,
   className = "",
+  bodyStyle,
 }: RightSideDrawerProps) => (
   <Drawer
     open={open}
@@ -47,6 +49,9 @@ const RightSideDrawer = ({
     destroyOnClose={destroyOnClose}
     className={`simple-master-drawer ${className}`.trim()}
     footer={footer}
+    styles={{
+      body: bodyStyle,
+    }}
   >
     {children}
   </Drawer>

@@ -389,6 +389,26 @@ export const followupApis = {
     return response.data;
   },
 
+  followupActiveList: async (payload: FollowupPayload) => {
+    const response = await axiosInstance
+      .post(
+        '/Api/V1/CallreportMode/CallreportmodeActiveList',
+        payload
+      )
+      .catch((error) => {
+        if ([404, 405].includes(error?.response?.status)) {
+          return axiosInstance.post(
+            '/Api/V1/CallreportMode/CallreportModeList',
+            payload
+          );
+        }
+
+        throw error;
+      });
+
+    return response.data;
+  },
+
   followupSave: async (payload: FollowupPayload) => {
     const response = await axiosInstance.post(
       '/Api/V1/CallreportMode/CallreportModeSave',
