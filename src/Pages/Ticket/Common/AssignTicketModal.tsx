@@ -15,12 +15,14 @@ interface AssignTicketModalProps {
   open: boolean;
   onClose: () => void;
   ticketId: number;
+  agentOptions?: Array<{ label: string; value: string }>;
 }
 
 const AssignTicketModal = ({
   open,
   onClose,
   ticketId,
+  agentOptions = [],
 }: AssignTicketModalProps) => {
   const [form] = Form.useForm();
 
@@ -76,6 +78,13 @@ const AssignTicketModal = ({
         >
           <Select
             placeholder="Select Agent"
+            options={agentOptions}
+            showSearch
+            filterOption={(input, option) =>
+              String((option as any)?.label ?? "")
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
           />
         </Form.Item>
 

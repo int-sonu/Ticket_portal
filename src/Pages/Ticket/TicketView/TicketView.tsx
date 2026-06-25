@@ -24,6 +24,7 @@ import transferIcon from "../../../assets/icons/transferIcon.svg";
 import postponeIcon from "../../../assets/icons/postponeIcon.svg";
 import sendIcon from "../../../assets/icons/sendIcon.svg";
 import mergeIcon from "../../../assets/icons/mergeIcon.svg";
+import calendarIcon from "../../../assets/icons/calenderiCon.svg";
 import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
 import {
   useGetCustomerAlternativeContacts,
@@ -785,7 +786,6 @@ const TicketView = () => {
     .toLowerCase()
     .includes("/tickets/followup/");
   const isFollowupContext = state.isFrom === "followup";
-  const isFromCustomer = state.isFrom === "customerView";
   const showFilesTab = true;
   const pageHeading =
     state.isFrom === "ongoing"
@@ -853,14 +853,6 @@ const TicketView = () => {
       0,
   );
 
-  const selectedCustomerId = Number(
-    getFieldValue(selectedRow, [
-      "nCustomerId",
-      "CustomerId",
-      "customerId",
-    ]) || 0,
-  );
-
   useEffect(() => {
     if (state.openQuickCall) {
       setActiveTab("history");
@@ -902,18 +894,25 @@ const TicketView = () => {
       sessionStorage.removeItem(MERGE_BANNER_STORAGE_KEY);
     }
   }, [ticketId]);
+  const supportSessionPayload = useMemo(() => getRequestPayload(), []);
 
   const payload = useMemo(
     () => ({
-      ...getRequestPayload(),
-      nCustomerId: selectedCustomerId,
-      CustomerId: selectedCustomerId,
-      customerId: selectedCustomerId,
+      nCompanyId: Number(supportSessionPayload.nCompanyId ?? 0),
+      cSchemaName: supportSessionPayload.cSchemaName ?? "",
+      cDbName: supportSessionPayload.cDbName ?? "",
+      nTicketId: ticketId,
     }),
-    [selectedCustomerId],
+    [supportSessionPayload, ticketId],
   );
 
-  const { data, isLoading } = useTicketView(payload, !!ticketId);
+  const canLoadTicketView =
+    !!ticketId &&
+    !!supportSessionPayload.nCompanyId &&
+    !!String(supportSessionPayload.cSchemaName ?? "").trim() &&
+    !!String(supportSessionPayload.cDbName ?? "").trim();
+
+  const { data, isLoading } = useTicketView(payload, canLoadTicketView);
 
   const ticketData = useMemo(() => pickRecord(data), [data]);
   const resolvedRecord = useMemo(
@@ -960,7 +959,6 @@ const TicketView = () => {
     },
     [selectedRow, ticketData],
   );
-  const supportSessionPayload = useMemo(() => getRequestPayload(), []);
   const customerId = Number(
     getFieldValue(resolvedRecord, [
       "nCustomerId",
@@ -1025,7 +1023,10 @@ const TicketView = () => {
     customerSupportPayload,
     !!customerId,
   );
-  useGetAssignAgentList(assignAgentPayload, !!groupId);
+  const { data: assignAgentListData } = useGetAssignAgentList(
+    assignAgentPayload,
+    !!groupId,
+  );
   useRepairItemActivityList(repairItemPayload, !!ticketId);
   const { data: ticketHistoryData } = useTicketHistory(
     historyPayload,
@@ -1092,6 +1093,24 @@ const TicketView = () => {
     () => extractList(alternativeContactsData),
     [alternativeContactsData],
   );
+  const assignAgentOptions = useMemo(
+    () =>
+      extractList(assignAgentListData).map((agent: any) => {
+        const id = Number(
+          getFieldValue(agent, ["nAgentId", "agentId", "id", "value"]) || 0,
+        );
+        const name =
+          formatDisplayValue(
+            getFieldValue(agent, ["cAgentName", "agentName", "name", "cName"]),
+          ) || `Agent ${id || ""}`;
+
+        return {
+          label: name,
+          value: String(id),
+        };
+      }),
+    [assignAgentListData],
+  );
   const historyItems = useMemo(
     () => extractList(ticketHistoryData),
     [ticketHistoryData],
@@ -1150,6 +1169,18 @@ const TicketView = () => {
     () => state.assignedAgentDetails ?? pickAssignedAgents(resolvedRecord),
     [resolvedRecord, state.assignedAgentDetails],
   );
+  const assignedAgentsText = useMemo(
+    () =>
+      assignedAgentDetails
+        .map((agent: any) =>
+          formatDisplayValue(
+            getFieldValue(agent, ["cAgentName", "agentName", "name"]),
+          ),
+        )
+        .filter(Boolean)
+        .join(", "),
+    [assignedAgentDetails],
+  );
 
   const ticketNo = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -1185,6 +1216,13 @@ const TicketView = () => {
     ]),
   );
   const status = normalizeTicketStatus(resolvedRecord);
+  const scheduledOn = formatDisplayValue(
+    getFieldValue(resolvedRecord, [
+      "cScheduleDate",
+      "ScheduleDate",
+      "dScheduleDate",
+    ]),
+  );
   const followupDate = formatDisplayValue(
     getFieldValue(resolvedRecord, [
      
@@ -1243,6 +1281,8 @@ const TicketView = () => {
       "cCreatedByTeam",
       "GroupName",
       "cGroupName",
+      "cCreatedBy",
+      "CreatedBy",
     ]),
   );
   const isSharedTicket = (() => {
@@ -1316,10 +1356,18 @@ const TicketView = () => {
     });
   };
   const detailRows = useMemo(
-    () => (isFollowupPage ? buildFollowupDetailRows(resolvedRecord) : []),
-    [isFollowupPage, resolvedRecord],
+    () => {
+      const rows = isFollowupPage
+        ? buildFollowupDetailRows(resolvedRecord)
+        : scheduledOn
+        ? [{ label: "Scheduled on", value: scheduledOn, icon: calendarIcon }]
+        : [];
+
+      return rows.filter((item) => String(item.value ?? "").trim() !== "");
+    },
+    [isFollowupPage, resolvedRecord, scheduledOn],
   );
-  const selectedAssetName = displayAssetName || assetName || "N/A";
+  const selectedAssetName = displayAssetName || assetName || "+Add Asset";
   const assetModalDepartments = useMemo(() => {
     const mapped = customerAssetDepartmentOptions.map((item: any) => ({
       label:
@@ -1526,7 +1574,6 @@ const TicketView = () => {
     return { title, remarks, dateText, createdBy };
   }, [resolvedRecord]);
 
-  const isOngoingTicket = state.isFrom === "ongoing";
   const isUnassignedTicket = state.isFrom === "unassigned";
   const isWorkflowTicket =
     state.isFrom === "ongoing" ||
@@ -1691,6 +1738,7 @@ const TicketView = () => {
           attachments={attachments}
           attachmentsLoading={loadAttachmentHistory && isTicketAttachmentFetching}
           createdByTeam={createdByTeam}
+          assignedTo={assignedAgentsText || createdByTeam}
           alternativeContacts={alternativeContacts}
           showFilesTab={showFilesTab}
           showFilesInDetails={true}
@@ -1938,6 +1986,7 @@ const TicketView = () => {
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
         ticketId={ticketId}
+        agentOptions={assignAgentOptions}
       />
       <ShareInfoModal
         open={shareInfoOpen}

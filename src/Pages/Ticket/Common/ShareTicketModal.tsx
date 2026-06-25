@@ -137,22 +137,24 @@ const ShareTicketModal = ({
       sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0
     );
 
+    if (!sessionPayload.nCompanyId || !sessionPayload.cSchemaName || !sessionPayload.cDbName) {
+      message.error("Session details are missing. Please log in again.");
+      return;
+    }
+
     shareTicket.mutate(
       {
-        id: Number(sessionPayload.id ?? 0),
         TicketId: ticketId,
         nTicketId: ticketId,
         nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
         cSchemaName: sessionPayload.cSchemaName ?? "",
         cDbName: sessionPayload.cDbName ?? "",
-        cShareReason: shareReason,
-        Remarks: shareReason,
-        cRemarks: shareReason,
-        ShareReason: shareReason,
         nSharedByAgentId: sharedByAgentId,
         nSharedToAgentId: agentId,
-        AgentId: agentId,
         nAgentId: agentId,
+        cShareReason: shareReason,
+        cRemarks: shareReason,
+        Remarks: shareReason,
       },
       {
         onSuccess: () => {

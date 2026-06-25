@@ -49,6 +49,7 @@ type TicketOverviewSectionProps = {
     icon?: string;
   }>;
   showFollowUpAction?: boolean;
+  assignedTo?: string;
   previousCallReport?: {
     title?: string;
     remarks?: string;
@@ -89,6 +90,7 @@ const TicketOverviewSection = ({
   showAssetEditIcon = true,
   extraRows = [],
   showFollowUpAction = true,
+  assignedTo = "",
   previousCallReport = null,
   customerId,
 }: TicketOverviewSectionProps) => {
@@ -124,6 +126,7 @@ const TicketOverviewSection = ({
   };
 
   const detailRows = [
+    { label: "Assigned to", value: assignedTo || "N/A", icon: groupIcon },
     { label: "Address", value: address, icon: addressIcon },
     { label: "Asset", value: assetName, icon: assetIcon },
     { label: "Ticket Source", value: source || "N/A", icon: ticketSmallIcon },
