@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Modal, Select, message } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,9 @@ import {
   useTicketHistoryAttachment,
   useTicketView,
 } from "../../../Hooks/Ticket/useTicketQueries";
+import { useCheckAmcExpiry } from "../../Master/CustomerMaster/Hooks";
 import { getApiImageBaseUrl } from "../../../Axios/config";
+import { billingApis } from "../../../Axios/MasterApis";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import QuickCallReportModal from "../Common/QuickCallReportModal";
@@ -40,6 +42,8 @@ import FollowupModal from "../Common/FollowupPostponeModal";
 import AssignTicketModal from "../Common/AssignTicketModal";
 import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
 const MERGE_BANNER_STORAGE_KEY = "ticket_portal_merge_banner";
+const WORKFLOW_STORAGE_PREFIX = "ticket_portal_workflow_state";
+const BILL_PREVIEW_STORAGE_KEY = "ticket_portal_bill_preview_state";
 type TicketViewState = {
   selectedRow?: Record<string, any> | null;
   savedTicketRecord?: Record<string, any> | null;
@@ -111,6 +115,29 @@ const normalizeText = (value: any) =>
   String(value ?? "")
     .trim()
     .toLowerCase();
+
+const getFirstTicketValue = (record: Record<string, any>, keys: string[]) =>
+  keys.reduce<any>(
+    (found, key) =>
+      found !== undefined && found !== null && found !== "" ? found : record?.[key],
+    undefined,
+  );
+
+const normalizeBillParts = (response: any) =>
+  extractList(response?.data ?? response).map((item: any, index: number) => ({
+    key: item?.nPartId ?? item?.partId ?? item?.id ?? index,
+    name:
+      item?.cPartName ??
+      item?.PartName ??
+      item?.cItemName ??
+      item?.ItemName ??
+      item?.name ??
+      item?.label ??
+      `Part ${index + 1}`,
+    qty: item?.nQty ?? item?.qty ?? item?.quantity ?? "",
+    rate: item?.nRate ?? item?.rate ?? item?.price ?? "",
+    total: item?.nTotalAmount ?? item?.total ?? item?.amount ?? "",
+  }));
 
 const parseTicketDate = (value: any): number | null => {
   if (value instanceof Date) {
@@ -687,66 +714,97 @@ const getCurrentUserName = () => {
   }
 };
 
-const buildTicketUpdatePayload = (
+const buildTicketStatusUpdatePayload = (
+  ticketId: number,
   record: Record<string, any>,
   sessionPayload: Record<string, any>,
   nextStatusId: number,
   nextStatusLabel: string,
 ) => {
-  const assignedAgents = pickAssignedAgents(record);
+  const ticketIdValue =
+    Number(ticketId || 0) ||
+    Number(getFieldValue(record, ["nTicketId", "TicketId", "ticketId"]) || 0);
 
   return {
-    nTicketId: Number(
-      getFieldValue(record, ["nTicketId", "TicketId", "ticketId"]) || 0,
-    ),
-    TicketId: Number(
-      getFieldValue(record, ["nTicketId", "TicketId", "ticketId"]) || 0,
-    ),
-    nCustomerId: Number(
-      getFieldValue(record, ["nCustomerId", "CustomerId", "customerId"]) || 0,
-    ),
-    cCustomerName: formatDisplayValue(
-      getFieldValue(record, ["cCustomerName", "CustomerName"]),
-    ),
-    nSourceId: Number(
-      getFieldValue(record, ["nSourceId", "Source", "TicketSourceId"]) || 0,
-    ),
-    nServiceType: Number(
-      getFieldValue(record, ["nServiceType", "nServiceTypeId", "ServiceTypeId"]) || 0,
-    ),
-    cContactPerson: formatDisplayValue(
-      getFieldValue(record, ["cContactPerson", "ContactPerson"]),
-    ),
-    cContactNumber: formatDisplayValue(
-      getFieldValue(record, ["cContactNumber", "ContactNo", "ContactNumber"]),
-    ),
-    cEmail: formatDisplayValue(getFieldValue(record, ["cEmail", "Email"])),
-    cTicketSummary: formatDisplayValue(
-      getFieldValue(record, ["cTicketSummary", "TicketSummary"]),
-    ),
-    cDescription: formatDisplayValue(
-      getFieldValue(record, ["cDescription", "Description"]),
-    ),
-    cAssignedId: assignedAgents,
-    bOnSite: Boolean(
-      getFieldValue(record, ["bOnSite", "OnsiteRequired", "bOnsite"]),
-    ),
-    dFollowupDate: formatDisplayValue(
-      getFieldValue(record, ["dFollowupDate", "FollowupDate"]),
-    ),
-    nAssetId: Number(getFieldValue(record, ["nAssetId", "AssetId"]) || 0),
-    nPriority: Number(getFieldValue(record, ["nPriority", "Priority"]) || 0),
+    nTicketId: ticketIdValue,
+    TicketId: ticketIdValue,
+    nStatus: Number(nextStatusId || 0),
     nTicketStatus: Number(nextStatusId || 0),
     TicketStatus: nextStatusLabel,
+    cTicketStatus: nextStatusLabel,
     Status: nextStatusLabel,
-    nGroupId: Number(getFieldValue(record, ["nGroupId", "GroupId"]) || 0),
+    cStatus: nextStatusLabel,
+    nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
     nModifiedBy: Number(
-      sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0,
-    ),
+      sessionPayload.nAgentId ??
+        sessionPayload.id ??
+        sessionPayload.nUserId ??
+        0,
+    ) || 0,
     cDbName: sessionPayload.cDbName ?? "",
     cSchemaName: sessionPayload.cSchemaName ?? "",
-    nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
   };
+};
+
+const buildAmcExpiryPayload = (
+  record: Record<string, any>,
+  sessionPayload: Record<string, any>,
+) => {
+  const customerId = Number(
+    getFirstTicketValue(record ?? {}, [
+      "CustomerId",
+      "nCustomerId",
+      "customerId",
+    ]) ?? 0,
+  ) || 0;
+  const assetId = Number(
+    getFirstTicketValue(record ?? {}, [
+      "AssetId",
+      "nAssetId",
+      "assetId",
+    ]) ?? 0,
+  ) || 0;
+
+  return {
+    ...sessionPayload,
+    CustomerId: customerId,
+    customerId,
+    nCustomerId: customerId,
+    AssetId: assetId,
+    assetId,
+    nAssetId: assetId,
+  };
+};
+
+const isUnderAmcOrWarranty = (response: any) => {
+  const data = response?.data ?? response ?? {};
+  const messageText = String(
+    data?.message ?? data?.title ?? "",
+  ).toLowerCase();
+  const amcFlag = Boolean(
+    data?.bUnderAmc ??
+      data?.bAMC ??
+      data?.amc ??
+      data?.underAmc ??
+      data?.isUnderAmc,
+  );
+  const warrantyFlag = Boolean(
+    data?.bUnderWarranty ??
+      data?.bWarranty ??
+      data?.warranty ??
+      data?.underWarranty ??
+      data?.isUnderWarranty,
+  );
+  const successFlag = data?.success ?? data?.isSuccess ?? data?.status;
+
+  return (
+    amcFlag ||
+    warrantyFlag ||
+    successFlag === true ||
+    String(successFlag).toLowerCase() === "true" ||
+    (!messageText.includes("not under") &&
+      !messageText.includes("not available"))
+  );
 };
 
 const getMergedTicketBanner = (
@@ -918,8 +976,17 @@ const TicketView = () => {
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
   const [statusOverride, setStatusOverride] = useState<{ id: number; label: string } | null>(null);
   const [previousWorkflowStatus, setPreviousWorkflowStatus] = useState<{ id: number; label: string } | null>(null);
+  const [workflowStarted, setWorkflowStarted] = useState(false);
+  const workflowHydratedTicketRef = useRef<number | null>(null);
+  const previousWorkflowStatusRef = useRef<{ id: number; label: string } | null>(null);
   const queryClient = useQueryClient();
-  const { acceptTicket, unShareTicket, unMergeTicket, updateTicket } = useTicketActions();
+  const { mutateAsync: checkAmcExpiry } = useCheckAmcExpiry();
+  const {
+    acceptTicket,
+    unShareTicket,
+    unMergeTicket,
+    updateTicketStatus,
+  } = useTicketActions();
   const sessionPayload = useMemo(() => getRequestPayload(), []);
   const currentUserName = useMemo(() => getCurrentUserName(), []);
 
@@ -941,6 +1008,106 @@ const TicketView = () => {
       selectedRow?.ticketId ??
       0,
   );
+  const workflowStorageKey = ticketId
+    ? `${WORKFLOW_STORAGE_PREFIX}:${ticketId}`
+    : "";
+
+  const persistWorkflowState = (
+    nextState: {
+      workflowStarted: boolean;
+      statusOverride?: { id: number; label: string } | null;
+      previousWorkflowStatus?: { id: number; label: string } | null;
+    } | null,
+  ) => {
+    if (!workflowStorageKey) return;
+
+    if (!nextState) {
+      sessionStorage.removeItem(workflowStorageKey);
+      return;
+    }
+
+    sessionStorage.setItem(
+      workflowStorageKey,
+      JSON.stringify({
+        ticketId,
+        ...nextState,
+      }),
+    );
+  };
+
+  const syncTicketStatusCache = (
+    nextStatusId: number,
+    nextStatusLabel: string,
+  ) => {
+    const updateStatusFields = (record: Record<string, any>) => ({
+      ...record,
+      nTicketStatus: Number(nextStatusId || 0),
+      TicketStatus: nextStatusLabel,
+      Status: nextStatusLabel,
+      cTicketStatus: nextStatusLabel,
+      cStatus: nextStatusLabel,
+      nStatus: Number(nextStatusId || 0),
+      StatusId: Number(nextStatusId || 0),
+    });
+
+    queryClient.setQueriesData(
+      { queryKey: ["ticket-view"] },
+      (oldData: any) => {
+        if (!oldData || typeof oldData !== "object") return oldData;
+
+        if (Array.isArray(oldData)) {
+          return oldData.map((item) =>
+            item?.nTicketId === ticketId || item?.TicketId === ticketId
+              ? updateStatusFields(item)
+              : item,
+          );
+        }
+
+        if (oldData.data && typeof oldData.data === "object") {
+          return {
+            ...oldData,
+            data: updateStatusFields(oldData.data),
+          };
+        }
+
+        return updateStatusFields(oldData);
+      },
+    );
+
+    queryClient.setQueriesData(
+      { queryKey: ["ticket-list"] },
+      (oldData: any) => {
+        if (!oldData || typeof oldData !== "object") return oldData;
+
+        const patchListItem = (item: any) => {
+          const itemTicketId = Number(
+            item?.nTicketId ?? item?.TicketId ?? item?.ticketId ?? 0,
+          );
+          return itemTicketId === ticketId ? updateStatusFields(item) : item;
+        };
+
+        if (Array.isArray(oldData)) {
+          return oldData.map(patchListItem);
+        }
+
+        if (Array.isArray(oldData.data)) {
+          return {
+            ...oldData,
+            data: oldData.data.map(patchListItem),
+          };
+        }
+
+        if (Array.isArray(oldData.items)) {
+          return {
+            ...oldData,
+            items: oldData.items.map(patchListItem),
+          };
+        }
+
+        return oldData;
+      },
+    );
+  };
 
   useEffect(() => {
     if (state.openQuickCall) {
@@ -1707,17 +1874,24 @@ const TicketView = () => {
   }, [resolvedRecord]);
 
   const isUnassignedTicket = state.isFrom === "unassigned";
+  const isWorkflowStatus =
+    normalizeText(status).replace(/\s+/g, "") === "inprogress" ||
+    normalizeText(status).replace(/\s+/g, "") === "pending";
   const isWorkflowTicket =
     state.isFrom === "ongoing" ||
     state.isFrom === "upcoming" ||
     state.isFrom === "overdue" ||
     state.isFrom === "created" ||
-    state.isFrom === "postponed";
+    state.isFrom === "postponed" ||
+    workflowStarted ||
+    isWorkflowStatus;
   const showWorkflowStartPanel =
     state.isFrom === "ongoing" ||
     state.isFrom === "upcoming" ||
     state.isFrom === "overdue" ||
-    state.isFrom === "postponed";
+    state.isFrom === "postponed" ||
+    workflowStarted ||
+    isWorkflowStatus;
   const pendingStatusOption = useMemo(
     () =>
       statusLookupOptions.find(
@@ -1734,9 +1908,83 @@ const TicketView = () => {
       ) ?? null,
     [statusLookupOptions],
   );
-  const isWorkflowStarted =
-    normalizeText(statusOverride?.label ?? status).replace(/\s+/g, "") ===
-    "inprogress";
+  const isWorkflowStarted = workflowStarted;
+  useEffect(() => {
+    if (!ticketId) return;
+    if (workflowHydratedTicketRef.current === ticketId) return;
+
+    workflowHydratedTicketRef.current = ticketId;
+
+    const hydrateFromStorage = () => {
+      if (!workflowStorageKey) return null;
+
+      try {
+        const raw = sessionStorage.getItem(workflowStorageKey);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const savedState = hydrateFromStorage();
+
+    if (savedState?.ticketId === ticketId) {
+      setWorkflowStarted(Boolean(savedState.workflowStarted));
+      setStatusOverride(
+        savedState.statusOverride ?? null,
+      );
+      setPreviousWorkflowStatus(
+        savedState.previousWorkflowStatus ?? null,
+      );
+      previousWorkflowStatusRef.current =
+        savedState.previousWorkflowStatus ?? null;
+      return;
+    }
+
+    const initialStatusLabel = normalizeTicketStatus(resolvedRecord) || status;
+    const initialStatusText = normalizeText(initialStatusLabel).replace(/\s+/g, "");
+
+    if (initialStatusText === "inprogress") {
+      setWorkflowStarted(true);
+      setStatusOverride(
+        currentStatusId > 0 && initialStatusLabel
+          ? {
+              id: currentStatusId,
+              label: initialStatusLabel,
+            }
+          : inProgressStatusOption
+            ? {
+                id: inProgressStatusOption.id,
+                label: inProgressStatusOption.label,
+              }
+            : null,
+      );
+      setPreviousWorkflowStatus(
+        pendingStatusOption
+          ? {
+              id: pendingStatusOption.id,
+              label: pendingStatusOption.label,
+            }
+          : null,
+      );
+      previousWorkflowStatusRef.current =
+        pendingStatusOption
+          ? {
+              id: pendingStatusOption.id,
+              label: pendingStatusOption.label,
+            }
+          : null;
+    }
+  }, [
+    currentStatusId,
+    inProgressStatusOption,
+    pendingStatusOption,
+    resolvedRecord,
+    status,
+    ticketId,
+    workflowStorageKey,
+  ]);
+
   const detailPreviousCallReport =
     previousCallReportFromTicket || latestCallReport || null;
   const mergedBanner = useMemo(
@@ -1748,6 +1996,60 @@ const TicketView = () => {
           getMergedTicketBanner(historyItems, ticketId, ticketNo),
     [hideMergedBanner, historyItems, sessionMergeBanner, state.mergeBanner, ticketId, ticketNo],
   );
+
+  const billTicketSummary = useMemo(() => {
+    const ticketSummary = getFieldValue(resolvedRecord ?? {}, [
+      "TicketSummary",
+      "cTicketSummary",
+      "cCallSummary",
+      "CallSummary",
+      "Summary",
+    ]);
+
+    return {
+      companyName:
+        String(
+          (sessionPayload as any).cCompanyName ??
+            (sessionPayload as any).companyName ??
+            (sessionPayload as any).cCustomerName ??
+            "Company Name",
+        ).trim() || "Company Name",
+      userName: currentUserName || "User Name",
+      ticketNo:
+        getFieldValue(resolvedRecord ?? {}, [
+          "TicketNo",
+          "nTicketNo",
+          "ticketNo",
+        ]) || ticketNo || ticketId,
+      customerName:
+        getFieldValue(resolvedRecord ?? {}, [
+          "CustomerName",
+          "cCustomerName",
+        ]) || customerName || "-",
+      customerId:
+        getFieldValue(resolvedRecord ?? {}, [
+          "CustomerId",
+          "nCustomerId",
+          "customerId",
+        ]) || "-",
+      contactPerson:
+        getFieldValue(resolvedRecord ?? {}, [
+          "ContactPerson",
+          "cContactPerson",
+        ]) || "-",
+      contactNumber:
+        getFieldValue(resolvedRecord ?? {}, [
+          "ContactNumber",
+          "cContactNumber",
+        ]) || "-",
+      email:
+        getFieldValue(resolvedRecord ?? {}, [
+          "Email",
+          "cEmail",
+        ]) || "-",
+      summary: ticketSummary || "-",
+    };
+  }, [currentUserName, customerName, resolvedRecord, sessionPayload, ticketId, ticketNo]);
 
   const handleSplitMerge = () => {
     if (!mergedBanner) return;
@@ -1804,8 +2106,9 @@ const TicketView = () => {
           }
         : pendingStatusOption);
 
-    updateTicket.mutate(
-      buildTicketUpdatePayload(
+    updateTicketStatus.mutate(
+      buildTicketStatusUpdatePayload(
+        ticketId,
         resolvedRecord,
         supportSessionPayload,
         inProgressStatusOption.id,
@@ -1814,12 +2117,47 @@ const TicketView = () => {
       {
         onSuccess: () => {
           setPreviousWorkflowStatus(previousStatus ?? null);
+          previousWorkflowStatusRef.current = previousStatus ?? null;
           setStatusOverride({
             id: inProgressStatusOption.id,
             label: inProgressStatusOption.label,
           });
+          syncTicketStatusCache(
+            inProgressStatusOption.id,
+            inProgressStatusOption.label,
+          );
+          setWorkflowStarted(true);
+          persistWorkflowState({
+            workflowStarted: true,
+            statusOverride: {
+              id: inProgressStatusOption.id,
+              label: inProgressStatusOption.label,
+            },
+            previousWorkflowStatus: previousStatus ?? null,
+          });
           setStartConfirmOpen(false);
           message.success("Ticket moved to In Progress");
+          void (async () => {
+            try {
+              const amcPayload = buildAmcExpiryPayload(
+                resolvedRecord ?? {},
+                supportSessionPayload,
+              );
+              const assetId = Number(amcPayload.nAssetId ?? amcPayload.assetId ?? 0);
+
+              if (assetId > 0) {
+                const eligibility = await checkAmcExpiry(amcPayload);
+
+                if (!isUnderAmcOrWarranty(eligibility)) {
+                  await showAmcWarning();
+                }
+              }
+            } catch {
+              console.error("AMC check failed while opening call report");
+            } finally {
+              setQuickCallOpen(true);
+            }
+          })();
           queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
           queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
         },
@@ -1834,41 +2172,227 @@ const TicketView = () => {
     );
   };
 
+  const showAmcWarning = () =>
+    new Promise<void>((resolve) => {
+      Modal.warning({
+        title: "Warning",
+        centered: true,
+        content: "Asset is not under AMC or Warranty",
+        okText: "Ok",
+        onOk: () => resolve(),
+      });
+    });
+
+  const showGenerateBillConfirm = () =>
+    new Promise<boolean>((resolve) => {
+      Modal.confirm({
+        title: "Confirmation",
+        centered: true,
+        content: "Do You Want To Generate Bill ?",
+        okText: "Yes",
+        cancelText: "No",
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+
+  const loadRevertBillInfo = async () => {
+    const customerId = Number(
+      getFirstTicketValue(resolvedRecord ?? {}, [
+        "CustomerId",
+        "nCustomerId",
+        "customerId",
+      ]) ?? 0,
+    ) || 0;
+    const assetId = Number(
+      getFirstTicketValue(resolvedRecord ?? {}, [
+        "AssetId",
+        "nAssetId",
+        "assetId",
+      ]) ?? 0,
+    ) || 0;
+
+    const payload = {
+      ...supportSessionPayload,
+      nCompanyId: Number(supportSessionPayload.nCompanyId ?? 0) || 0,
+      nTicketId: ticketId,
+      nCustomerId: customerId,
+      nAssetId: assetId,
+      cSchemaName: supportSessionPayload.cSchemaName ?? "",
+      cDbName:
+        supportSessionPayload.cDbName ??
+        (supportSessionPayload as any).dbName ??
+        "",
+    };
+
+    const [lastBillResponse, partListResponse] = await Promise.all([
+      billingApis.lastBillNumber(payload),
+      billingApis.partListForBilling(payload),
+    ]);
+
+    const lastBillPayload = lastBillResponse?.data ?? lastBillResponse ?? {};
+    const lastBillNumber =
+      lastBillPayload?.lastBillNumber ??
+      lastBillPayload?.LastBillNumber ??
+      lastBillPayload?.cBillNo ??
+      lastBillPayload?.billNo ??
+      lastBillPayload?.BillNo ??
+      "";
+
+    const partList = normalizeBillParts(partListResponse);
+    const summary = getFieldValue(resolvedRecord ?? {}, [
+      "TicketSummary",
+      "cTicketSummary",
+      "cCallSummary",
+      "CallSummary",
+      "Summary",
+    ]);
+
+    return {
+      companyName:
+        String(
+          (sessionPayload as any).cCompanyName ??
+            (sessionPayload as any).companyName ??
+            (sessionPayload as any).cCustomerName ??
+            "Company Name",
+        ).trim() || "Company Name",
+      billNo: String(lastBillNumber ?? "").trim(),
+      customerName:
+        getFieldValue(resolvedRecord ?? {}, ["CustomerName", "cCustomerName"]) ||
+        customerName ||
+        "-",
+      customerId:
+        getFieldValue(resolvedRecord ?? {}, [
+          "CustomerId",
+          "nCustomerId",
+          "customerId",
+        ]) || "-",
+      ticketNo:
+        getFieldValue(resolvedRecord ?? {}, ["TicketNo", "nTicketNo", "ticketNo"]) ||
+        ticketNo ||
+        ticketId,
+      contactPerson:
+        getFieldValue(resolvedRecord ?? {}, [
+          "ContactPerson",
+          "cContactPerson",
+        ]) || "-",
+      contactNumber:
+        getFieldValue(resolvedRecord ?? {}, [
+          "ContactNumber",
+          "cContactNumber",
+        ]) || "-",
+      email:
+        getFieldValue(resolvedRecord ?? {}, ["Email", "cEmail"]) || "-",
+      summary: summary || "-",
+      partList,
+      sessionPayload: {
+        ...supportSessionPayload,
+        nCompanyId: Number(supportSessionPayload.nCompanyId ?? 0) || 0,
+        nTicketId: ticketId,
+        nCustomerId: customerId,
+        nAssetId: assetId,
+        cSchemaName: supportSessionPayload.cSchemaName ?? "",
+        cDbName:
+          supportSessionPayload.cDbName ??
+          (supportSessionPayload as any).dbName ??
+          "",
+      },
+    };
+  };
+
+  const handleRevertBillFlow = async () => {
+    const shouldGenerateBill = await showGenerateBillConfirm();
+    if (!shouldGenerateBill) return;
+
+    try {
+      const billPageState = await loadRevertBillInfo();
+      sessionStorage.setItem(BILL_PREVIEW_STORAGE_KEY, JSON.stringify(billPageState));
+      navigate("/billsandreceipts/bills/add", {
+        state: billPageState,
+      });
+    } catch (error) {
+      console.error("Failed to load revert bill info", error);
+      message.error("Unable to load bill details");
+    }
+  };
+
+  const promptRevertAmcWarning = async () => {
+    try {
+      const amcPayload = buildAmcExpiryPayload(
+        resolvedRecord ?? {},
+        supportSessionPayload,
+      );
+
+      const eligibility = await checkAmcExpiry(amcPayload);
+
+      if (!isUnderAmcOrWarranty(eligibility)) {
+        await showAmcWarning();
+      }
+    } catch {
+      console.error("AMC check failed while preparing revert");
+    }
+  };
+
   const handleRevertWorkflowStatus = () => {
-    const revertStatus = previousWorkflowStatus ?? pendingStatusOption;
+    const revertStatus =
+      previousWorkflowStatusRef.current ??
+      previousWorkflowStatus;
 
     if (!revertStatus) {
       message.error("Previous status is not available");
       return;
     }
 
-    updateTicket.mutate(
-      buildTicketUpdatePayload(
-        resolvedRecord,
-        supportSessionPayload,
-        revertStatus.id,
-        revertStatus.label,
-      ) as any,
-      {
-        onSuccess: () => {
-          setStatusOverride({
-            id: revertStatus.id,
-            label: revertStatus.label,
-          });
-          setPreviousWorkflowStatus(null);
-          message.success("Ticket reverted successfully");
-          queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
-          queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
-        },
-        onError: (error: any) => {
-          message.error(
-            error?.response?.data?.message ||
-              error?.message ||
-              "Unable to revert ticket status",
-          );
-        },
+    setStatusOverride({
+      id: revertStatus.id,
+      label: revertStatus.label,
+    });
+    syncTicketStatusCache(revertStatus.id, revertStatus.label);
+    setWorkflowStarted(false);
+    persistWorkflowState(null);
+
+    void (async () => {
+      await promptRevertAmcWarning();
+
+      setPreviousWorkflowStatus(null);
+      previousWorkflowStatusRef.current = null;
+      message.success("Ticket reverted successfully");
+      syncTicketStatusCache(revertStatus.id, revertStatus.label);
+      queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
+      void handleRevertBillFlow();
+    })();
+  };
+
+  const handleCallReportSaved = ({
+    statusId,
+    statusLabel,
+  }: {
+    statusId: number;
+    statusLabel: string;
+    ticketId: number;
+  }) => {
+    setStatusOverride({
+      id: Number(statusId || 0),
+      label: statusLabel || status || "",
+    });
+    syncTicketStatusCache(Number(statusId || 0), statusLabel || status || "");
+    setWorkflowStarted(true);
+    if (!previousWorkflowStatusRef.current && previousWorkflowStatus) {
+      previousWorkflowStatusRef.current = previousWorkflowStatus;
+    }
+    persistWorkflowState({
+      workflowStarted: true,
+      statusOverride: {
+        id: Number(statusId || 0),
+        label: statusLabel || status || "",
       },
-    );
+      previousWorkflowStatus:
+        previousWorkflowStatusRef.current ?? previousWorkflowStatus ?? null,
+    });
+    setStartConfirmOpen(false);
+    queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+    queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
   };
 
   return (
@@ -2225,7 +2749,7 @@ const TicketView = () => {
                     <button
                       type="button"
                       onClick={handleRevertWorkflowStatus}
-                      disabled={updateTicket.isPending}
+                      disabled={updateTicketStatus.isPending}
                       className="rounded-[3px] border border-white bg-transparent px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-70"
                     >
                       Revert
@@ -2242,7 +2766,7 @@ const TicketView = () => {
                   <button
                     type="button"
                     onClick={() => setStartConfirmOpen(true)}
-                    disabled={updateTicket.isPending}
+                    disabled={updateTicketStatus.isPending}
                     className="rounded-[3px] bg-[#24c276] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#1fad69] disabled:opacity-70"
                   >
                     Start
@@ -2260,7 +2784,8 @@ const TicketView = () => {
         ticketValues={resolvedRecord}
         selectedCustomerName={customerName}
         sessionPayload={getRequestPayload()}
-        assignedAgentDetails={assignedAgentDetails}
+        skipAmcWarningOnSave
+        onSaved={handleCallReportSaved}
       />
       <AssignTicketModal
         open={assignOpen}
@@ -2320,7 +2845,7 @@ const TicketView = () => {
             <Button onClick={() => setStartConfirmOpen(false)}>Cancel</Button>
             <Button
               type="primary"
-              loading={updateTicket.isPending}
+              loading={updateTicketStatus.isPending}
               className="!border-emerald-500 !bg-emerald-500 hover:!border-emerald-600 hover:!bg-emerald-600"
               onClick={handleStartWorkflow}
             >
@@ -2335,3 +2860,5 @@ const TicketView = () => {
 };
 
 export default TicketView;
+
+

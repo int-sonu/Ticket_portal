@@ -1,31 +1,65 @@
 export const getRequestPayload = () => {
-  const session = JSON.parse(
-    sessionStorage.getItem("userSession") || "{}"
-  );
+  const safeParse = (value: string | null) => {
+    try {
+      return value ? JSON.parse(value) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const session = safeParse(sessionStorage.getItem("userSession"));
+  const credentials = safeParse(localStorage.getItem("userCredentials"));
+  const sessionData = session?.data ?? session;
+  const credentialData = credentials?.data ?? credentials;
+  const companyDetails =
+    sessionData?.companyDetails ??
+    credentialData?.companyDetails ??
+    {};
+  const companyId =
+    sessionData?.nCompanyId ??
+    sessionData?.companyId ??
+    sessionData?.CompanyId ??
+    sessionData?.companyID ??
+    companyDetails?.nCompanyId ??
+    companyDetails?.companyId ??
+    companyDetails?.CompanyId ??
+    credentials?.nCompanyId ??
+    credentials?.companyId ??
+    credentials?.CompanyId ??
+    credentials?.companyID;
+  const agentId =
+    sessionData?.id ??
+    sessionData?.nAgentId ??
+    credentialData?.id ??
+    credentialData?.nAgentId ??
+    credentials?.id ??
+    credentials?.nAgentId;
 
   return {
     cDbName:
-      session.cDbName ??
-      session.dbName ??
-      session.DbName ??
-      session.cDatabaseName ??
-      session.databaseName ??
-      session.database ??
-      session.DatabaseName,
+      sessionData?.cDbName ??
+      sessionData?.dbName ??
+      sessionData?.DbName ??
+      sessionData?.cDatabaseName ??
+      sessionData?.databaseName ??
+      sessionData?.database ??
+      sessionData?.DatabaseName ??
+      credentialData?.cDbName ??
+      credentialData?.dbName,
     cSchemaName:
-      session.cSchemaName ??
-      session.schemaName ??
-      session.SchemaName ??
-      session.companyCode ??
-      session.CompanyCode ??
-      session.companycode,
-    nCompanyId:
-      session.nCompanyId ??
-      session.companyId ??
-      session.CompanyId ??
-      session.companyID,
-    id: session.id,
-    nType: session.nType,
-    nAgentId: session.id ?? session.nAgentId,
+      sessionData?.cSchemaName ??
+      sessionData?.schemaName ??
+      sessionData?.SchemaName ??
+      sessionData?.companyCode ??
+      sessionData?.CompanyCode ??
+      sessionData?.companycode ??
+      credentialData?.cSchemaName ??
+      credentialData?.schemaName ??
+      credentialData?.companyCode ??
+      credentialData?.CompanyCode,
+    nCompanyId: companyId,
+    id: agentId,
+    nType: sessionData?.nType ?? credentialData?.nType,
+    nAgentId: agentId,
   };
 };

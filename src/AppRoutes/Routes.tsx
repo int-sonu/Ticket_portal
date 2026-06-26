@@ -43,6 +43,7 @@ import CustomerTickets from "../Pages/Ticket/CustomerTickets/CustomerTickets";
 import AssignAgentTickets from "../Pages/Ticket/AssignAgentTickets/AssignAgentTickets";
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
+import BillPreviewPage from "../Pages/Bills/BillPreviewPage";
 import TicketView from "../Pages/Ticket/TicketView/TicketView";
 import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
 import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
@@ -168,6 +169,12 @@ const Routes: React.FC = () => {
             <Route path="/tickets/history/:id" element={<TicketHistory />} />
 
             <Route path="/tickets/followup/:id" element={<TicketFollowUp />} />
+
+            <Route
+              path="/billsandreceipts/bills/add"
+              element={<BillPreviewPage />}
+            />
+            <Route path="/bills/add" element={<BillPreviewPage />} />
           </Route>
 
           <Route path="/estimate-invoice" element={<EstimatePdfViewer />} />

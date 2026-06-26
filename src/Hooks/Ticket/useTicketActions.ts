@@ -82,7 +82,7 @@ export const useTicketActions = () => {
   const updateTicketStatus =
     useMutation({
       mutationFn:
-        ticketApis.ticketUpdate,
+        ticketApis.updateTicketStatus,
       onSuccess: refreshTickets,
     });
 

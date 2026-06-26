@@ -561,6 +561,24 @@ export const billingApis = {
 
     return response.data;
   },
+
+  lastBillNumber: async (payload: any) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Billing/LastBillNumber',
+      payload
+    );
+
+    return response.data;
+  },
+
+  partListForBilling: async (payload: any) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Billing/PartListForBilling',
+      payload
+    );
+
+    return response.data;
+  },
 };
 
 // ============================

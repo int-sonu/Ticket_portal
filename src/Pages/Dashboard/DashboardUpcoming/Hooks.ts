@@ -19,10 +19,10 @@ export const useFetchDashboardUpcomingTicketList = (
     if (!dFromDate || !dToDate) return;
 
     const listPayload = {
-      cAgentId: cAgentId,
-      nMode: 0,
-      dFromDate: dayjs().format("YYYY/MM/DD"),
-      dToDate: dayjs().format("YYYY/MM/DD"),
+      cAgentId,
+      nMode,
+      dFromDate: dayjs(dFromDate).format("YYYY-MM-DD"),
+      dToDate: dayjs(dToDate).format("YYYY-MM-DD"),
       nCompanyId: userCreds.nCompanyId,
       cSchemaName: userCreds.cSchemaName,
       cDbName: userCreds.cDbName ?? userCreds.dbName,

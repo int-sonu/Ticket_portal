@@ -361,13 +361,28 @@ export const ticketApis = {
     return response.data;
   },
 
+  updateTicketStatus: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await sendWithMethodFallback(
+        "post",
+        "/Api/V1/Ticket/UpdateTicketStatus",
+        payload,
+        ["put"]
+      );
+
+    return response.data;
+  },
+
   ticketQuickCallReportSave: async (
     payload: TicketPayload
   ) => {
     const response = await sendWithMethodFallback(
       "post",
-      "/Api/V1/Ticket/TicketQuickCallReportSave",
-      payload
+      "/Api/V1/CallReport/CallreportWorksheetSave",
+      payload,
+      ["put"]
     );
 
     return response.data;

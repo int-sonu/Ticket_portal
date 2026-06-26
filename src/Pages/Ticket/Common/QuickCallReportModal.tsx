@@ -1,5 +1,5 @@
 import { AudioOutlined, UploadOutlined } from "@ant-design/icons";
-import { Checkbox, DatePicker, Form, Input, Radio, Select, message } from "antd";
+import { Checkbox, DatePicker, Form, Input, Modal, Radio, Select, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
 import { useGetActiveFollowupModes } from "../../Master/FollowUpMode/Hooks";
 import { useGetStatuses } from "../../Master/StatusMaster/Hooks";
+import { useCheckAmcExpiry } from "../../Master/CustomerMaster/Hooks";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import RightSideDrawer from "../../../ui/Drawer/RightSideDrawer";
 import type { FormInstance } from "antd";
@@ -91,8 +92,14 @@ interface QuickCallReportModalProps {
   ticketForm?: FormInstance;
   ticketValues?: Record<string, any>;
   selectedCustomerName?: string;
-  sessionPayload: Record<string, any>;
   assignedAgentDetails?: any[];
+  sessionPayload: Record<string, any>;
+  skipAmcWarningOnSave?: boolean;
+  onSaved?: (result: {
+    statusId: number;
+    statusLabel: string;
+    ticketId: number;
+  }) => void;
 }
 
 const QuickCallReportModal = ({
@@ -103,71 +110,16 @@ const QuickCallReportModal = ({
   ticketValues: ticketValuesProp,
   selectedCustomerName,
   sessionPayload,
-  assignedAgentDetails = [],
+  skipAmcWarningOnSave = false,
+  onSaved,
 }: QuickCallReportModalProps) => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { quickCallReportSave } = useTicketMutations();
+  const { mutateAsync: checkAmcExpiry } = useCheckAmcExpiry();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFilesCount, setSelectedFilesCount] = useState(0);
   const [closeAction, setCloseAction] = useState<string>("");
-
-  const priorityValueMap: Record<string, number> = {
-    "Very Low": 1,
-    Low: 1,
-    Medium: 2,
-    High: 3,
-    "Very High": 4,
-  };
-
-  const normalizedAssignedAgents = assignedAgentDetails
-    .map((agent: any) => ({
-      nAgentId: Number(
-        agent?.nAgentId ??
-          agent?.agentId ??
-          agent?.id ??
-          agent?.value ??
-          0
-      ),
-      nRole: Number(agent?.nRole ?? 0),
-    }))
-    .filter((agent: any) => agent.nAgentId > 0);
-
-  const normalizeAssignedAgentsFromTicket = (ticket: Record<string, any>) => {
-    const raw = [
-      ticket?.cAssignedId,
-      ticket?.assignedAgentDetails,
-      ticket?.AssignedAgentDetails,
-      ticket?.assignedAgents,
-      ticket?.AssignedAgents,
-      ticket?.AssignToAgent,
-      ticket?.assignToAgent,
-      ticket?.AgentId,
-      ticket?.agentId,
-      ticket?.nAgentId,
-    ].find(
-      (value) => value !== undefined && value !== null && value !== ""
-    );
-
-    if (Array.isArray(raw)) {
-      return raw
-        .map((agent: any) => ({
-          nAgentId: Number(
-            agent?.nAgentId ??
-              agent?.agentId ??
-              agent?.id ??
-              agent?.value ??
-              agent ??
-              0
-          ),
-          nRole: Number(agent?.nRole ?? 0),
-        }))
-        .filter((agent: any) => agent.nAgentId > 0);
-    }
-
-    const parsed = typeof raw === "string" ? Number(raw) : Number(raw ?? 0);
-    return parsed > 0 ? [{ nAgentId: parsed, nRole: 0 }] : [];
-  };
 
   const resolvedTicketId = Number(
     ticketId ??
@@ -291,7 +243,14 @@ const QuickCallReportModal = ({
             label,
           };
         })
-        .filter(Boolean),
+        .filter(
+          (
+            item,
+          ): item is {
+            value: number;
+            label: string;
+          } => Boolean(item),
+        ),
     [statusData],
   );
 
@@ -408,6 +367,48 @@ const QuickCallReportModal = ({
     return true;
   };
 
+  const isUnderAmcOrWarranty = (response: any) => {
+    const data = response?.data ?? response ?? {};
+    const messageText = String(
+      data?.message ?? data?.title ?? "",
+    ).toLowerCase();
+    const amcFlag = Boolean(
+      data?.bUnderAmc ??
+        data?.bAMC ??
+        data?.amc ??
+        data?.underAmc ??
+        data?.isUnderAmc,
+    );
+    const warrantyFlag = Boolean(
+      data?.bUnderWarranty ??
+        data?.bWarranty ??
+        data?.warranty ??
+        data?.underWarranty ??
+        data?.isUnderWarranty,
+    );
+    const successFlag = data?.success ?? data?.isSuccess ?? data?.status;
+
+    return (
+      amcFlag ||
+      warrantyFlag ||
+      successFlag === true ||
+      String(successFlag).toLowerCase() === "true" ||
+      (!messageText.includes("not under") &&
+        !messageText.includes("not available"))
+    );
+  };
+
+  const showAmcWarning = () =>
+    new Promise<void>((resolve) => {
+      Modal.warning({
+        title: "Warning",
+        centered: true,
+        content: "Asset is not under AMC or Warranty",
+        okText: "Ok",
+        onOk: () => resolve(),
+      });
+    });
+
   const handleSubmit = async (values: any, selectedCloseAction = closeAction) => {
     const modalValues = form.getFieldsValue(true);
     const ticketValues =
@@ -429,28 +430,63 @@ const QuickCallReportModal = ({
     const selectedEngagementMode = engagementOptions.find(
       (item: any) => String(item?.value) === String(values.EngagementMode ?? ""),
     );
+    const selectedStatusValue = Number(selectedStatusId ?? 0) || 0;
+    const customerId = Number(
+      getFirstTicketValue(ticketValues ?? {}, [
+        "CustomerId",
+        "nCustomerId",
+        "customerId",
+      ]) ?? sessionPayload.nCustomerId ?? 0,
+    ) || 0;
+    const assetId = Number(
+      getFirstTicketValue(ticketValues ?? {}, [
+        "AssetId",
+        "nAssetId",
+        "assetId",
+      ]) ?? sessionPayload.nAssetId ?? 0,
+    ) || 0;
+
+    try {
+      if (!skipAmcWarningOnSave) {
+        if (assetId > 0) {
+          const eligibility = await checkAmcExpiry({
+            ...sessionPayload,
+            CustomerId: customerId,
+            customerId,
+            nCustomerId: customerId,
+            AssetId: assetId,
+            assetId,
+            nAssetId: assetId,
+          });
+
+          if (!isUnderAmcOrWarranty(eligibility)) {
+            await showAmcWarning();
+          }
+        } else {
+          await showAmcWarning();
+        }
+      }
+    } catch {
+      if (!skipAmcWarningOnSave) {
+        await showAmcWarning();
+      }
+    }
 
     try {
       await quickCallReportSave.mutateAsync(
         {
-          nCustomerId:
-            Number(
-              getFirstTicketValue(ticketValues ?? {}, ["CustomerId", "nCustomerId"]) ??
-                sessionPayload.nCustomerId ??
-                0
-            ) || 0,
+          nFollowupId: 0,
+          nTicketId: resolvedTicketId,
+          nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
+          nCustomerId: customerId,
+          nCallMode: Number(selectedEngagementMode?.id ?? 0) || 0,
           cCustomerName:
             selectedCustomerName ??
-            getFirstTicketValue(ticketValues ?? {}, ["CustomerName", "cCustomerName"]) ??
+            getFirstTicketValue(ticketValues ?? {}, [
+              "CustomerName",
+              "cCustomerName",
+            ]) ??
             "",
-          nSourceId:
-            Number(
-              ticketValues.Source ??
-                ticketValues.SourceId ??
-                ticketValues.nSourceId ??
-                sessionPayload.nSourceId ??
-                0
-            ) || 0,
           cContactPerson:
             getFirstTicketValue(ticketValues ?? {}, [
               "ContactPerson",
@@ -467,111 +503,21 @@ const QuickCallReportModal = ({
               "cPhoneNo",
             ]) ?? "",
           cEmail: getFirstTicketValue(ticketValues ?? {}, ["Email", "cEmail"]) ?? "",
-          cTicketSummary:
-            getFirstTicketValue(ticketValues ?? {}, [
-              "IssueSummary",
-              "TicketSummary",
-              "cTicketSummary",
-            ]) ?? "",
-          cDescription:
-            getFirstTicketValue(ticketValues ?? {}, ["Description", "cDescription"]) ?? "",
-          cAssignedId:
-            normalizedAssignedAgents.length > 0
-              ? normalizedAssignedAgents
-              : normalizeAssignedAgentsFromTicket(ticketValues),
-          nTicketStatus:
-            Number(
-              ticketValues.TicketStatus ??
-                ticketValues.nTicketStatus ??
-                sessionPayload.nTicketStatus ??
-                5
-            ) || 5,
-          nAssetId:
-            Number(
-              ticketValues.AssetId ??
-                ticketValues.nAssetId ??
-                sessionPayload.nAssetId ??
-                0
-            ) || 0,
-          nPriority:
-            Number(
-              ticketValues.nPriority ??
-                sessionPayload.nPriority ??
-                priorityValueMap[String(ticketValues.Priority ?? "")] ??
-                1
-            ) || 1,
-          nGroupId:
-            Number(
-              ticketValues.Group ??
-              ticketValues.GroupId ??
-                ticketValues.nGroupId ??
-                sessionPayload.nGroupId ??
-                0
-            ) || 0,
-          bOnSite: Boolean(
-            values.OnsiteRequired ??
-              ticketValues.OnsiteRequired ??
-              ticketValues.bOnSite,
-          ),
-          dFollowupDate:
-            normalizedNextFollowupDate ?? normalizedFollowupDate ?? "",
-          nTicketId: resolvedTicketId,
-          nCallModeId: selectedEngagementMode?.id ?? 0,
-          nCallReportModeId: selectedEngagementMode?.id ?? 0,
-          nCallreportModeId: selectedEngagementMode?.id ?? 0,
-          cCallModeName: selectedEngagementMode?.label ?? values.EngagementMode ?? "",
-          cCallModeShName:
-            selectedEngagementMode?.shortName ??
-            selectedEngagementMode?.label ??
-            values.EngagementMode ??
-            "",
-          cCallreportModeShName:
-            selectedEngagementMode?.shortName ??
-            selectedEngagementMode?.label ??
-            values.EngagementMode ??
-            "",
-          cCallSummary: values.Summary ?? "",
-          cCallComment: values.Comment ?? "",
-          cCallRemarks: values.Comment ?? "",
-          cRemarks: values.Comment ?? "",
-          cContactPerson:
-            values.ContactPersonName ??
-            getFirstTicketValue(ticketValues ?? {}, [
-              "ContactPerson",
-              "cContactPerson",
-              "ContactName",
-              "cContactName",
-            ]) ??
-            "",
-          cContactNumber:
-            values.MobileNumber ??
-            getFirstTicketValue(ticketValues ?? {}, [
-              "ContactNo",
-              "ContactNumber",
-              "cContactNumber",
-              "PhoneNo",
-              "cPhoneNo",
-            ]) ??
-            "",
-          cEmail:
-            values.Email ??
-            getFirstTicketValue(ticketValues ?? {}, ["Email", "cEmail"]) ??
-            "",
-          nTicketStatus:
-            Number(
-              values.UpdateStatus ??
-                ticketValues.TicketStatus ??
-                ticketValues.nTicketStatus ??
-                sessionPayload.nTicketStatus ??
-                5,
-            ) || 5,
-          ctodo: values.ToDo ?? "",
+          cSummary: values.Summary ?? "",
+          cComments: values.Comment ?? "",
           cTodo: values.ToDo ?? "",
-          nCloseStatus: resolvedCloseAction?.value ?? 0,
-          CloseStatus: resolvedCloseAction?.value ?? 0,
-          cCloseStatus: resolvedCloseAction?.label ?? "",
-          cCloseRemarks: resolvedCloseAction?.label ?? "",
-          cClosureType: resolvedCloseAction?.label ?? "",
+          dNextFollowupDate:
+            normalizedNextFollowupDate ?? normalizedFollowupDate ?? "",
+          nStatus: selectedStatusValue,
+          nCloseStatus: resolvedCloseAction?.value ?? 5,
+          bClosedTrip: false,
+          cinLocation: "",
+          ninLongitude: 0,
+          ninlattitude: 0,
+          partList: [],
+          repairStatusList: [],
+          cSchemaName: sessionPayload.cSchemaName ?? "",
+          cDbName: sessionPayload.cDbName ?? sessionPayload.dbName ?? "",
           nCreatedBy:
             Number(
               sessionPayload.nCreatedBy ??
@@ -579,19 +525,30 @@ const QuickCallReportModal = ({
                 sessionPayload.id ??
                 sessionPayload.nModifiedBy ??
                 sessionPayload.nUserId ??
-                0
-            ) ||
-            0,
-          nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
-          cSchemaName: sessionPayload.cSchemaName ?? "",
-          cDbName: sessionPayload.cDbName ?? sessionPayload.dbName ?? "",
+                0,
+            ) || 0,
         } as any
       );
+
+      const savedStatusId =
+        selectedStatusValue || Number(sessionPayload.nTicketStatus ?? 5) || 5;
+      const savedStatusLabel =
+        statusOptions.find(
+          (item) => Number(item?.value) === Number(savedStatusId),
+        )?.label ?? selectedStatusLabel ?? "";
+
+      onSaved?.({
+        statusId: savedStatusId,
+        statusLabel: savedStatusLabel,
+        ticketId: resolvedTicketId,
+      });
 
       message.success("Call Report Saved Successfully");
       form.resetFields();
       onClose();
-      navigate("/tickets");
+      if (!onSaved) {
+        navigate("/tickets");
+      }
     } catch (error: any) {
       message.error(
         error?.response?.data?.message ||
@@ -875,6 +832,7 @@ const QuickCallReportModal = ({
           </div>
         </div>
       </Form>
+
     </RightSideDrawer>
   );
 };
