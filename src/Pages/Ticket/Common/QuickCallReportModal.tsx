@@ -99,6 +99,7 @@ interface QuickCallReportModalProps {
     statusId: number;
     statusLabel: string;
     ticketId: number;
+    nFollowupId?: number;
   }) => void;
 }
 
@@ -473,7 +474,7 @@ const QuickCallReportModal = ({
     }
 
     try {
-      await quickCallReportSave.mutateAsync(
+      const savedResponse = await quickCallReportSave.mutateAsync(
         {
           nFollowupId: 0,
           nTicketId: resolvedTicketId,
@@ -537,10 +538,24 @@ const QuickCallReportModal = ({
           (item) => Number(item?.value) === Number(savedStatusId),
         )?.label ?? selectedStatusLabel ?? "";
 
+      // Extract the followup ID from the API response so the bill page can use it directly
+      const savedFollowupId = Number(
+        savedResponse?.data?.nFollowupId ??
+          savedResponse?.data?.FollowupId ??
+          savedResponse?.data?.nWorksheetId ??
+          savedResponse?.data?.WorksheetId ??
+          savedResponse?.nFollowupId ??
+          savedResponse?.FollowupId ??
+          savedResponse?.nWorksheetId ??
+          savedResponse?.WorksheetId ??
+          0,
+      ) || 0;
+
       onSaved?.({
         statusId: savedStatusId,
         statusLabel: savedStatusLabel,
         ticketId: resolvedTicketId,
+        nFollowupId: savedFollowupId || undefined,
       });
 
       message.success("Call Report Saved Successfully");

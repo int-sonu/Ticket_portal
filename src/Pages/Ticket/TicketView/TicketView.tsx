@@ -12,7 +12,7 @@ import {
 } from "../../../Hooks/Ticket/useTicketQueries";
 import { useCheckAmcExpiry } from "../../Master/CustomerMaster/Hooks";
 import { getApiImageBaseUrl } from "../../../Axios/config";
-import { billingApis } from "../../../Axios/MasterApis";
+import { billingApis } from "../../../Axios/BillingApis";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import QuickCallReportModal from "../Common/QuickCallReportModal";
@@ -1821,6 +1821,36 @@ const TicketView = () => {
     return { title, remarks, dateText, createdBy };
   }, [historyItems]);
 
+  const latestCallReportFollowupId = useMemo(() => {
+    const candidates = [...historyItems].reverse();
+    const item = candidates.find((entry: any) => {
+      const summary = formatDisplayValue(
+        getFieldValue(entry, [
+          "cCallSummary",
+          "CallSummary",
+          "cViewSummary",
+          "ViewSummary",
+          "Remarks",
+          "Remark",
+          "Comment",
+          "Description",
+        ]),
+      );
+      return Boolean(summary);
+    });
+
+    return Number(
+      findDeepFieldValue(item ?? {}, [
+        "nFollowupId",
+        "FollowupId",
+        "nWorksheetId",
+        "WorksheetId",
+        "Id",
+        "id",
+      ]) || 0,
+    );
+  }, [historyItems]);
+
   const previousCallReportFromTicket = useMemo(() => {
     const previousReports = extractList(
       getFieldValue(resolvedRecord, ["previousCallreport", "previousCallReport"]),
@@ -2196,7 +2226,7 @@ const TicketView = () => {
       });
     });
 
-  const loadRevertBillInfo = async () => {
+  const loadRevertBillInfo = async (followupIdOverride?: number) => {
     const customerId = Number(
       getFirstTicketValue(resolvedRecord ?? {}, [
         "CustomerId",
@@ -2288,6 +2318,7 @@ const TicketView = () => {
       sessionPayload: {
         ...supportSessionPayload,
         nCompanyId: Number(supportSessionPayload.nCompanyId ?? 0) || 0,
+        nFollowupId: followupIdOverride || latestCallReportFollowupId,
         nTicketId: ticketId,
         nCustomerId: customerId,
         nAssetId: assetId,
@@ -2297,15 +2328,16 @@ const TicketView = () => {
           (supportSessionPayload as any).dbName ??
           "",
       },
+      nFollowupId: followupIdOverride || latestCallReportFollowupId,
     };
   };
 
-  const handleRevertBillFlow = async () => {
+  const handleRevertBillFlow = async (followupIdOverride?: number) => {
     const shouldGenerateBill = await showGenerateBillConfirm();
     if (!shouldGenerateBill) return;
 
     try {
-      const billPageState = await loadRevertBillInfo();
+      const billPageState = await loadRevertBillInfo(followupIdOverride);
       sessionStorage.setItem(BILL_PREVIEW_STORAGE_KEY, JSON.stringify(billPageState));
       navigate("/billsandreceipts/bills/add", {
         state: billPageState,
@@ -2367,10 +2399,12 @@ const TicketView = () => {
   const handleCallReportSaved = ({
     statusId,
     statusLabel,
+    nFollowupId: savedFollowupId,
   }: {
     statusId: number;
     statusLabel: string;
     ticketId: number;
+    nFollowupId?: number;
   }) => {
     setStatusOverride({
       id: Number(statusId || 0),
@@ -2393,6 +2427,7 @@ const TicketView = () => {
     setStartConfirmOpen(false);
     queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
     queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
+    void handleRevertBillFlow(savedFollowupId || undefined);
   };
 
   return (
@@ -2780,7 +2815,7 @@ const TicketView = () => {
       <QuickCallReportModal
         open={quickCallOpen}
         onClose={() => setQuickCallOpen(false)}
-        ticketId={ticketId}
+        ticketId={ticketId}  
         ticketValues={resolvedRecord}
         selectedCustomerName={customerName}
         sessionPayload={getRequestPayload()}

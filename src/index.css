@@ -90,6 +90,17 @@ body,
   display: none;
 }
 
+/* Pay mode strip: show a compact horizontal scrollbar */
+.paymode-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.paymode-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
 .ant-switch.ant-switch-checked,
 .agent-green-switch.ant-switch-checked {
   background: #22c55e !important;

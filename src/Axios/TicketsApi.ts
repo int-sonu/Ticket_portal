@@ -388,6 +388,17 @@ export const ticketApis = {
     return response.data;
   },
 
+  callreportView: async (
+    payload: TicketPayload
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/CallReport/CallreportView",
+      payload
+    );
+
+    return response.data;
+  },
+
   postponeTicket: async (
     payload: TicketPayload
   ) => {

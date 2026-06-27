@@ -3,7 +3,7 @@ import { Table, Select, InputNumber, Button, message, Popover, Input, Modal } fr
 import { PlusOutlined, CloseOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../Axios/axios';
-import { billingApis } from '../../../Axios/MasterApis';
+import { billingApis } from '../../../Axios/BillingApis';
 import { getConfig } from '../../../Axios/config';
 import deleteRed from '../../../assets/icons/delete-red.svg';
 import narrationIcon from '../../../assets/icons/NarrationIcon.svg';

@@ -12,6 +12,9 @@ type RightSideDrawerProps = {
   destroyOnClose?: boolean;
   className?: string;
   bodyStyle?: CSSProperties;
+  hideHeader?: boolean;
+  maskClosable?: boolean;
+  keyboard?: boolean;
 };
 
 const RightSideDrawer = ({
@@ -24,24 +27,31 @@ const RightSideDrawer = ({
   destroyOnClose = true,
   className = "",
   bodyStyle,
+  hideHeader = false,
+  maskClosable = true,
+  keyboard = true,
 }: RightSideDrawerProps) => (
   <Drawer
     open={open}
     forceRender
     onClose={onClose}
     closable={false}
+    maskClosable={maskClosable}
+    keyboard={keyboard}
     title={
-      <div className="flex items-center justify-between">
-        <span>{title}</span>
-        <button
-          type="button"
-          aria-label="Close drawer"
-          onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-        >
-          <CloseOutlined />
-        </button>
-      </div>
+      hideHeader ? null : (
+        <div className="flex items-center justify-between">
+          <span>{title}</span>
+          <button
+            type="button"
+            aria-label="Close drawer"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <CloseOutlined />
+          </button>
+        </div>
+      )
     }
     placement="right"
     zIndex={1500}
@@ -50,6 +60,7 @@ const RightSideDrawer = ({
     className={`simple-master-drawer ${className}`.trim()}
     footer={footer}
     styles={{
+      header: hideHeader ? { display: "none" } : undefined,
       body: bodyStyle,
     }}
   >
