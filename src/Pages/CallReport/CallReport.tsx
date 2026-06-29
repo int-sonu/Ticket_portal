@@ -1,10 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Empty, Input, Spin } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 
-import { useCallReportList } from "../../Hooks/Ticket/useTicketQueries";
+import {
+  useBilledCallReportList,
+  useCallReportList,
+  useUnbilledCallReportList,
+} from "../../Hooks/Ticket/useTicketQueries";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
+import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
+
 type CallReportRow = Record<string, any>;
 
 const getFieldValue = (record: CallReportRow, keys: string[]) => {
@@ -53,28 +59,107 @@ const formatDisplayValue = (value: any) => {
   return String(value);
 };
 
-const formatDateValue = (value: any) => {
+const parseDateValue = (value: any) => {
   const text = formatDisplayValue(value);
-  if (!text) return "-";
+  if (!text) return null;
+
+  const match = text.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*([AP]M))?$/,
+  );
+
+  if (match) {
+    const [, dd, mm, yyyy, hh = "0", min = "0", meridiem] = match;
+    let hour = Number(hh);
+    const minute = Number(min);
+    const upperMeridiem = meridiem?.toUpperCase();
+
+    if (upperMeridiem === "PM" && hour < 12) hour += 12;
+    if (upperMeridiem === "AM" && hour === 12) hour = 0;
+
+    const parsed = new Date(
+      Number(yyyy),
+      Number(mm) - 1,
+      Number(dd),
+      hour,
+      minute,
+      0,
+      0,
+    );
+
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
 
   const parsed = new Date(text);
-  if (Number.isNaN(parsed.getTime())) return text;
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDateValue = (value: any) => {
+  const parsed = parseDateValue(value);
+  if (!parsed) return "-";
 
   return parsed.toLocaleDateString("en-GB");
 };
 
+const getCallReportId = (row: CallReportRow) =>
+  formatDisplayValue(
+    getFieldValue(row, [
+      "nFollowupId",
+      "nFollowUpId",
+      "nCallReportId",
+      "CallReportId",
+      "cCallReportId",
+      "nTicketId",
+    ]),
+  );
+
+const getAgentName = (row: CallReportRow) => {
+  const directAgent = formatDisplayValue(
+    getFieldValue(row, ["cAgentName", "AgentName", "Agent"]),
+  );
+
+  if (directAgent) return directAgent;
+
+  const summary = formatDisplayValue(
+    getFieldValue(row, ["cViewSummary", "ViewSummary"]),
+  );
+  const match = summary.match(/callreport by (.+?) on/i) ?? summary.match(/\bby (.+?) on/i);
+
+  return match?.[1]?.trim() ?? "";
+};
+
+const getCallSummary = (row: CallReportRow) =>
+  formatDisplayValue(
+    getFieldValue(row, [
+      "cCallreportSummary",
+      "cCallReportSummary",
+      "cTicketSummary",
+      "CallSummary",
+      "cCallSummary",
+      "Summary",
+      "cViewSummary",
+    ]),
+  );
+
+const getStatus = (row: CallReportRow) =>
+  formatDisplayValue(
+    getFieldValue(row, [
+      "cTicketStatus",
+      "cStatus",
+      "Status",
+      "StatusName",
+      "cClosedStatus",
+    ]),
+  );
+
 const formatSearchText = (row: CallReportRow) =>
   [
-    getFieldValue(row, [
-      
-      "cToDate",
-    ]),
-    getFieldValue(row, ["CallReportId", "nCallReportId", "cCallReportId"]),
-    getFieldValue(row, ["TicketNo", "TicketNo.", "nTicketNo", "cTicketNo"]),
+    getFieldValue(row, ["dCallReportDate", "cToDate", "dCreatedDate"]),
+    getCallReportId(row),
+    getFieldValue(row, ["nTicketNo", "TicketNo", "TicketNo.", "cTicketNo"]),
     getFieldValue(row, ["CustomerName", "cCustomerName", "Customer"]),
-    getFieldValue(row, ["AgentName", "cAgentName", "Agent"]),
-    getFieldValue(row, ["CallSummary", "cCallSummary", "Summary"]),
-    getFieldValue(row, ["Status", "StatusName", "cStatus", "cStatusName"]),
+    getAgentName(row),
+    getCallSummary(row),
+    getStatus(row),
   ]
     .map((item) => normalizeText(item))
     .join(" ");
@@ -87,17 +172,56 @@ const DashboardCallReport = () => {
     [],
   );
 
-  const { data, isLoading, isError } = useCallReportList(payload, true);
-  const rows = useMemo(() => extractList(data) as CallReportRow[], [data]);
   const [activeTab, setActiveTab] = useState<"ALL" | "BILLED" | "UNBILLED">(
     "ALL",
   );
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data: allData, isLoading: isAllLoading, isError: isAllError } = useCallReportList(
+    payload,
+    activeTab === "ALL" || activeTab === "UNBILLED",
+  );
+  const {
+    data: billedData,
+    isLoading: isBilledLoading,
+    isError: isBilledError,
+  } = useBilledCallReportList(payload, activeTab === "BILLED");
+  const {
+    data: unbilledData,
+    isLoading: isUnbilledLoading,
+    isError: isUnbilledError,
+  } = useUnbilledCallReportList(payload, activeTab === "UNBILLED");
+
+  const sourceRows = useMemo(() => {
+    if (activeTab === "BILLED") {
+      return extractList(billedData) as CallReportRow[];
+    }
+
+    if (activeTab === "UNBILLED") {
+      return extractList(unbilledData) as CallReportRow[];
+    }
+
+    return extractList(allData) as CallReportRow[];
+  }, [activeTab, allData, billedData, unbilledData]);
+
+  const isLoading =
+    activeTab === "BILLED"
+      ? isBilledLoading
+      : activeTab === "UNBILLED"
+        ? isUnbilledLoading
+        : isAllLoading;
+  const isError =
+    activeTab === "BILLED"
+      ? isBilledError
+      : activeTab === "UNBILLED"
+        ? isUnbilledError
+        : isAllError;
 
   const displayedRows = useMemo(() => {
     const searchTerm = normalizeText(search);
 
-    return rows.filter((row) => {
+    return sourceRows.filter((row) => {
       const reportStatus = normalizeText(
         getFieldValue(row, [
           "BilledStatus",
@@ -113,7 +237,7 @@ const DashboardCallReport = () => {
         activeTab === "ALL"
           ? true
           : activeTab === "BILLED"
-            ? reportStatus.includes("bill") || reportStatus.includes("paid")
+            ? true
             : reportStatus.includes("unbill") ||
               reportStatus.includes("pending") ||
               reportStatus === "";
@@ -123,54 +247,46 @@ const DashboardCallReport = () => {
 
       return matchesTab && matchesSearch;
     });
-  }, [activeTab, rows, search]);
+  }, [activeTab, search, sourceRows]);
+
+  const totalRows = displayedRows.length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(totalRows / pageSize));
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage);
+    }
+  }, [currentPage, pageSize, totalRows]);
+  const paginatedRows = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return displayedRows.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, pageSize, displayedRows]);
 
   const tableRows = useMemo(
     () =>
-      displayedRows.map((row, index) => ({
-        srl: index + 1,
+      paginatedRows.map((row, index) => ({
+        srl: (currentPage - 1) * pageSize + index + 1,
         callReportDate: formatDateValue(
-          getFieldValue(row, [
-            "CallReportDate",
-            "cCallReportDate",
-            "dCallReportDate",
-          ]),
+          getFieldValue(row, ["dCallReportDate", "dCreatedDate"]),
         ),
-        callReportId:
-          formatDisplayValue(
-            getFieldValue(row, [
-              "CallReportId",
-              "nCallReportId",
-              "cCallReportId",
-            ]),
-          ) || "-",
+        callReportId: getCallReportId(row) || "-",
         ticketNo:
           formatDisplayValue(
-            getFieldValue(row, ["TicketNo", "nTicketNo", "cTicketNo"]),
+            getFieldValue(row, ["nTicketNo", "TicketNo", "TicketNo.", "cTicketNo"]),
           ) || "-",
         customerName:
           formatDisplayValue(
-            getFieldValue(row, ["CustomerName", "cCustomerName", "Customer"]),
+            getFieldValue(row, ["cCustomerName", "CustomerName", "Customer"]),
           ) || "-",
-        agentName:
-          formatDisplayValue(
-            getFieldValue(row, ["AgentName", "cAgentName", "Agent"]),
-          ) || "-",
-        callSummary:
-          formatDisplayValue(
-            getFieldValue(row, ["CallSummary", "cCallSummary", "Summary"]),
-          ) || "-",
-        status:
-          formatDisplayValue(
-            getFieldValue(row, [
-              "Status",
-              "StatusName",
-              "cStatus",
-              "cStatusName",
-            ]),
-          ) || "-",
+        agentName: getAgentName(row) || "-",
+        callSummary: getCallSummary(row) || "-",
+        status: getStatus(row) || "-",
       })),
-    [displayedRows],
+    [currentPage, pageSize, paginatedRows],
   );
 
   const filterButtons = [
@@ -180,8 +296,8 @@ const DashboardCallReport = () => {
   ] as const;
 
   return (
-    <div className="-m-6 h-full min-h-0 overflow-hidden bg-white pt-10">
-      <div className="flex h-full min-h-0 flex-col px-4 py-3">
+<div className="-m-6 flex-1 overflow-y-auto py-7 bg-white pt-10">     
+   <div className="flex h-full min-h-0 flex-col px-4 py-3">
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-2">
           <h1 className="text-[18px] font-medium text-slate-900">
             Call Reports
@@ -223,7 +339,7 @@ const DashboardCallReport = () => {
         </div>
 
         <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-          <div className="grid grid-cols-[70px_140px_120px_120px_1.2fr_1fr_1.4fr_120px] gap-2 border-b border-slate-200 bg-white px-4 py-4 text-[13px] font-medium text-slate-900">
+          <div className="grid grid-cols-[48px_108px_72px_88px_1fr_0.9fr_1.1fr_78px] gap-1 border-b border-slate-200 bg-white px-2 py-3 text-[12px] font-medium text-slate-900">
             <div>Srl</div>
             <div>Call Report Date</div>
             <div>Call Report Id</div>
@@ -245,7 +361,7 @@ const DashboardCallReport = () => {
                   {tableRows.map((row) => (
                     <div
                       key={`${row.callReportId}-${row.srl}`}
-                      className="grid grid-cols-[70px_140px_120px_120px_1.2fr_1fr_1.4fr_120px] gap-2 border-b border-slate-100 px-4 py-3 text-[13px] text-slate-700"
+                      className="grid grid-cols-[48px_108px_72px_88px_1fr_0.9fr_1.1fr_78px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700"
                     >
                       <div>{row.srl}</div>
                       <div>{row.callReportDate}</div>
@@ -265,7 +381,27 @@ const DashboardCallReport = () => {
               )}
             </Spin>
           </div>
+
+         
         </div>
+         {totalRows > 0 ? (
+            <div className=" bg-white -mb-5 px-4 py-0">
+              <TicketModulePagination
+                elevated={false}
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalRows}
+                onChange={(page, nextPageSize) => {
+                  setCurrentPage(page);
+                  setPageSize(nextPageSize);
+                }}
+                onShowSizeChange={(page, nextPageSize) => {
+                  setCurrentPage(page);
+                  setPageSize(nextPageSize);
+                }}
+              />
+            </div>
+          ) : null}
       </div>
     </div>
   );

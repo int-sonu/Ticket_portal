@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { ticketApis } from "../../Axios/TicketsApi";
 import { itemRepairApis } from "../../Axios/ItemRepairApis";
+import { callReportApis } from "../../Axios/CallReportApis";
+import { callReportBillingApis } from "../../Axios/CallReportBillingApis";
+import { unbilledCallReportApis } from "../../Axios/UnbilledCallReportAllApis";
 
 // ============================
 // TICKET LISTS
@@ -138,7 +141,31 @@ export const useCallReportList = (
   return useQuery({
     queryKey: ["call-report-list", payload],
     queryFn: () =>
-      ticketApis.callReportList(payload),
+      callReportApis.callReportList(payload),
+    enabled,
+  });
+};
+
+export const useBilledCallReportList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["billed-call-report-list", payload],
+    queryFn: () =>
+      callReportBillingApis.billedCallReportList(payload),
+    enabled,
+  });
+};
+
+export const useUnbilledCallReportList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["unbilled-call-report-list", payload],
+    queryFn: () =>
+      unbilledCallReportApis.unbilledCallReportList(payload),
     enabled,
   });
 };

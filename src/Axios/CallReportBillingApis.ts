@@ -19,15 +19,13 @@ const normalizeCallReportListPayload = (payload: Record<string, any> = {}) => {
   };
 };
 
-export const callReportApis = {
-  callReportList: async (payload: Record<string, any>) => {
+export const callReportBillingApis = {
+  billedCallReportList: async (payload: Record<string, any>) => {
     const response = await axiosInstance.post(
-      "/Api/V1/CallReport/CallreportList",
+      "/Api/V1/CallReport/BilledCallreportList",
       normalizeCallReportListPayload(payload),
     );
 
     return response.data;
   },
 };
-
-

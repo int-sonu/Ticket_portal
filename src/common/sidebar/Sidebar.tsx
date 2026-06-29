@@ -60,10 +60,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
       subItems: masterSubItems,
     },
     { name: 'Tickets', path: '/tickets', icon: ticketIcon },
-    { name: 'Call Reports', path: '/call-reports', icon: callReportIcon },
+    { name: 'Call Reports', path: '/callreports', icon: callReportIcon },
     {
       name: 'Unbilled Call Reports',
-      path: '/unbilled-call-reports',
+      path: '/unbilled-callreports',
       icon: billReportIcon,
     },
     {

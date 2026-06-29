@@ -71,7 +71,8 @@ const Routes: React.FC = () => {
             {/* Dashboard */}
 
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/call-reports" element={<DashboardCallReport />} />
+            <Route path="/callreports" element={<DashboardCallReport />} />
+            
             <Route path="/callreports/view" element={<DashboardCallReport />} />
 
             {/* Master Module */}

@@ -8,6 +8,18 @@ import { ticketApis } from "../../../Axios/TicketsApi";
 const CALL_REPORT_VIEW_STORAGE_KEY = "ticket_portal_callreport_view_state";
 const BILL_PREVIEW_STORAGE_KEY = "ticket_portal_bill_preview_state";
 
+const normalizeSingleRecord = (value: any) => {
+  if (Array.isArray(value)) {
+    return value[0] ?? {};
+  }
+
+  if (value && typeof value === "object") {
+    return value;
+  }
+
+  return {};
+};
+
 type ShareCallReportState = {
   nFollowupId?: string | number;
   nFollowUpId?: string | number;
@@ -87,10 +99,14 @@ const ShareCallReportView = () => {
   }, [requestPayload]);
 
   const viewData = apiState ?? {};
-  const callreportSummary = viewData.callreportSummary ?? viewData.data?.callreportSummary ?? {};
-  const ticketSummary = viewData.ticketSummary ?? viewData.data?.ticketSummary ?? {};
-  const billSummary = viewData.billSummary ?? viewData.data?.billSummary ?? {};
-  const worksheetDetails = viewData.worsheetDetails ?? viewData.data?.worsheetDetails ?? {};
+  const callreportSummary = normalizeSingleRecord(
+    viewData.callreportSummary ?? viewData.data?.callreportSummary,
+  );
+  const ticketSummary = normalizeSingleRecord(viewData.ticketSummary ?? viewData.data?.ticketSummary);
+  const billSummary = normalizeSingleRecord(viewData.billSummary ?? viewData.data?.billSummary);
+  const worksheetDetails = normalizeSingleRecord(
+    viewData.worsheetDetails ?? viewData.data?.worsheetDetails,
+  );
 
   const companyName =
     ticketSummary.cViewSummary ||
@@ -116,14 +132,23 @@ const ShareCallReportView = () => {
   const billDate = billSummary.dBillDate || state.billDate || "27/06/2026 15:20 PM";
 
   const handleGenerateBill = () => {
-    const resolvedCallReportSummary =
-      viewData.callreportSummary ?? viewData.data?.callreportSummary ?? {};
+    const resolvedCallReportSummary = callreportSummary;
     const resolvedFollowupId =
       Number(
         resolvedCallReportSummary.nFollowupId ??
           resolvedCallReportSummary.nFollowUpId ??
+          resolvedCallReportSummary.nWorksheetId ??
+          resolvedCallReportSummary.WorksheetId ??
+          viewData.nFollowupId ??
+          viewData.nfollowupid ??
+          viewData.nFollowUpId ??
+          viewData.nWorksheetId ??
+          viewData.nworksheetid ??
+          viewData.WorksheetId ??
           viewData.data?.callreportSummary?.nFollowupId ??
           viewData.data?.callreportSummary?.nFollowUpId ??
+          viewData.data?.callreportSummary?.nWorksheetId ??
+          viewData.data?.callreportSummary?.WorksheetId ??
           requestPayload.nFollowupId ??
           0,
       ) || 0;
@@ -144,6 +169,8 @@ const ShareCallReportView = () => {
           ticketNo: ticketSummary.nTicketId || ticketNo,
           nFollowupId: resolvedFollowupId,
           nFollowUpId: resolvedFollowupId,
+          nWorksheetId: resolvedFollowupId,
+          WorksheetId: resolvedFollowupId,
           nCompanyId: requestPayload.nCompanyId,
           contactPerson,
           contactNumber,
@@ -176,6 +203,8 @@ const ShareCallReportView = () => {
         ticketNo: ticketSummary.nTicketId || ticketNo,
         nFollowupId: resolvedFollowupId,
         nFollowUpId: resolvedFollowupId,
+        nWorksheetId: resolvedFollowupId,
+        WorksheetId: resolvedFollowupId,
         nCompanyId: requestPayload.nCompanyId,
         contactPerson,
         contactNumber,

@@ -40,8 +40,9 @@ type BillPreviewState = {
   customerName?: string;
   customerId?: string | number;
   ticketNo?: string | number;
-  nFollowupId?: string | number;
   nFollowUpId?: string | number;
+  nWorksheetId?: string | number;
+  WorksheetId?: string | number;
   nCompanyId?: string | number;
   callreportData?: Record<string, any>;
   contactPerson?: string;
@@ -125,6 +126,18 @@ const getFirstValue = (record: Record<string, any>, keys: string[]) => {
     if (value !== undefined && value !== null && value !== "") return value;
   }
   return "";
+};
+
+const normalizeSingleRecord = (value: any) => {
+  if (Array.isArray(value)) {
+    return (value[0] ?? {}) as Record<string, any>;
+  }
+
+  if (value && typeof value === "object") {
+    return value as Record<string, any>;
+  }
+
+  return {};
 };
 
 const toSafeNumber = (
@@ -323,7 +336,9 @@ const BillPreviewPage: React.FC = () => {
     return {};
   }, [billData.callreportData]);
 
-  const callReportSummary = callReportData.callreportSummary ?? callReportData.data?.callreportSummary ?? {};
+  const callReportSummary = normalizeSingleRecord(
+    callReportData.callreportSummary ?? callReportData.data?.callreportSummary,
+  );
 
   const sessionPayload = billData.sessionPayload ?? {};
   const effectiveCompanyId = Number(
@@ -533,10 +548,12 @@ const BillPreviewPage: React.FC = () => {
     if (savingBill) return;
 
     const latestCallReport = readLatestCallReport();
-    const latestCallReportSummary =
-      latestCallReport.callreportSummary ?? latestCallReport.data?.callreportSummary ?? {};
-    const latestCallReportTicket =
-      latestCallReport.ticketSummary ?? latestCallReport.data?.ticketSummary ?? {};
+    const latestCallReportSummary = normalizeSingleRecord(
+      latestCallReport.callreportSummary ?? latestCallReport.data?.callreportSummary,
+    );
+    const latestCallReportTicket = normalizeSingleRecord(
+      latestCallReport.ticketSummary ?? latestCallReport.data?.ticketSummary,
+    );
 
     const validRows = rows.filter((row) => row.partId !== null && row.qty > 0 && row.rate > 0);
     if (!validRows.length) {
@@ -553,13 +570,35 @@ const BillPreviewPage: React.FC = () => {
     ) || 0;
     const followupId = Number(
         latestCallReportSummary.nFollowupId ??
+        latestCallReportSummary.nfollowupid ??
         latestCallReportSummary.nFollowUpId ??
+        latestCallReportSummary.nWorksheetId ??
+        latestCallReportSummary.nworksheetid ??
+        latestCallReportSummary.WorksheetId ??
+        latestCallReport.nFollowupId ??
+        latestCallReport.nfollowupid ??
+        latestCallReport.nFollowUpId ??
+        latestCallReport.nWorksheetId ??
+        latestCallReport.nworksheetid ??
+        latestCallReport.WorksheetId ??
         latestCallReport.data?.callreportSummary?.nFollowupId ??
+        latestCallReport.data?.callreportSummary?.nfollowupid ??
         latestCallReport.data?.callreportSummary?.nFollowUpId ??
+        latestCallReport.data?.callreportSummary?.nWorksheetId ??
+        latestCallReport.data?.callreportSummary?.nworksheetid ??
+        latestCallReport.data?.callreportSummary?.WorksheetId ??
         billData.sessionPayload?.nFollowupId ??
+        billData.sessionPayload?.nfollowupid ??
         billData.sessionPayload?.nFollowUpId ??
+        billData.sessionPayload?.nWorksheetId ??
+        billData.sessionPayload?.nworksheetid ??
+        billData.sessionPayload?.WorksheetId ??
         billData.nFollowupId ??
+        billData.nfollowupid ??
         billData.nFollowUpId ??
+        billData.nWorksheetId ??
+        billData.nworksheetid ??
+        billData.WorksheetId ??
         0,
     ) || 0;
     const customerId = Number(
@@ -583,10 +622,12 @@ const BillPreviewPage: React.FC = () => {
         0,
     ) || 0;
 
-    if (!ticketId || !followupId || !customerId || !companyId) {
-      message.error("Unable to save bill: current call report details are missing.");
-      return;
-    }
+    // if (!ticketId || !followupId || !customerId || !companyId) {
+    //   message.error(
+    //     "Unable to save bill: ticket, customer, company, or follow-up details are missing.",
+    //   );
+    //   return;
+    // }
 
     const itemDtls = validRows.map((row) => {
       return {

@@ -541,14 +541,20 @@ const QuickCallReportModal = ({
       // Extract the followup ID from the API response so the bill page can use it directly
       const savedFollowupId = Number(
         savedResponse?.data?.nFollowupId ??
-          savedResponse?.data?.FollowupId ??
-          savedResponse?.data?.nWorksheetId ??
-          savedResponse?.data?.WorksheetId ??
-          savedResponse?.nFollowupId ??
-          savedResponse?.FollowupId ??
-          savedResponse?.nWorksheetId ??
-          savedResponse?.WorksheetId ??
-          0,
+        savedResponse?.data?.nfollowupid ??
+        savedResponse?.data?.nFollowUpId ??
+        savedResponse?.data?.FollowupId ??
+        savedResponse?.data?.nWorksheetId ??
+        savedResponse?.data?.nworksheetid ??
+        savedResponse?.data?.WorksheetId ??
+        savedResponse?.nFollowupId ??
+        savedResponse?.nfollowupid ??
+        savedResponse?.nFollowUpId ??
+        savedResponse?.FollowupId ??
+        savedResponse?.nWorksheetId ??
+        savedResponse?.nworksheetid ??
+        savedResponse?.WorksheetId ??
+        0,
       ) || 0;
 
       onSaved?.({

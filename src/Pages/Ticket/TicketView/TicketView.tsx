@@ -1842,8 +1842,10 @@ const TicketView = () => {
     return Number(
       findDeepFieldValue(item ?? {}, [
         "nFollowupId",
+        "nfollowupid",
         "FollowupId",
         "nWorksheetId",
+        "nworksheetid",
         "WorksheetId",
         "Id",
         "id",
@@ -2213,18 +2215,18 @@ const TicketView = () => {
       });
     });
 
-  const showGenerateBillConfirm = () =>
-    new Promise<boolean>((resolve) => {
-      Modal.confirm({
-        title: "Confirmation",
-        centered: true,
-        content: "Do You Want To Generate Bill ?",
-        okText: "Yes",
-        cancelText: "No",
-        onOk: () => resolve(true),
-        onCancel: () => resolve(false),
-      });
-    });
+  // const showGenerateBillConfirm = () =>
+  //   new Promise<boolean>((resolve) => {
+  //     Modal.confirm({
+  //       title: "Confirmation",
+  //       centered: true,
+  //       content: "Do You Want To Generate Bill ?",
+  //       okText: "Yes",
+  //       cancelText: "No",
+  //       onOk: () => resolve(true),
+  //       onCancel: () => resolve(false),
+  //     });
+  //   });
 
   const loadRevertBillInfo = async (followupIdOverride?: number) => {
     const customerId = Number(
@@ -2291,16 +2293,13 @@ const TicketView = () => {
         getFieldValue(resolvedRecord ?? {}, ["CustomerName", "cCustomerName"]) ||
         customerName ||
         "-",
-      customerId:
-        getFieldValue(resolvedRecord ?? {}, [
-          "CustomerId",
-          "nCustomerId",
-          "customerId",
-        ]) || "-",
+      customerId: customerId || 0,
       ticketNo:
-        getFieldValue(resolvedRecord ?? {}, ["TicketNo", "nTicketNo", "ticketNo"]) ||
-        ticketNo ||
-        ticketId,
+        Number(
+          getFieldValue(resolvedRecord ?? {}, ["TicketNo", "nTicketNo", "ticketNo"]) ||
+            ticketNo ||
+            ticketId,
+        ) || ticketId,
       contactPerson:
         getFieldValue(resolvedRecord ?? {}, [
           "ContactPerson",
@@ -2319,6 +2318,8 @@ const TicketView = () => {
         ...supportSessionPayload,
         nCompanyId: Number(supportSessionPayload.nCompanyId ?? 0) || 0,
         nFollowupId: followupIdOverride || latestCallReportFollowupId,
+        nWorksheetId: followupIdOverride || latestCallReportFollowupId,
+        WorksheetId: followupIdOverride || latestCallReportFollowupId,
         nTicketId: ticketId,
         nCustomerId: customerId,
         nAssetId: assetId,
@@ -2329,12 +2330,19 @@ const TicketView = () => {
           "",
       },
       nFollowupId: followupIdOverride || latestCallReportFollowupId,
+      nWorksheetId: followupIdOverride || latestCallReportFollowupId,
+      WorksheetId: followupIdOverride || latestCallReportFollowupId,
     };
   };
 
-  const handleRevertBillFlow = async (followupIdOverride?: number) => {
-    const shouldGenerateBill = await showGenerateBillConfirm();
-    if (!shouldGenerateBill) return;
+  const handleRevertBillFlow = async (
+    followupIdOverride?: number,
+    options?: { skipConfirm?: boolean },
+  ) => {
+    if (!options?.skipConfirm) {
+      const shouldGenerateBill = await showGenerateBillConfirm();
+      if (!shouldGenerateBill) return;
+    }
 
     try {
       const billPageState = await loadRevertBillInfo(followupIdOverride);
@@ -2399,7 +2407,6 @@ const TicketView = () => {
   const handleCallReportSaved = ({
     statusId,
     statusLabel,
-    nFollowupId: savedFollowupId,
   }: {
     statusId: number;
     statusLabel: string;
@@ -2427,7 +2434,6 @@ const TicketView = () => {
     setStartConfirmOpen(false);
     queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
     queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
-    void handleRevertBillFlow(savedFollowupId || undefined);
   };
 
   return (
