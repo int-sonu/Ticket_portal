@@ -1176,8 +1176,14 @@ const TicketView = () => {
     !!String(supportSessionPayload.cSchemaName ?? "").trim() &&
     !!String(supportSessionPayload.cDbName ?? "").trim();
 
-  const { data, isLoading } = useTicketView(payload, canLoadTicketView);
+  const { data: ticketViewData, isLoading: isTicketViewLoading } = useTicketView(
+    payload,
+    canLoadTicketView,
+  );
   const { data: statusLookupData } = useGetStatuses(statusLookupPayload);
+
+  const data = ticketViewData;
+  const isLoading = isTicketViewLoading;
 
   const ticketData = useMemo(() => pickRecord(data), [data]);
   const resolvedRecord = useMemo(

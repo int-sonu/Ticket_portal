@@ -16,6 +16,8 @@ import MainLayout from "../layouts/MainLayout";
 
 import Dashboard from "../Pages/Dashboard/Dashboard";
 import DashboardCallReport from "../Pages/CallReport/CallReport";
+import CallReportViewPage from "../Pages/CallReport/CallReportViewPage";
+import TicketView from "../Pages/Ticket/TicketView/TicketView";
 
 // Master Modules
 import AgentGroupList from "../Pages/Master/AgentGroup/AgentGroupList";
@@ -44,7 +46,6 @@ import AssignAgentTickets from "../Pages/Ticket/AssignAgentTickets/AssignAgentTi
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
 import BillPreviewPage from "../Pages/Bills/BillPreviewPage";
-import TicketView from "../Pages/Ticket/TicketView/TicketView";
 import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
 import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
@@ -73,7 +74,7 @@ const Routes: React.FC = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/callreports" element={<DashboardCallReport />} />
             
-            <Route path="/callreports/view" element={<DashboardCallReport />} />
+            <Route path="/callreports/view" element={<CallReportViewPage />} />
 
             {/* Master Module */}
 

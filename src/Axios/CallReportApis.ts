@@ -28,6 +28,30 @@ export const callReportApis = {
 
     return response.data;
   },
-};
 
+  callReportProgressNoteList: async (payload: Record<string, any>) => {
+    const urls = [
+      "/Api/V1/CallReport/ProgressNoteListCallreport",
+      "/Api/V1/CallReport/ProgressNoteList",
+      "/Api/V1/CallReport/ProgressNoteListCallReport",
+    ];
+
+    let lastError: any;
+
+    for (const url of urls) {
+      try {
+        const response = await axiosInstance.post(url, payload);
+        return response.data;
+      } catch (error: any) {
+        lastError = error;
+        const status = error?.response?.status;
+        if (![404, 405].includes(status)) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
+  },
+};
 

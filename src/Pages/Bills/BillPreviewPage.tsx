@@ -593,11 +593,8 @@ const BillPreviewPage: React.FC = () => {
         billData.sessionPayload?.nWorksheetId ??
         billData.sessionPayload?.nworksheetid ??
         billData.sessionPayload?.WorksheetId ??
-        billData.nFollowupId ??
-        billData.nfollowupid ??
         billData.nFollowUpId ??
         billData.nWorksheetId ??
-        billData.nworksheetid ??
         billData.WorksheetId ??
         0,
     ) || 0;

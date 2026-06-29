@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Empty, Input, Spin } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 
 import {
   useBilledCallReportList,
@@ -165,6 +166,7 @@ const formatSearchText = (row: CallReportRow) =>
     .join(" ");
 
 const DashboardCallReport = () => {
+  const navigate = useNavigate();
   const payload = useMemo(
     () => ({
       ...getRequestPayload(),
@@ -269,6 +271,7 @@ const DashboardCallReport = () => {
   const tableRows = useMemo(
     () =>
       paginatedRows.map((row, index) => ({
+        raw: row,
         srl: (currentPage - 1) * pageSize + index + 1,
         callReportDate: formatDateValue(
           getFieldValue(row, ["dCallReportDate", "dCreatedDate"]),
@@ -288,6 +291,53 @@ const DashboardCallReport = () => {
       })),
     [currentPage, pageSize, paginatedRows],
   );
+
+  const handleRowClick = (row: CallReportRow) => {
+    if (activeTab !== "BILLED") return;
+
+    navigate("/callreports/view", {
+      state: {
+        selectedRow: row.raw ?? row,
+        nCallReportId: Number(
+          getFieldValue(row.raw ?? row, [
+            "nCallReportId",
+            "CallReportId",
+            "nFollowupId",
+            "nFollowUpId",
+            "nWorksheetId",
+            "WorksheetId",
+          ]) || 0,
+        ),
+        nFollowupId: Number(
+          getFieldValue(row.raw ?? row, [
+            "nFollowupId",
+            "nFollowUpId",
+            "nCallReportId",
+            "CallReportId",
+            "nWorksheetId",
+            "WorksheetId",
+          ]) || 0,
+        ),
+        nWorksheetId: Number(
+          getFieldValue(row.raw ?? row, [
+            "nWorksheetId",
+            "WorksheetId",
+            "nCallReportId",
+            "CallReportId",
+            "nFollowupId",
+            "nFollowUpId",
+          ]) || 0,
+        ),
+        nTicketId: Number(
+          getFieldValue(row.raw ?? row, ["nTicketId", "TicketId", "ticketId"]) || 0,
+        ),
+        nCustomerId: Number(
+          getFieldValue(row.raw ?? row, ["nCustomerId", "CustomerId", "customerId"]) || 0,
+        ),
+        isFrom: "callreports",
+      },
+    });
+  };
 
   const filterButtons = [
     { key: "ALL", label: "All" },
@@ -361,7 +411,21 @@ const DashboardCallReport = () => {
                   {tableRows.map((row) => (
                     <div
                       key={`${row.callReportId}-${row.srl}`}
-                      className="grid grid-cols-[48px_108px_72px_88px_1fr_0.9fr_1.1fr_78px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700"
+                      role={activeTab === "BILLED" ? "button" : undefined}
+                      tabIndex={activeTab === "BILLED" ? 0 : -1}
+                      onClick={() => handleRowClick(row)}
+                      onKeyDown={(event) => {
+                        if (activeTab !== "BILLED") return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleRowClick(row);
+                        }
+                      }}
+                      className={`grid grid-cols-[48px_108px_72px_88px_1fr_0.9fr_1.1fr_78px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700 ${
+                        activeTab === "BILLED"
+                          ? "cursor-pointer hover:bg-sky-50"
+                          : ""
+                      }`}
                     >
                       <div>{row.srl}</div>
                       <div>{row.callReportDate}</div>
