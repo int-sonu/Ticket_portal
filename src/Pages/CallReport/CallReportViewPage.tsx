@@ -3,17 +3,23 @@ import { Button, Spin } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
+import { billingApis } from "../../Axios/BillingApis";
 import { customerApis } from "../../Axios/MasterApis";
 import { ticketApis } from "../../Axios/TicketsApi";
-import { callReportApis } from "../../Axios/CallReportApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
+import { useTicketView } from "../../Hooks/Ticket/useTicketQueries";
+import BillReadonlyView from "../Bills/BillReadonlyViewExact";
+import TicketOverviewSection from "../Ticket/TicketView/TicketOverviewSection";
+import CallReportHistoryModal from "./CallReportHistoryModal";
 import shareIcon from "../../assets/icons/shareIcon.svg";
 import closeblack from "../../assets/icons/close-black.svg";
-
-const CALL_REPORT_VIEW_STORAGE_KEY = "ticket_portal_callreport_view_state";
-const BILL_PREVIEW_STORAGE_KEY = "ticket_portal_bill_preview_state";
+import EngagementMode from "../../assets/icons/EngagementMode.svg";
+import calender from "../../assets/icons/calender.svg";
+import mail from "../../assets/icons/mail.svg";
+import phone from "../../assets/icons/phone.svg";
+import contact from "../../assets/icons/contact.svg";
 
 const normalizeSingleRecord = (value: any) => {
   if (Array.isArray(value)) return value[0] ?? {};
@@ -55,6 +61,39 @@ const parseDateText = (value: any) => {
   return Number.isNaN(parsed.getTime()) ? text : parsed.toLocaleString("en-GB");
 };
 
+const parseTicketDate = (value: any): number | null => {
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isNaN(ms) ? null : ms;
+  }
+
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? null : value;
+  }
+
+  if (typeof value !== "string") return null;
+
+  const text = value.trim();
+  if (!text) return null;
+
+  const fallback = Date.parse(text);
+  return Number.isNaN(fallback) ? null : fallback;
+};
+
+const formatTicketAge = (createdDate: any, nowMs = Date.now()): string => {
+  const createdMs = parseTicketDate(createdDate);
+
+  if (createdMs === null) return "";
+
+  const diffMs = Math.max(nowMs - createdMs, 0);
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${days} day${days === 1 ? "" : "s"} ${hours} hr ${minutes} min`;
+};
+
 const getFieldValue = (record: Record<string, any>, keys: string[]) => {
   for (const key of keys) {
     if (record?.[key] !== undefined && record?.[key] !== null && record?.[key] !== "") {
@@ -65,6 +104,73 @@ const getFieldValue = (record: Record<string, any>, keys: string[]) => {
     keys.some((key) => key.toLowerCase() === item.toLowerCase()),
   );
   return recordKey ? record?.[recordKey] : "";
+};
+
+const findDeepFieldValue = (
+  value: any,
+  keys: string[],
+  seen = new Set<any>(),
+): any => {
+  if (!value || typeof value !== "object" || seen.has(value)) return undefined;
+  seen.add(value);
+
+  for (const key of keys) {
+    if (value?.[key] !== undefined && value?.[key] !== null) {
+      return value[key];
+    }
+  }
+
+  for (const entry of Object.values(value)) {
+    if (entry && typeof entry === "object") {
+      const nested = findDeepFieldValue(entry, keys, seen);
+      if (nested !== undefined && nested !== null && nested !== "") {
+        return nested;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const pickDisplayValue = (record: any, keys: string[]) =>
+  getFieldValue(record ?? {}, keys) || findDeepFieldValue(record ?? {}, keys) || "";
+
+const pickAssignedAgentNames = (record: any) => {
+  const raw = [
+    record?.cAssignedId,
+    record?.assignedAgentDetails,
+    record?.AssignedAgentDetails,
+    record?.assignedAgents,
+    record?.AssignedAgents,
+    record?.AssignToAgent,
+    record?.assignToAgent,
+    record?.AgentId,
+    record?.agentId,
+    record?.nAgentId,
+  ].find((value) => value !== undefined && value !== null && value !== "");
+
+  const resolveAgentName = (agent: any) =>
+    formatDisplayValue(
+      getFieldValue(agent, ["cAgentName", "agentName", "name", "cName"]),
+    ) ||
+    formatDisplayValue(
+      findDeepFieldValue(agent, ["cAgentName", "agentName", "name", "cName"]),
+    ) ||
+    formatDisplayValue(agent);
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map((agent: any) => resolveAgentName(agent))
+      .filter((name: string) => String(name ?? "").trim());
+  }
+
+  if (raw && typeof raw === "object") {
+    const name = resolveAgentName(raw);
+    return name ? [name] : [];
+  }
+
+  const text = formatDisplayValue(raw).trim();
+  return text ? [text] : [];
 };
 
 const normalizeList = (response: any) => extractList(response);
@@ -91,13 +197,67 @@ const getCustomerViewRecord = (response: any) => {
   return {};
 };
 
-const CallReportViewPage = () => {
+const pickTicketViewRecord = (response: any) => {
+  const dataObj = response?.Data ?? response?.data ?? response;
+
+  if (dataObj && typeof dataObj === "object" && !Array.isArray(dataObj)) {
+    const summaryObj =
+      dataObj.TicketSummary ??
+      (Array.isArray(dataObj.ticketSummary)
+        ? dataObj.ticketSummary[0]
+        : dataObj.ticketSummary) ??
+      null;
+
+    if (summaryObj) {
+      return {
+        ...summaryObj,
+        ...dataObj,
+      };
+    }
+
+    return dataObj;
+  }
+
+  const rows = extractList(response);
+  if (rows.length > 0) return rows[0];
+
+  return response ?? {};
+};
+
+type CallReportViewPageProps = {
+  embedded?: boolean;
+  overrideState?: Record<string, any>;
+  onClose?: () => void;
+};
+
+const CallReportViewPage = ({
+  embedded = false,
+  overrideState,
+  onClose,
+}: CallReportViewPageProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = (location.state ?? {}) as Record<string, any>;
+  const state = (overrideState ?? location.state ?? {}) as Record<string, any>;
+  const historySelectedRow = normalizeSingleRecord(state.selectedRow);
+  const [nestedCallReportState, setNestedCallReportState] = useState<Record<string, any> | null>(
+    null,
+  );
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
+    navigate(-1);
+  };
   const [activeTab, setActiveTab] = useState<"callreport" | "details" | "history" | "bill">(
     "callreport",
   );
+  const tabs = [
+    ["callreport", "Call Report"],
+    ["details", "Details"],
+    ["history", "History"],
+    ["bill", "Bill"],
+  ] as const;
 
   const sessionPayload = useMemo(() => getRequestPayload(), []);
 
@@ -185,18 +345,7 @@ const CallReportViewPage = () => {
       !!String(requestPayload.cDbName ?? "").trim(),
   });
 
-  const { data: progressNoteData, isLoading: isProgressNoteLoading } = useQuery({
-    queryKey: ["callreport-progress-notes", requestPayload],
-    queryFn: () => callReportApis.callReportProgressNoteList(requestPayload),
-    enabled:
-      !!callReportId &&
-      !!requestPayload.nCompanyId &&
-      !!String(requestPayload.cSchemaName ?? "").trim() &&
-      !!String(requestPayload.cDbName ?? "").trim(),
-  });
-
   const viewData = data?.data?.data ?? data?.data ?? data ?? {};
-  const progressNotes = useMemo(() => normalizeList(progressNoteData), [progressNoteData]);
   const customerOptions = useMemo(
     () =>
       normalizeList(customerDropdownData).map((item: any) => ({
@@ -220,13 +369,42 @@ const CallReportViewPage = () => {
       viewData.callReportSummary ??
       viewData.callreportsummary ??
       viewData.data?.callreportSummary ??
-      viewData.data?.callReportSummary,
+      viewData.data?.callReportSummary ??
+      historySelectedRow,
   );
   const ticketSummary = normalizeSingleRecord(
     viewData.ticketSummary ??
       viewData.TicketSummary ??
       viewData.data?.ticketSummary ??
-      viewData.data?.TicketSummary,
+      viewData.data?.TicketSummary ??
+      historySelectedRow,
+  );
+  const ticketViewId = Number(
+    state.selectedRow?.nTicketId ??
+      state.selectedRow?.TicketId ??
+      ticketSummary.nTicketId ??
+      ticketSummary.TicketId ??
+      state.ticketNo ??
+      0,
+  );
+  const ticketViewPayload = useMemo(
+    () => ({
+      ...sessionPayload,
+      nCompanyId: Number(sessionPayload.nCompanyId ?? state.nCompanyId ?? 0),
+      cSchemaName: sessionPayload.cSchemaName ?? state.cSchemaName ?? "",
+      cDbName: sessionPayload.cDbName ?? state.cDbName ?? "",
+      nTicketId: ticketViewId,
+    }),
+    [sessionPayload, state.cDbName, state.cSchemaName, state.nCompanyId, ticketViewId],
+  );
+  const canLoadTicketView =
+    !!ticketViewId &&
+    !!ticketViewPayload.nCompanyId &&
+    !!String(ticketViewPayload.cSchemaName ?? "").trim() &&
+    !!String(ticketViewPayload.cDbName ?? "").trim();
+  const { data: ticketViewData, isLoading: isTicketViewLoading } = useTicketView(
+    ticketViewPayload,
+    canLoadTicketView,
   );
   const billSummary = normalizeSingleRecord(
     viewData.billSummary ??
@@ -241,13 +419,15 @@ const CallReportViewPage = () => {
       viewData.WorsheetDetails ??
       viewData.data?.worsheetDetails ??
       viewData.data?.worksheetDetails ??
-      viewData.data?.workSheetDetails,
+      viewData.data?.workSheetDetails ??
+      historySelectedRow,
   );
 
-  const companyName = ticketSummary.cViewSummary || state.companyName || "Call Report";
   const customerName =
     ticketSummary.cCustomerName ||
     ticketSummary.CustomerName ||
+    historySelectedRow.cCustomerName ||
+    historySelectedRow.CustomerName ||
     customerViewRecord.cCustomerName ||
     customerViewRecord.CustomerName ||
     customerViewRecord.name ||
@@ -275,70 +455,317 @@ const CallReportViewPage = () => {
   const contactPerson =
     worksheetDetails.cContactPerson ||
     worksheetDetails.ContactPerson ||
+    historySelectedRow.cContactPerson ||
+    historySelectedRow.ContactPerson ||
     customerContactPerson ||
     state.contactPerson ||
     "-";
   const contactNumber =
     worksheetDetails.cContactNumber ||
     worksheetDetails.ContactNumber ||
+    historySelectedRow.cContactNumber ||
+    historySelectedRow.ContactNumber ||
     customerMobile ||
     state.contactNumber ||
     "-";
   const email =
-    worksheetDetails.cEmail || worksheetDetails.Email || customerEmail || state.email || "-";
-  const ticketNo = ticketSummary.nTicketNo || ticketSummary.nTicketId || state.ticketNo || "-";
+    worksheetDetails.cEmail ||
+    worksheetDetails.Email ||
+    historySelectedRow.cEmail ||
+    historySelectedRow.Email ||
+    customerEmail ||
+    state.email ||
+    "-";
+  const ticketNo =
+    ticketSummary.nTicketNo ||
+    ticketSummary.nTicketId ||
+    historySelectedRow.nTicketNo ||
+    historySelectedRow.TicketNo ||
+    historySelectedRow.nTicketId ||
+    state.ticketNo ||
+    "-";
   const billNo = billSummary.nBillNo || state.billNo || "-";
   const summary =
     callreportSummary.cCallSummary ||
     callreportSummary.cSummary ||
     worksheetDetails.cCallSummary ||
+    worksheetDetails.CallSummary ||
+    historySelectedRow.cCallSummary ||
+    historySelectedRow.CallSummary ||
+    historySelectedRow.cSummary ||
+    historySelectedRow.cViewSummary ||
     state.summary ||
     "-";
   const description =
     worksheetDetails.cComment ||
     worksheetDetails.Comment ||
     callreportSummary.cComments ||
+    callreportSummary.cDescription ||
+    historySelectedRow.cComment ||
+    historySelectedRow.Comment ||
+    historySelectedRow.cComments ||
+    historySelectedRow.cDescription ||
+    historySelectedRow.Description ||
     state.description ||
     "-";
   const amount = billSummary.nTotalAmount ?? state.amount ?? 0;
   const billDate = parseDateText(billSummary.dBillDate || state.billDate || "");
-  const callReportDate = parseDateText(
-    callreportSummary.dCallReportDate ||
-      callreportSummary.dCallreportDate ||
-      viewData.dCallReportDate ||
-      viewData.dCallreportDate ||
-      state.dCallReportDate ||
+  const billId = Number(
+    billSummary.nBillId ??
+      billSummary.BillId ??
+      billSummary.billId ??
+      viewData.nBillId ??
+      viewData.BillId ??
+      state.nBillId ??
+      state.billId ??
+      0,
+  );
+  const dCreatedDate = parseDateText(
+    callreportSummary.dCreatedDate ||
+      historySelectedRow.historyCreatedDate ||
+      historySelectedRow.dCreatedDate ||
+      historySelectedRow.dSortDate ||
+      historySelectedRow.CreatedDate ||
+      viewData.dCreatedDate ||
+      state.dCreatedDate ||
       "",
   );
+  const ticketViewRecord = useMemo(
+    () => pickTicketViewRecord(ticketViewData),
+    [ticketViewData],
+  );
+  const ticketViewCustomerId = Number(
+    pickDisplayValue(ticketViewRecord, ["nCustomerId", "CustomerId", "customerId"]) ||
+      ticketSummary.nCustomerId ||
+      state.customerId ||
+      0,
+  );
+  const ticketViewTicketNo =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, ["nTicketNo", "TicketNo", "cTicketNo"]),
+    ) || String(ticketViewId || ticketNo || "-");
+  const ticketViewCustomerName =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cCustomerName",
+        "CustomerName",
+        "cName",
+        "Customer",
+      ]),
+    ) || customerLabel;
+  const ticketViewSummary =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cTicketSummary",
+        "TicketSummary",
+        "cViewSummary",
+        "ViewSummary",
+        "Summary",
+      ]),
+    ) || summary;
+  const ticketViewDescription =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cDescription",
+        "Description",
+        "cComment",
+        "Comment",
+      ]),
+    ) || description;
+  const ticketViewCreatedDate = parseDateText(
+    pickDisplayValue(ticketViewRecord, ["dCreatedDate", "CreatedDate", "CreatedOn"]) ||
+      ticketSummary.dCreatedDate ||
+      dCreatedDate ||
+      "",
+  );
+  const ticketViewCreatedDateValue =
+    pickDisplayValue(ticketViewRecord, ["dCreatedDate", "CreatedDate", "CreatedOn"]) ||
+    ticketSummary.dCreatedDate ||
+    dCreatedDate ||
+    "";
 
-  const detailRows = [
-    { label: "Call Report Id", value: callReportId || "-" },
-    { label: "Ticket No.", value: ticketNo || "-" },
-    { label: "Customer Name", value: customerLabel || "-" },
-    { label: "Summary", value: summary || "-" },
-    { label: "Comment", value: description || "-" },
-  ];
+  const ticketViewPeriod =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, ["cPeriod", "Period"]),
+    ) || "";
+
+  const ticketViewPriority =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, ["cPriority", "Priority", "priority"]),
+    ) || "";
+  
+  const ticketViewStatus =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cTicketStatus",
+        "TicketStatus",
+        "Status",
+        "cStatus",
+      ]),
+    ) || ticketSummary.cTicketStatus || "";
+
+  const ticketViewTicketAge = formatTicketAge(ticketViewCreatedDateValue);
+  const ticketViewFollowupDate =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "dFollowupDate",
+        "FollowupDate",
+        "dNextFollowupDate",
+        "NextFollowupDate",
+      ]),
+    ) || "";
+  const ticketViewAddress =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cCustomerAddress",
+      ]),
+    ) || "";
+  const ticketViewAssetName =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cAssetName",
+        "AssetName",
+        "cProductName",
+        "ProductName",
+      ]),
+    ) || "";
+  const ticketViewAssetId = Number(
+    pickDisplayValue(ticketViewRecord, [
+      "nAssetId",
+      "AssetId",
+      "assetId",
+    ]) || state.nAssetId || 0,
+  );
+  const ticketViewSource =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, ["cSourceName"]),
+    ) || "";
+  const ticketViewServiceType =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cServiceType",
+        "ServiceType",
+        "cServiceTypeName",
+        "ServiceTypeName",
+      ]),
+    ) || "";
+  const ticketViewGroup =
+    formatDisplayValue(pickDisplayValue(ticketViewRecord, ["cGroupName"])) ||
+    "";
+  const ticketViewContactNumber =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cContactNumber",
+        "ContactNumber",
+        "cPhoneNo",
+        "PhoneNo",
+      ]),
+    ) || contactNumber;
+  const ticketViewEmail =
+    formatDisplayValue(pickDisplayValue(ticketViewRecord, ["cEmail", "Email", "email"])) ||
+    email;
+  const ticketViewAttachments = extractList(
+    getFieldValue(ticketViewRecord, ["attachments", "Attachments", "TicketAttachments"]) ||
+      ticketViewRecord?.attachments ||
+      ticketViewRecord?.Attachments ||
+      ticketViewRecord?.TicketAttachments ||
+      [],
+  );
+  const ticketViewAlternativeContacts = extractList(
+    getFieldValue(ticketViewRecord, [
+      "alternativeContacts",
+      "AlternativeContacts",
+      "customerContacts",
+    ]) || [],
+  );
+  const billRequestPayload = useMemo(
+    () => ({
+      ...requestPayload,
+      nBillId: billId,
+      BillId: billId,
+      billId,
+      nTicketId: ticketViewId,
+      nCustomerId: ticketViewCustomerId,
+      nAssetId: ticketViewAssetId,
+    }),
+    [billId, requestPayload, ticketViewAssetId, ticketViewCustomerId, ticketViewId],
+  );
+  const canLoadBillTabData =
+    activeTab === "bill" &&
+    !!billRequestPayload.nCompanyId &&
+    !!String(billRequestPayload.cSchemaName ?? "").trim() &&
+    !!String(billRequestPayload.cDbName ?? "").trim();
+  const { data: billViewResponse, isLoading: isBillViewLoading } = useQuery({
+    queryKey: ["bill-view", billRequestPayload],
+    queryFn: () => billingApis.billView(billRequestPayload),
+    enabled: canLoadBillTabData && !!billId,
+  });
+  const { data: billPartListResponse, isLoading: isBillPartListLoading } = useQuery({
+    queryKey: ["bill-part-list", billRequestPayload],
+    queryFn: () => billingApis.partListForBilling(billRequestPayload),
+    enabled: canLoadBillTabData && !!ticketViewId && !!ticketViewCustomerId,
+  });
+  const billPartList = useMemo(
+    () => extractList(billPartListResponse?.data ?? billPartListResponse ?? []),
+    [billPartListResponse],
+  );
+  const ticketViewAssignedTo =
+    pickAssignedAgentNames(ticketViewRecord).join(", ") ||
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "assignedTo",
+        "AssignedTo",
+        "cAssignedTo",
+        "AssignedUser",
+        "agentName",
+        "cAgentName",
+      ]),
+    ) ||
+    "";
+  const ticketViewAssignAgentNames = pickAssignedAgentNames(ticketViewRecord);
+  const ticketViewCreatedByTeam =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "TeamName",
+        "cTeamName",
+        "CreatedByTeam",
+        "cCreatedByTeam",
+        "GroupName",
+        "cGroupName",
+        "cCreatedBy",
+        "CreatedBy",
+      ]),
+    ) || "";
+  const ticketViewScheduledOn =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, [
+        "cScheduleDate",
+        "ScheduleDate",
+        "dScheduleDate",
+      ]),
+    ) || "";
 
   const worksheetInfoRows = [
     {
       label: "Mode of Engagement",
+      icon: EngagementMode,
       value:
-        worksheetDetails.cModeOfEngagement ||
-        worksheetDetails.ModeOfEngagement ||
-        callreportSummary.cFollowupMode ||
-        callreportSummary.FollowupMode ||
+        worksheetDetails.cCallMode ||
+        worksheetDetails.CallMode ||
+        historySelectedRow.cCallMode ||
+        historySelectedRow.CallMode ||
         "-",
     },
-    { label: "Contact Person", value: contactPerson },
-    { label: "Mobile No", value: contactNumber },
-    { label: "Email", value: email },
+    { label: "Contact Person", icon: contact, value: contactPerson },
+    { label: "Mobile No", icon: phone, value: contactNumber },
+    { label: "Email", icon: mail, value: email },
     {
       label: "Follow Up",
+      icon: calender,
       value:
         parseDateText(
-          worksheetDetails.dFollowUp ||
-            worksheetDetails.dFollowupDate ||
-            callreportSummary.dFollowUp ||
+          worksheetDetails.dNextFollowupDate ||
+            historySelectedRow.dNextFollowupDate ||
             callreportSummary.dFollowupDate ||
             "",
         ) || "-",
@@ -348,72 +775,22 @@ const CallReportViewPage = () => {
       value:
         worksheetDetails.cToDo ||
         worksheetDetails.ToDo ||
+        historySelectedRow.cToDo ||
+        historySelectedRow.ToDo ||
         callreportSummary.cToDo ||
         callreportSummary.ToDo ||
         "-",
     },
   ];
 
-  const handleGenerateBill = () => {
-    try {
-      sessionStorage.setItem(CALL_REPORT_VIEW_STORAGE_KEY, JSON.stringify(viewData));
-      sessionStorage.setItem(
-        BILL_PREVIEW_STORAGE_KEY,
-        JSON.stringify({
-          companyName,
-          billNo,
-          customerName,
-          customerId: ticketSummary.nCustomerId,
-          ticketNo: ticketSummary.nTicketId || ticketNo,
-          nFollowupId: callReportId,
-          nFollowUpId: callReportId,
-          nWorksheetId: callReportId,
-          WorksheetId: callReportId,
-          nCompanyId: requestPayload.nCompanyId,
-          contactPerson,
-          contactNumber,
-          email,
-          summary,
-          partList: extractList(worksheetDetails.partDetails ?? []),
-          sessionPayload: requestPayload,
-          callreportData: viewData,
-        }),
-      );
-    } catch {
-      // best effort only
-    }
-
-    navigate("/billsandreceipts/bills/add", {
-      state: {
-        companyName,
-        billNo,
-        customerName,
-        customerId: ticketSummary.nCustomerId,
-        ticketNo: ticketSummary.nTicketId || ticketNo,
-        nFollowupId: callReportId,
-        nFollowUpId: callReportId,
-        nWorksheetId: callReportId,
-        WorksheetId: callReportId,
-        nCompanyId: requestPayload.nCompanyId,
-        contactPerson,
-        contactNumber,
-        email,
-        summary,
-        partList: extractList(worksheetDetails.partDetails ?? []),
-        sessionPayload: requestPayload,
-        callreportData: viewData,
-      },
-    });
-  };
-
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      <div className="flex h-full min-h-0 w-full flex-col px-4 py-2">
+    <div className={`${embedded ? "h-full" : "flex h-screen"} overflow-hidden bg-white`}>
+      <div className={`flex h-full min-h-0 w-full flex-col ${embedded ? "" : "px-4 py-2"}`}>
         <div className="mx-auto flex h-full w-full max-w-[1320px] flex-col overflow-hidden">
           <div className="sticky top-0 z-30 shrink-0 border-b border-slate-200 bg-white">
             <div className="flex items-center justify-between px-2 py-1">
-              <div className="text-[16px] font-semibold text-slate-900">{companyName}</div>
-              <div className="flex items-center gap-2">
+    
+              {/* <div className="flex items-center gap-2">
                 <button
                   type="button"
                   className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
@@ -429,41 +806,57 @@ const CallReportViewPage = () => {
                 >
                   <img src={closeblack} alt="" className="h-4 w-4" aria-hidden="true" />
                 </button>
-              </div>
+              </div> */}
             </div>
 
             <div className="flex items-end border-t border-slate-200 bg-white">
-              {[
-                ["callreport", "Call Report"],
-                ["details", "Ticket Details"],
-                ["history", "Ticket History"],
-                ["bill", "Bill"],
-              ].map(([key, label]) => (
+              {tabs.map(([key, label]) => (
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setActiveTab(key as any)}
-                  className={`px-4 py-2.5 text-[15px] font-medium ${
+                  onClick={() => setActiveTab(key)}
+                  className={`px-4 py-2 text-center text-base font-medium ${
                     activeTab === key
-                      ? "bg-sky-500 text-white"
-                      : "bg-white text-black hover:bg-slate-50"
+                      ? " bg-sky-500 text-white"
+                      : "bg-slate-50 text-black hover:bg-slate-100"
                   }`}
                 >
                   {label}
                 </button>
               ))}
               <div className="flex-1" />
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
+                aria-label="Share call report"
+              >
+                <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={handleClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
+              >
+                <img src={closeblack} alt="" className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <Spin spinning={isLoading}>
-              <div className="relative min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-2">
+              <div
+                className={`rounded-tl-2xl relative min-h-0 flex-1 overflow-x-hidden px-3 pb-3 pt-2 ${
+                  activeTab === "details"
+                    ? "overflow-hidden"
+                    : "ticket-overview-scrollbar overflow-y-auto"
+                }`}
+              >
                 {activeTab === "callreport" ? (
                   <>
                     <div className="flex items-start justify-between px-3 pt-1">
                       <div>
-                        <div className="flex items-center gap-2 text-[14px] font-semibold text-slate-900">
+                        <div className=" flex items-center gap-2 text-[14px] font-semibold text-slate-900">
                           <span>Call Report Id : {callReportId || "-"}</span>
                           <span className="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-normal text-sky-600">
                             {ticketSummary.cTicketStatus || "Pending"}
@@ -474,11 +867,11 @@ const CallReportViewPage = () => {
                         </div>
                       </div>
                       <div className="pt-1 text-[13px] text-slate-900">
-                        Call Report on {callReportDate || "-"}
+                        Call Report on {dCreatedDate || "-"}
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="mt-6  border border-slate-200 bg-white px-4 py-3">
                       <div className="text-[16px] font-semibold text-slate-900">Work Sheet</div>
                       <div className="mt-3 space-y-1.5 text-[14px] text-slate-700">
                         <div>
@@ -496,11 +889,20 @@ const CallReportViewPage = () => {
                           {worksheetInfoRows.map((item) => (
                             <div key={item.label} className="min-w-0">
                               <div className="flex items-start gap-2 text-[13px] text-slate-700">
-                                <div className="mt-0.5 text-slate-500">-</div>
                                 <div className="min-w-0">
-                                  <span className="font-semibold text-slate-900">
-                                    {item.label}
-                                    {" : "}
+                                  <span className="inline-flex items-center gap-1 font-semibold text-slate-900">
+                                    {item.icon ? (
+                                      <img
+                                        src={item.icon}
+                                        alt=""
+                                        className="h-3.5 w-3.5 shrink-0"
+                                        aria-hidden="true"
+                                      />
+                                    ) : null}
+                                    <span>
+                                      {item.label}
+                                      {" : "}
+                                    </span>
                                   </span>
                                   <span className="text-slate-500">{item.value || "-"}</span>
                                 </div>
@@ -509,128 +911,190 @@ const CallReportViewPage = () => {
                           ))}
                         </div>
                       </div>
+
+                    </div>
+
+                    <div className="mt-4 flex justify-end px-1">
+                      <Button
+                        type="primary"
+                        className="!border-emerald-500 !bg-emerald-500 px-6"
+                      >
+                        Edit
+                      </Button>
                     </div>
                   </>
                 ) : null}
-
                 {activeTab === "details" ? (
-                  <div className="rounded-lg border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-slate-900">Ticket Details</div>
-                    <div className="mt-4 space-y-3 text-sm text-slate-700">
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Ticket No.</div>
-                        <div>{ticketNo || "-"}</div>
-                      </div>
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Customer</div>
-                        <div>{customerLabel || "-"}</div>
-                      </div>
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Status</div>
-                        <div>{ticketSummary.cTicketStatus || "-"}</div>
-                      </div>
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Created Date</div>
-                        <div>{parseDateText(ticketSummary.dCreatedDate || "") || "-"}</div>
-                      </div>
-                    </div>
+                  <div className="ticket-overview-scrollbar h-full min-h-0 overflow-y-auto overflow-x-hidden">
+                    <TicketOverviewSection
+                      ticketId={ticketViewId}
+                      customerId={ticketViewCustomerId}
+                      isLoading={isTicketViewLoading}
+                      activeTab="details"
+                      onTabChange={() => undefined}
+                      showTabs={false}
+                      showFilesTab={false}
+                      showFilesInDetails={true}
+                      showFollowUpAction={true}
+                      showAssetEditIcon={false}
+                      ticketNo={ticketViewTicketNo}
+                      customerName={ticketViewCustomerName}
+                      summary={ticketViewSummary}
+                      description={ticketViewDescription}
+                      createdDate={ticketViewCreatedDate}
+                      priority={ticketViewPriority}
+                      period={ticketViewPeriod}
+                      status={ticketViewStatus}
+                      ticketAge={ticketViewTicketAge}
+                      followupDate={ticketViewFollowupDate}
+                      address={ticketViewAddress}
+                      assetName={ticketViewAssetName}
+                      source={ticketViewSource}
+                      serviceType={ticketViewServiceType}
+                      group={ticketViewGroup}
+                      contactNumber={ticketViewContactNumber}
+                      email={ticketViewEmail}
+                      attachments={ticketViewAttachments}
+                      attachmentsLoading={isTicketViewLoading}
+                      createdByTeam={ticketViewCreatedByTeam}
+                      alternativeContacts={ticketViewAlternativeContacts}
+                      assignedTo={ticketViewAssignedTo}
+                      assignAgentNames={ticketViewAssignAgentNames}
+                      previousCallReport={null}
+                      onOpenCallReport={setNestedCallReportState}
+                      extraRows={
+                        ticketViewScheduledOn
+                          ? [{ label: "Scheduled on", value: ticketViewScheduledOn, icon: calender }]
+                          : []
+                      }
+                      onFollowUpClick={() => {
+                        navigate("/tickets/create", {
+                          state: {
+                            selectedRow: ticketViewRecord,
+                            followupSourceTicket: {
+                              nTicketId: ticketViewId,
+                              cViewSummary:
+                                ticketViewSummary || ticketViewDescription || "Follow up ticket",
+                              summary: ticketViewSummary,
+                              description: ticketViewDescription,
+                            },
+                            draftValues: {
+                              CustomerId: ticketViewCustomerId,
+                              ContactNo: ticketViewContactNumber,
+                              Email: ticketViewEmail,
+                              IssueSummary:
+                                ticketViewSummary || ticketViewDescription || "Follow up ticket",
+                              Description: ticketViewDescription || ticketViewSummary || "",
+                              Priority: ticketViewPriority || "Low",
+                              Group:
+                                getFieldValue(ticketViewRecord, ["nGroupId", "GroupId"]) === 0
+                                ? undefined
+                                : getFieldValue(ticketViewRecord, ["nGroupId", "GroupId"]),
+                            ServiceType:
+                              getFieldValue(ticketViewRecord, [
+                                "nServiceTypeId",
+                                "ServiceTypeId",
+                              ]) === 0
+                                ? undefined
+                                : getFieldValue(ticketViewRecord, [
+                                    "nServiceTypeId",
+                                    "ServiceTypeId",
+                                  ]),
+                            Source: getFieldValue(ticketViewRecord, [
+                              "nTicketSourceId",
+                              "TicketSourceId",
+                            ]),
+                            AssetId: getFieldValue(ticketViewRecord, [
+                              "nAssetId",
+                              "AssetId",
+                            ]),
+                            AssetName: ticketViewAssetName,
+                            files: ticketViewAttachments,
+                          },
+                          },
+                        });
+                      }}
+                    />
                   </div>
                 ) : null}
 
                 {activeTab === "history" ? (
-                  <div className="rounded-lg border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-slate-900">Progress Notes</div>
-                    <div className="mt-4 space-y-3">
-                      <Spin spinning={isProgressNoteLoading}>
-                        {progressNotes.length > 0 ? (
-                          progressNotes.slice(0, 5).map((note: any, index: number) => {
-                            const noteDate = parseDateText(
-                              getFieldValue(note, [
-                                "dCreatedDate",
-                                "CreatedDate",
-                                "dNoteDate",
-                                "NoteDate",
-                                "dCreatedOn",
-                              ]),
-                            );
-                            const noteTitle =
-                              formatDisplayValue(
-                                getFieldValue(note, [
-                                  "cSummary",
-                                  "Summary",
-                                  "cProgressNote",
-                                  "ProgressNote",
-                                  "cNote",
-                                  "Note",
-                                ]),
-                              ) || `Note ${index + 1}`;
-                            const noteComment =
-                              formatDisplayValue(
-                                getFieldValue(note, [
-                                  "cComments",
-                                  "Comments",
-                                  "cComment",
-                                  "Comment",
-                                  "cRemarks",
-                                  "Remarks",
-                                ]),
-                              ) || "-";
-
-                            return (
-                              <div
-                                key={`${noteTitle}-${index}`}
-                                className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="font-medium text-slate-900">{noteTitle}</div>
-                                  <div className="text-xs text-slate-500">{noteDate || "-"}</div>
-                                </div>
-                                <div className="mt-2 text-slate-700">{noteComment}</div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="text-sm text-slate-500">No progress notes found.</div>
-                        )}
-                      </Spin>
-                    </div>
-                  </div>
+                  <TicketOverviewSection
+                    ticketId={ticketViewId}
+                    customerId={ticketViewCustomerId}
+                    isLoading={isTicketViewLoading}
+                    activeTab="history"
+                    onTabChange={() => undefined}
+                    showTabs={false}
+                    showFilesTab={false}
+                    showFilesInDetails={true}
+                    showFollowUpAction={false}
+                    showAssetEditIcon={false}
+                    ticketNo={ticketViewTicketNo}
+                    customerName={ticketViewCustomerName}
+                    summary={ticketViewSummary}
+                    description={ticketViewDescription}
+                    createdDate={ticketViewCreatedDate}
+                    priority={ticketViewPriority}
+                    period={ticketViewPeriod}
+                    status={ticketViewStatus}
+                    ticketAge={ticketViewTicketAge}
+                    followupDate={ticketViewFollowupDate}
+                    address={ticketViewAddress}
+                    assetName={ticketViewAssetName}
+                    source={ticketViewSource}
+                    serviceType={ticketViewServiceType}
+                    group={ticketViewGroup}
+                    contactNumber={ticketViewContactNumber}
+                    email={ticketViewEmail}
+                    attachments={ticketViewAttachments}
+                    attachmentsLoading={isTicketViewLoading}
+                    createdByTeam={ticketViewCreatedByTeam}
+                    alternativeContacts={ticketViewAlternativeContacts}
+                    assignedTo={ticketViewAssignedTo}
+                    assignAgentNames={ticketViewAssignAgentNames}
+                    previousCallReport={null}
+                    onOpenCallReport={setNestedCallReportState}
+                    extraRows={
+                      ticketViewScheduledOn
+                        ? [{ label: "Scheduled on", value: ticketViewScheduledOn, icon: calender }]
+                        : []
+                    }
+                  />
                 ) : null}
 
                 {activeTab === "bill" ? (
-                  <div className="rounded-lg border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-slate-900">Bill Details</div>
-                    <div className="mt-4 space-y-3 text-sm text-slate-700">
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Bill No</div>
-                        <div>{billNo || "-"}</div>
-                      </div>
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Date</div>
-                        <div>{billDate || "-"}</div>
-                      </div>
-                      <div className="grid grid-cols-[120px_1fr] gap-3">
-                        <div className="text-slate-500">Amount</div>
-                        <div>Rs. {Number(amount || 0).toFixed(2)}</div>
-                      </div>
-                    </div>
-                  </div>
+                  <BillReadonlyView
+                    viewData={viewData}
+                    billViewData={billViewResponse}
+                    partListData={billPartList}
+                    loading={isBillViewLoading || isBillPartListLoading}
+                    fallbackState={{
+                      customerName,
+                      address: ticketSummary.cCustomerAddress || state.address,
+                      billNo,
+                      billDate,
+                      amount,
+                      payMode: billSummary.cPaymodeName || state.payMode,
+                      summary,
+                    }}
+                  />
                 ) : null}
-
-                <div className="sticky bottom-3 z-20 flex justify-end pt-4 ">
-                  <Button
-                    type="primary"
-                    className="!border-emerald-500 !bg-emerald-500 px-6"
-                    onClick={handleGenerateBill}
-                  >
-                    Edit
-                  </Button>
-                </div>
               </div>
             </Spin>
           </div>
         </div>
       </div>
+      {nestedCallReportState ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
+          <div className="h-[75vh] w-full max-w-[920px] ml-75 overflow-hidden rounded-2xl shadow-2xl">
+            <CallReportHistoryModal
+              record={nestedCallReportState.selectedRow ?? nestedCallReportState}
+              onClose={() => setNestedCallReportState(null)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

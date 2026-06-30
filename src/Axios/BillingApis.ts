@@ -1,6 +1,15 @@
 import axiosInstance from "./axios";
 
 export const billingApis = {
+  billView: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Billing/BillView",
+      payload,
+    );
+
+    return response.data;
+  },
+
   getTaxValue: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Billing/GetTaxValue",

@@ -19,6 +19,7 @@ import QuickCallReportModal from "../Common/QuickCallReportModal";
 import EstimateModal from "../Common/EstimateModal";
 import TicketPageShell from "../Common/TicketPageShell";
 import TicketOverviewSection from "./TicketOverviewSection";
+import CallReportHistoryModal from "../../CallReport/CallReportHistoryModal";
 import shareIcon from "../../../assets/icons/shareIcon.svg";
 import closeblack from "../../../assets/icons/close-black.svg";
 import EstimateIcon from "../../../assets/icons/EstimateIcon.svg";
@@ -974,6 +975,9 @@ const TicketView = () => {
   const [sessionMergeBanner, setSessionMergeBanner] = useState<TicketViewState["mergeBanner"] | null>(null);
   const [hideMergedBanner, setHideMergedBanner] = useState(false);
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [historyCallReportState, setHistoryCallReportState] = useState<Record<string, any> | null>(
+    null,
+  );
   const [statusOverride, setStatusOverride] = useState<{ id: number; label: string } | null>(null);
   const [previousWorkflowStatus, setPreviousWorkflowStatus] = useState<{ id: number; label: string } | null>(null);
   const [workflowStarted, setWorkflowStarted] = useState(false);
@@ -1518,6 +1522,12 @@ const TicketView = () => {
     getFieldValue(resolvedRecord, [
       
       "cPriority",
+    ]),
+  );
+  const period = formatDisplayValue(
+    getFieldValue(resolvedRecord, [
+      "cPeriod",
+      "Period",
     ]),
   );
   const status = statusOverride?.label || normalizeTicketStatus(resolvedRecord);
@@ -2534,6 +2544,7 @@ const TicketView = () => {
           description={description}
           createdDate={createdDate}
           priority={priority}
+          period={period}
           status={status}
           ticketAge={ticketAge}
           followupDate={followupDate}
@@ -2555,6 +2566,7 @@ const TicketView = () => {
           extraRows={detailRows}
           showFollowUpAction={showFollowupAction}
           previousCallReport={detailPreviousCallReport}
+          onOpenCallReport={setHistoryCallReportState}
           onFollowUpClick={() => {
             navigate("/tickets/create", {
               state: {
@@ -2834,6 +2846,16 @@ const TicketView = () => {
         skipAmcWarningOnSave
         onSaved={handleCallReportSaved}
       />
+      {historyCallReportState ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
+          <div className="h-[72vh] w-full max-w-[920px] ml-75 overflow-hidden rounded-2xl shadow-2xl">
+            <CallReportHistoryModal
+              record={historyCallReportState.selectedRow ?? historyCallReportState}
+              onClose={() => setHistoryCallReportState(null)}
+            />
+          </div>
+        </div>
+      ) : null}
       <AssignTicketModal
         open={assignOpen}
         onClose={() => setAssignOpen(false)}

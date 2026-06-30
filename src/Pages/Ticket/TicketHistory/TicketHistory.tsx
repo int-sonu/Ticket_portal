@@ -1,23 +1,37 @@
 import { Button, Card, Empty, Spin } from "antd";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+import { callReportApis } from "../../../Axios/CallReportApis";
+import { ticketApis } from "../../../Axios/TicketsApi";
 import { useTicketHistory } from "../../../Hooks/Ticket/useTicketQueries";
 import { getConfig } from "../../../Axios/config";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
+import CallReportHistoryModal from "../../CallReport/CallReportHistoryModal";
 import clockgrey from "../../../Assets/icons/clock-grey.svg";
 import pdfIcon from "../../../assets/icons/pdfIcon.png";
 interface Props {
   ticketId?: number;
   customerId?: number;
   customerName?: string;
+  onOpenCallReport?: (state: Record<string, any>) => void;
 }
 
 const formatText = (value: any) => {
   if (value === null || value === undefined) return "";
   const text = String(value).trim();
   return text === "0" || text === "undefined" || text === "null" ? "" : text;
+};
+
+const getFieldValue = (item: Record<string, any>, keys: string[]) => {
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return "";
 };
 
 const resolvePdfUrl = (value: string) => {
@@ -203,11 +217,55 @@ const getHistoryRemarks = (item: Record<string, any>) =>
       "",
   );
 
-const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
+const getHistoryDescription = (item: Record<string, any>) =>
+  formatText(
+    getFieldValue(item, [
+      "cDescription",
+      "Description",
+      "cComments",
+      "Comments",
+      "Comment",
+      "Remarks",
+      "Remark",
+      "cNote",
+      "Note",
+      "CallSummary",
+      "cCallSummary",
+    ]),
+  );
+
+const isCallReportHistoryItem = (item: Record<string, any>) => {
+  const title = getHistoryTitle(item).toLowerCase();
+  const historySummary = formatText(
+    getFieldValue(item, ["cHistorySummary", "HistorySummary", "cViewSummary", "ViewSummary"]),
+  ).toLowerCase();
+  const typeValue = Number(getFieldValue(item, ["nType", "Type", "type"]) || 0);
+
+  return typeValue === 2 || title.includes("callreport") || historySummary.includes("callreport");
+};
+
+const getCallReportId = (item: Record<string, any>) =>
+  Number(
+    getFieldValue(item, [
+      "nCallReportId",
+      "CallReportId",
+      "nFollowupId",
+      "nFollowUpId",
+      "nWorksheetId",
+      "WorksheetId",
+      "nId",
+      "Id",
+      "id",
+    ]) || 0,
+  );
+
+const TicketHistory = ({ ticketId, customerId, customerName, onOpenCallReport }: Props) => {
   const params = useParams();
   const navigate = useNavigate();
   const resolvedTicketId = Number(ticketId ?? params.id ?? 0);
   const sessionPayload = getRequestPayload();
+  const [openingCallReportId, setOpeningCallReportId] = useState<number | null>(null);
+  const [localCallReportState, setLocalCallReportState] = useState<Record<string, any> | null>(null);
 
   const requestPayload = useMemo(
     () => ({
@@ -295,6 +353,7 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
                 const title = getHistoryTitle(item);
                 const actor = getHistoryActor(item);
                 const remarks = getHistoryRemarks(item);
+                const description = getHistoryDescription(item);
                 const key = item.Id ?? item.id ?? `${title}-${index}`;
                 const pdfSource = [remarks, title].find(isPdfPathLike) || "";
                 const pdfUrl = pdfSource ? resolvePdfUrl(pdfSource) : "";
@@ -302,9 +361,9 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
                 const visibleTitle = pdfUrl ? "" : title;
                 const visibleRemarks = pdfUrl
                   ? title
-                  : remarks && !isPdfPathLike(remarks)
-                    ? remarks
-                    : "";
+                  : description || (remarks && !isPdfPathLike(remarks) ? remarks : "");
+                const callReportId = getCallReportId(item);
+                const canOpenCallReport = isCallReportHistoryItem(item) && !!callReportId;
 
                 return (
                   <div
@@ -362,7 +421,147 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
                         <div className="text-sm text-slate-500">{actor}</div>
                       ) : null}
 
-                     
+                      {visibleRemarks ? (
+                        canOpenCallReport ? (
+                          <button
+                            type="button"
+                            className="mt-2 w-full bg-sky-50 px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-sky-100"
+                            onClick={async () => {
+                              const callReportState = {
+                                selectedRow: item,
+                                nCallReportId: callReportId,
+                                nFollowupId: callReportId,
+                                nFollowUpId: callReportId,
+                                nWorksheetId: callReportId,
+                                WorksheetId: callReportId,
+                                nTicketId: Number(
+                                  getFieldValue(item, ["nTicketId", "TicketId", "ticketId"]) ||
+                                    resolvedTicketId ||
+                                    0,
+                                ),
+                                nCustomerId: Number(
+                                  getFieldValue(item, ["nCustomerId", "CustomerId", "customerId"]) ||
+                                    customerId ||
+                                    0,
+                                ),
+                                customerId,
+                                customerName,
+                                isFrom: "history",
+                              };
+
+                              const progressNotePayload = {
+                                ...sessionPayload,
+                                nTicketId: Number(
+                                  getFieldValue(item, ["nTicketId", "TicketId", "ticketId"]) ||
+                                    resolvedTicketId ||
+                                    0,
+                                ),
+                                nFollowupId: callReportId,
+                                nFollowUpId: callReportId,
+                                nCallReportId: callReportId,
+                                CallReportId: callReportId,
+                                nId: callReportId,
+                                Id: callReportId,
+                                pageNumber: 1,
+                                pageSize: 1000,
+                              };
+                              const callReportViewPayload = {
+                                ...sessionPayload,
+                                nTicketId: Number(
+                                  getFieldValue(item, ["nTicketId", "TicketId", "ticketId"]) ||
+                                    resolvedTicketId ||
+                                    0,
+                                ),
+                                nFollowupId: callReportId,
+                                nFollowUpId: callReportId,
+                                nCallReportId: callReportId,
+                                CallReportId: callReportId,
+                              };
+
+                              try {
+                                setOpeningCallReportId(callReportId);
+                                const response =
+                                  await callReportApis.callReportProgressNoteList(
+                                    progressNotePayload,
+                                  );
+                                const rows = extractList(response);
+                                const matchedCallReport =
+                                  rows.find((row: Record<string, any>) => {
+                                    const rowId = Number(
+                                      getFieldValue(row, [
+                                        "nId",
+                                        "Id",
+                                        "id",
+                                        "nCallReportId",
+                                        "CallReportId",
+                                        "nFollowupId",
+                                        "nFollowUpId",
+                                      ]) || 0,
+                                    );
+                                    return rowId === callReportId;
+                                  }) ?? rows[0];
+
+                                if (matchedCallReport && typeof matchedCallReport === "object") {
+                                  callReportState.selectedRow = {
+                                    ...callReportState.selectedRow,
+                                    ...matchedCallReport,
+                                  };
+                                }
+
+                                const callReportViewResponse =
+                                  await ticketApis.callreportView(callReportViewPayload);
+                                const resolvedViewData =
+                                  callReportViewResponse?.data?.data ??
+                                  callReportViewResponse?.data ??
+                                  callReportViewResponse ??
+                                  null;
+
+                                if (resolvedViewData && typeof resolvedViewData === "object") {
+                                  callReportState.selectedRow = {
+                                    ...callReportState.selectedRow,
+                                    ...resolvedViewData,
+                                    cHistorySummary:
+                                      getFieldValue(callReportState.selectedRow, [
+                                        "cHistorySummary",
+                                        "HistorySummary",
+                                      ]) ||
+                                      getFieldValue(callReportState.selectedRow, [
+                                        "cViewSummary",
+                                        "ViewSummary",
+                                      ]) ||
+                                      "",
+                                    historyCreatedDate:
+                                      getFieldValue(callReportState.selectedRow, [
+                                        "historyCreatedDate",
+                                        "dSortDate",
+                                        "SortDate",
+                                        "dCreatedDate",
+                                        "CreatedDate",
+                                      ]) || "",
+                                  };
+                                }
+                              } catch {
+                                // Fall back to the history item when the call-report-wise lookup is unavailable.
+                              } finally {
+                                setOpeningCallReportId(null);
+                              }
+
+                              if (onOpenCallReport) {
+                                onOpenCallReport(callReportState);
+                                return;
+                              }
+
+                              setLocalCallReportState(callReportState);
+                            }}
+                          >
+                            {openingCallReportId === callReportId ? "Loading..." : visibleRemarks}
+                          </button>
+                        ) : (
+                          <div className="mt-2 bg-sky-50 px-3 py-2 text-sm text-slate-700">
+                            {visibleRemarks}
+                          </div>
+                        )
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -373,6 +572,16 @@ const TicketHistory = ({ ticketId, customerId, customerName }: Props) => {
           )}
         </div>
       </Card>
+      {localCallReportState ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
+          <div className="h-[72vh] w-full max-w-[920px] overflow-hidden rounded-2xl shadow-2xl">
+            <CallReportHistoryModal
+              record={localCallReportState.selectedRow ?? localCallReportState}
+              onClose={() => setLocalCallReportState(null)}
+            />
+          </div>
+        </div>
+      ) : null}
     </Spin>
   );
 };

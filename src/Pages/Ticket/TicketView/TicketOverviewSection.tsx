@@ -1,6 +1,7 @@
 import { EditOutlined } from "@ant-design/icons";
 import { Empty, Image, Spin } from "antd";
 import { useRef } from "react";
+import type { ReactNode } from "react";
 
 import clockGreenIcon from "../../../assets/icons/clock-green.svg";
 import addressIcon from "../../../assets/icons/AddressIcon.svg";
@@ -25,6 +26,7 @@ type TicketOverviewSectionProps = {
   description: string;
   createdDate: string;
   priority: string;
+  period?: string;
   status: string;
   ticketAge: string;
   followupDate: string;
@@ -57,6 +59,11 @@ type TicketOverviewSectionProps = {
     dateText?: string;
     createdBy?: string;
   } | null;
+  showTabs?: boolean;
+  detailsContent?: ReactNode;
+  historyContent?: ReactNode;
+  filesContent?: ReactNode;
+  onOpenCallReport?: (state: Record<string, any>) => void;
 };
 
 const TicketOverviewSection = ({
@@ -71,6 +78,7 @@ const TicketOverviewSection = ({
   description,
   createdDate,
   priority,
+  period = "",
   status,
   ticketAge,
   followupDate,
@@ -94,7 +102,12 @@ const TicketOverviewSection = ({
   assignedTo = "",
   assignAgentNames = [],
   previousCallReport = null,
+  showTabs = true,
+  detailsContent,
+  historyContent,
+  filesContent,
   customerId,
+  onOpenCallReport,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
 
@@ -167,11 +180,226 @@ const TicketOverviewSection = ({
     ? alternativeContacts
     : [];
 
-  const FilesSection = ({
+  const defaultDetailsContent = (
+    <>
+      <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="flex flex-col gap-3">
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="grid grid-cols-1 gap-1 px-3 py-3 sm:px-4">
+              {detailRows.map((item) => (
+                <div
+                  key={item.label}
+                  className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-1.5"
+                >
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                    {item.icon ? (
+                      <img
+                        src={item.icon}
+                        alt=""
+                        className="h-3.5 w-3.5 shrink-0"
+                      />
+                    ) : null}
+                    <span>{item.label} :</span>
+                  </div>
+                  <div className="flex items-center gap-2 break-words text-sm text-slate-800">
+                    <span>{item.value || "N/A"}</span>
+                    {item.label === "Asset" &&
+                    showAssetEditIcon &&
+                    onEditAssetClick &&
+                    String(item.value ?? "").trim() &&
+                    String(item.value).trim().toUpperCase() !== "N/A" ? (
+                      <button
+                        type="button"
+                        onClick={onEditAssetClick}
+                        aria-label="Edit asset"
+                        className="text-sky-600 hover:text-sky-700"
+                      >
+                        <EditOutlined className="text-[14px]" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {showFilesInDetails ? <FilesSection /> : null}
+
+          {previousCallReport ? (
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-900">
+                  Previous Call Report Summary
+                </div>
+                <div className="text-xs text-slate-700">
+                  {previousCallReport.title}
+                  {previousCallReport.dateText
+                    ? ` on ${previousCallReport.dateText}`
+                    : ""}
+                </div>
+              </div>
+              {previousCallReport.remarks ? (
+                <div className="border-t border-slate-100 px-4 py-3 text-sm text-slate-700">
+                  {previousCallReport.remarks}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="px-3 py-3 sm:px-4">
+              <div className="mb-2 text-sm font-semibold text-slate-900">
+                Contacts
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
+                <div className="min-w-0">
+                  <div className="text-base font-semibold text-slate-900">
+                    {customerName || "-"}
+                  </div>
+                  <div className="mt-0.5 text-sm text-slate-600">
+                    {contactNumber || "-"}
+                  </div>
+                  <div className="text-sm text-slate-600">{email || "-"}</div>
+                </div>
+                <button
+                  type="button"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                  aria-label="Call contact"
+                >
+                  <img
+                    src={phoneIcon}
+                    alt=""
+                    className="h-5 w-5"
+                    style={{ filter: "invert(1) brightness(10)" }}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {alternativeContactList.length > 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white ">
+              <div className="px-3 py-3 sm:px-4 ">
+                <div className="mb-2 text-sm font-semibold text-slate-900 ">
+                  Alternative Contacts
+                </div>
+                <div className="flex flex-col gap-3 ">
+                  {alternativeContactList.map((contact: any, index: number) => {
+                    const altName =
+                      getContactValue(contact, [
+                        "cCustomerName",
+                        "CustomerName",
+                        "cContactName",
+                        "ContactName",
+                        "cContactPerson",
+                        "ContactPerson",
+                        "name",
+                      ]) || `Contact ${index + 1}`;
+                    const altPhone =
+                      getContactValue(contact, [
+                        "cContactNumber",
+                        "ContactNumber",
+                        "cPhoneNo",
+                        "PhoneNo",
+                        "mobile",
+                        "Mobile",
+                      ]) || "-";
+                    const altEmail =
+                      getContactValue(contact, ["cEmail", "Email", "email"]) ||
+                      "-";
+
+                    return (
+                      <div
+                        key={`${altName}-${index}`}
+                        className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-base font-semibold text-slate-900">
+                            {altName}
+                          </div>
+                          <div className="mt-0.5 text-sm text-slate-600">
+                            {altPhone}
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            {altEmail}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                          aria-label="Call alternative contact"
+                        >
+                          <img
+                            src={phoneIcon}
+                            alt=""
+                            className="h-5 w-5"
+                            style={{ filter: "invert(1) brightness(10)" }}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {visibleAssignAgentNames.length > 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="px-3 py-3 sm:px-4">
+                <div className="mb-2 text-sm font-semibold text-slate-900">
+                  Assign Agent List
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {visibleAssignAgentNames.map((name) => (
+                    <span
+                      key={name}
+                      className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-slate-700"
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {showFollowUpAction ? (
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={onFollowUpClick}
+            className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-emerald-600 active:bg-emerald-700"
+          >
+            FollowUp
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+
+  const defaultHistoryContent = (
+    <div className="relative z-10">
+      <TicketHistory
+        ticketId={ticketId}
+        customerId={customerId}
+        customerName={customerName}
+        onOpenCallReport={onOpenCallReport}
+      />
+    </div>
+  );
+
+  const defaultFilesContent = <FilesSection variant="list" />;
+
+  function FilesSection({
     variant = "carousel",
   }: {
     variant?: "carousel" | "list";
-  }) => {
+  }) {
     const validAttachments = attachments.filter((file: any) => {
       return !!getAttachmentPreview(file);
     });
@@ -303,51 +531,53 @@ const TicketOverviewSection = ({
         </div>
       </div>
     );
-  };
+  }
 
   return (
     <Spin spinning={isLoading}>
       <div className="relative z-10 flex min-h-0 w-full flex-col pb-3 sm:pb-5">
         <div className="rounded-tl-2xl flex min-h-0 w-full flex-col bg-white pb-3">
-          <div className="sticky top-0 z-30 flex w-full items-end rounded-tl-2xl rounded-tr-2xl border border-slate-200 bg-white">
-            <button
-              type="button"
-              onClick={() => onTabChange("details")}
-              className={`px-4 py-2 text-center text-base font-medium ${
-                activeTab === "details"
-                  ? "bg-sky-500 rounded-tl-2xl text-white"
-                  : "bg-slate-50 text-black hover:bg-slate-100"
-              }`}
-            >
-              Ticket Details
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onTabChange("history")}
-              className={`px-4 py-2 text-center text-base font-medium ${
-                activeTab === "history"
-                  ? "bg-sky-500 text-white"
-                  : "bg-slate-50 text-black hover:bg-slate-100"
-              }`}
-            >
-              History
-            </button>
-
-            {showFilesTab ? (
+          {showTabs ? (
+            <div className="sticky top-0 z-30 flex w-full items-end rounded-tl-2xl rounded-tr-2xl border border-slate-200 bg-white">
               <button
                 type="button"
-                onClick={() => onTabChange("files")}
+                onClick={() => onTabChange("details")}
                 className={`px-4 py-2 text-center text-base font-medium ${
-                  activeTab === "files"
+                  activeTab === "details"
+                    ? "bg-sky-500 rounded-tl-2xl text-white"
+                    : "bg-slate-50 text-black hover:bg-slate-100"
+                }`}
+              >
+                Ticket Details
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onTabChange("history")}
+                className={`px-4 py-2 text-center text-base font-medium ${
+                  activeTab === "history"
                     ? "bg-sky-500 text-white"
                     : "bg-slate-50 text-black hover:bg-slate-100"
                 }`}
               >
-                Files
+                History
               </button>
-            ) : null}
-          </div>
+
+              {showFilesTab ? (
+                <button
+                  type="button"
+                  onClick={() => onTabChange("files")}
+                  className={`px-4 py-2 text-center text-base font-medium ${
+                    activeTab === "files"
+                      ? "bg-sky-500 text-white"
+                      : "bg-slate-50 text-black hover:bg-slate-100"
+                  }`}
+                >
+                  Files
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="relative z-0 min-h-0 w-full pt-0">
             {activeTab !== "files" ? (
@@ -378,6 +608,11 @@ const TicketOverviewSection = ({
                         {priority}
                       </span>
                     ) : null}
+                    {period ? (
+                      <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-600">
+                        {period}
+                      </span>
+                    ) : null}
                     {status ? (
                       <span className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-600">
                         {status}
@@ -399,223 +634,11 @@ const TicketOverviewSection = ({
             ) : null}
 
             <div className="relative z-0 min-h-0 w-full flex-1 py-3 pr-4">
-              {activeTab === "details" ? (
-                <>
-                  <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
-                    <div className="flex flex-col gap-3">
-                      <div className="rounded-xl border border-slate-200 bg-white">
-                        <div className="grid grid-cols-1 gap-1 px-3 py-3 sm:px-4">
-                          {detailRows.map((item) => (
-                            <div
-                              key={item.label}
-                              className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-1.5"
-                            >
-                              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-                                {item.icon ? (
-                                  <img
-                                    src={item.icon}
-                                    alt=""
-                                    className="h-3.5 w-3.5 shrink-0"
-                                  />
-                                ) : null}
-                                <span>{item.label} :</span>
-                              </div>
-                              <div className="flex items-center gap-2 break-words text-sm text-slate-800">
-                                <span>{item.value || "N/A"}</span>
-                                {item.label === "Asset" &&
-                                showAssetEditIcon &&
-                                onEditAssetClick &&
-                                String(item.value ?? "").trim() &&
-                                String(item.value).trim().toUpperCase() !==
-                                  "N/A" ? (
-                                  <button
-                                    type="button"
-                                    onClick={onEditAssetClick}
-                                    aria-label="Edit asset"
-                                    className="text-sky-600 hover:text-sky-700"
-                                  >
-                                    <EditOutlined className="text-[14px]" />
-                                  </button>
-                                ) : null}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {showFilesInDetails ? <FilesSection /> : null}
-
-                      {previousCallReport ? (
-                        <div className="rounded-xl border border-slate-200 bg-white">
-                          <div className="flex items-start justify-between gap-3 px-4 py-3">
-                            <div className="text-sm font-semibold text-slate-900">
-                              Previous Call Report Summary
-                            </div>
-                            <div className="text-xs text-slate-700">
-                              {previousCallReport.title}
-                              {previousCallReport.dateText
-                                ? ` on ${previousCallReport.dateText}`
-                                : ""}
-                            </div>
-                          </div>
-                          {previousCallReport.remarks ? (
-                            <div className="border-t border-slate-100 px-4 py-3 text-sm text-slate-700">
-                              {previousCallReport.remarks}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      <div className="rounded-xl border border-slate-200 bg-white">
-                        <div className="px-3 py-3 sm:px-4">
-                          <div className="mb-2 text-sm font-semibold text-slate-900">
-                            Contacts
-                          </div>
-                          <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
-                            <div className="min-w-0">
-                              <div className="text-base font-semibold text-slate-900">
-                                {customerName || "-"}
-                              </div>
-                              <div className="mt-0.5 text-sm text-slate-600">
-                                {contactNumber || "-"}
-                              </div>
-                              <div className="text-sm text-slate-600">
-                                {email || "-"}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
-                              aria-label="Call contact"
-                            >
-                              <img
-                                src={phoneIcon}
-                                alt=""
-                                className="h-5 w-5"
-                                style={{ filter: "invert(1) brightness(10)" }}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {alternativeContactList.length > 0 ? (
-                        <div className="rounded-xl border border-slate-200 bg-white ">
-                          <div className="px-3 py-3 sm:px-4 ">
-                            <div className="mb-2 text-sm font-semibold text-slate-900 ">
-                              Alternative Contacts
-                            </div>
-                            <div className="flex flex-col gap-3 ">
-                              {alternativeContactList.map(
-                                (contact: any, index: number) => {
-                                  const altName =
-                                    getContactValue(contact, [
-                                      "cCustomerName",
-                                      "CustomerName",
-                                      "cContactName",
-                                      "ContactName",
-                                      "cContactPerson",
-                                      "ContactPerson",
-                                      "name",
-                                    ]) || `Contact ${index + 1}`;
-                                  const altPhone =
-                                    getContactValue(contact, [
-                                      "cContactNumber",
-                                      "ContactNumber",
-                                      "cPhoneNo",
-                                      "PhoneNo",
-                                      "mobile",
-                                      "Mobile",
-                                    ]) || "-";
-                                  const altEmail =
-                                    getContactValue(contact, [
-                                      "cEmail",
-                                      "Email",
-                                      "email",
-                                    ]) || "-";
-
-                                  return (
-                                    <div
-                                      key={`${altName}-${index}`}
-                                      className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3"
-                                    >
-                                      <div className="min-w-0">
-                                        <div className="text-base font-semibold text-slate-900">
-                                          {altName}
-                                        </div>
-                                        <div className="mt-0.5 text-sm text-slate-600">
-                                          {altPhone}
-                                        </div>
-                                        <div className="text-sm text-slate-600">
-                                          {altEmail}
-                                        </div>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
-                                        aria-label="Call alternative contact"
-                                      >
-                                        <img
-                                          src={phoneIcon}
-                                          alt=""
-                                          className="h-5 w-5"
-                                          style={{
-                                            filter: "invert(1) brightness(10)",
-                                          }}
-                                        />
-                                      </button>
-                                    </div>
-                                  );
-                                },
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {visibleAssignAgentNames.length > 0 ? (
-                        <div className="rounded-xl border border-slate-200 bg-white">
-                          <div className="px-3 py-3 sm:px-4">
-                            <div className="mb-2 text-sm font-semibold text-slate-900">
-                              Assign Agent List
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {visibleAssignAgentNames.map((name) => (
-                                <span
-                                  key={name}
-                                  className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-slate-700"
-                                >
-                                  {name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {showFollowUpAction ? (
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={onFollowUpClick}
-                        className="rounded-lg bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-emerald-600 active:bg-emerald-700"
-                      >
-                        FollowUp
-                      </button>
-                    </div>
-                  ) : null}
-                </>
-              ) : activeTab === "history" ? (
-                <div className="relative z-10">
-                  <TicketHistory ticketId={ticketId} customerId={customerId} customerName={customerName} />
-                </div>
-              ) : (
-                <FilesSection variant="list" />
-              )}
+              {activeTab === "details"
+                ? detailsContent ?? defaultDetailsContent
+                : activeTab === "history"
+                  ? historyContent ?? defaultHistoryContent
+                  : filesContent ?? defaultFilesContent}
             </div>
           </div>
         </div>

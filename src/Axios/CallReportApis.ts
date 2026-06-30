@@ -31,6 +31,8 @@ export const callReportApis = {
 
   callReportProgressNoteList: async (payload: Record<string, any>) => {
     const urls = [
+      "/Api/V1/ProgressNotes/ProgressNoteListCallrapi",
+      "/Api/V1/ProgressNotes/ProgressNoteListCallreportWise",
       "/Api/V1/CallReport/ProgressNoteListCallreport",
       "/Api/V1/CallReport/ProgressNoteList",
       "/Api/V1/CallReport/ProgressNoteListCallReport",
@@ -54,4 +56,3 @@ export const callReportApis = {
     throw lastError;
   },
 };
-
