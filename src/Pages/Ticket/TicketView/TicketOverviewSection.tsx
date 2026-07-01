@@ -436,7 +436,11 @@ const TicketOverviewSection = ({
                   >
                     <div className="flex w-[110px] shrink-0 items-center gap-1.5 pt-1 text-xs text-slate-500">
                       <span>{displayDate}</span>
-                      <img src={clockGreenIcon} alt="" className="h-3.5 w-3.5" />
+                      <img
+                        src={clockGreenIcon}
+                        alt=""
+                        className="h-3.5 w-3.5"
+                      />
                     </div>
                     <div className="flex min-w-0 flex-col items-start gap-2">
                       <div className="inline-flex items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-xs text-slate-600">
@@ -608,16 +612,18 @@ const TicketOverviewSection = ({
                         {priority}
                       </span>
                     ) : null}
-                    {period ? (
-                      <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-600">
-                        {period}
-                      </span>
-                    ) : null}
                     {status ? (
                       <span className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-600">
                         {status}
                       </span>
                     ) : null}
+
+                    {period ? (
+                      <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-600">
+                        {period}
+                      </span>
+                    ) : null}
+
                     {ticketAge ? (
                       <span className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-600">
                         {ticketAge}
@@ -635,10 +641,10 @@ const TicketOverviewSection = ({
 
             <div className="relative z-0 min-h-0 w-full flex-1 py-3 pr-4">
               {activeTab === "details"
-                ? detailsContent ?? defaultDetailsContent
+                ? (detailsContent ?? defaultDetailsContent)
                 : activeTab === "history"
-                  ? historyContent ?? defaultHistoryContent
-                  : filesContent ?? defaultFilesContent}
+                  ? (historyContent ?? defaultHistoryContent)
+                  : (filesContent ?? defaultFilesContent)}
             </div>
           </div>
         </div>

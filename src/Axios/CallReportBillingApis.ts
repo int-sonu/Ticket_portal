@@ -10,11 +10,12 @@ const formatDate = (value: Date) => {
 
 const normalizeCallReportListPayload = (payload: Record<string, any> = {}) => {
   const today = new Date();
-  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 30);
 
   return {
     ...payload,
-    cFromDate: payload?.cFromDate ?? formatDate(firstDayOfMonth),
+    cFromDate: payload?.cFromDate ?? formatDate(thirtyDaysAgo),
     cToDate: payload?.cToDate ?? formatDate(today),
   };
 };

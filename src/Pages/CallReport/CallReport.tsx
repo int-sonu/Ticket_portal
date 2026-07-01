@@ -13,6 +13,11 @@ import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 
 type CallReportRow = Record<string, any>;
+type CallReportTab = "ALL" | "BILLED" | "UNBILLED";
+
+type CallReportProps = {
+  initialTab?: CallReportTab;
+};
 
 const getFieldValue = (record: CallReportRow, keys: string[]) => {
   for (const key of keys) {
@@ -36,6 +41,50 @@ const normalizeText = (value: any) =>
   String(value ?? "")
     .trim()
     .toLowerCase();
+
+const extractCallReportRows = (response: any) => {
+  const candidates = [
+    response,
+    response?.data,
+    response?.data?.data,
+    response?.data?.result,
+    response?.data?.items,
+    response?.data?.list,
+    response?.data?.message,
+    response?.result,
+    response?.items,
+    response?.list,
+    response?.message,
+    response?.callReportList,
+    response?.CallReportList,
+    response?.callreportList,
+    response?.billedCallReportList,
+    response?.BilledCallReportList,
+    response?.unbilledCallReportList,
+    response?.UnbilledCallReportList,
+    response?.data?.callReportList,
+    response?.data?.CallReportList,
+    response?.data?.callreportList,
+    response?.data?.billedCallReportList,
+    response?.data?.BilledCallReportList,
+    response?.data?.unbilledCallReportList,
+    response?.data?.UnbilledCallReportList,
+  ];
+
+  for (const candidate of candidates) {
+    const rows = extractList(candidate);
+    if (rows.length > 0) return rows as CallReportRow[];
+  }
+
+  return [] as CallReportRow[];
+};
+
+const isFalsyLike = (value: any) =>
+  value === false ||
+  value === 0 ||
+  ["false", "0", "no", "n", "unbilled", "pending", "open", "unpaid"].includes(
+    normalizeText(value),
+  );
 
 const formatDisplayValue = (value: any) => {
   if (value === null || value === undefined || value === "") return "";
@@ -165,7 +214,7 @@ const formatSearchText = (row: CallReportRow) =>
     .map((item) => normalizeText(item))
     .join(" ");
 
-const DashboardCallReport = () => {
+const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
   const navigate = useNavigate();
   const payload = useMemo(
     () => ({
@@ -174,9 +223,7 @@ const DashboardCallReport = () => {
     [],
   );
 
-  const [activeTab, setActiveTab] = useState<"ALL" | "BILLED" | "UNBILLED">(
-    "ALL",
-  );
+  const [activeTab, setActiveTab] = useState<CallReportTab>(initialTab);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -197,14 +244,14 @@ const DashboardCallReport = () => {
 
   const sourceRows = useMemo(() => {
     if (activeTab === "BILLED") {
-      return extractList(billedData) as CallReportRow[];
+      return extractCallReportRows(billedData);
     }
 
     if (activeTab === "UNBILLED") {
-      return extractList(unbilledData) as CallReportRow[];
+      return extractCallReportRows(unbilledData);
     }
 
-    return extractList(allData) as CallReportRow[];
+    return extractCallReportRows(allData);
   }, [activeTab, allData, billedData, unbilledData]);
 
   const isLoading =
@@ -224,24 +271,28 @@ const DashboardCallReport = () => {
     const searchTerm = normalizeText(search);
 
     return sourceRows.filter((row) => {
-      const reportStatus = normalizeText(
-        getFieldValue(row, [
-          "BilledStatus",
-          "cBilledStatus",
-          "IsBilled",
-          "bBilled",
-          "Status",
-          "cStatus",
-        ]),
-      );
+      const billedStatus = getFieldValue(row, [
+        "BilledStatus",
+        "cBilledStatus",
+        "IsBilled",
+        "bBilled",
+        "Status",
+        "cStatus",
+      ]);
+      const reportStatus = normalizeText(billedStatus);
 
       const matchesTab =
         activeTab === "ALL"
           ? true
           : activeTab === "BILLED"
             ? true
-            : reportStatus.includes("unbill") ||
+            : isFalsyLike(billedStatus) ||
+              reportStatus.includes("unbill") ||
               reportStatus.includes("pending") ||
+              reportStatus.includes("open") ||
+              reportStatus.includes("unpaid") ||
+              reportStatus.includes("not billed") ||
+              reportStatus.includes("notbilled") ||
               reportStatus === "";
 
       const matchesSearch =
@@ -346,8 +397,8 @@ const DashboardCallReport = () => {
   ] as const;
 
   return (
-<div className="-m-6 flex-1 overflow-y-auto py-7 bg-white pt-10">     
-   <div className="flex h-full min-h-0 flex-col px-4 py-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-white px-4 py-7">
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-2">
           <h1 className="text-[18px] font-medium text-slate-900">
             Call Reports

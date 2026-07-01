@@ -1445,7 +1445,7 @@ const BillPreviewPage: React.FC = () => {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseLeave}
-              className={`paymode-scrollbar flex gap-4 overflow-x-auto overflow-y-hidden scroll-smooth pb-3 pr-1 snap-x snap-mandatory select-none ${
+              className={`paymode-scrollbar flex gap-4  overflow-y-hidden scroll-smooth pb-3 pr-1 snap-x snap-mandatory select-none ${
                 isDragging ? "cursor-grabbing" : "cursor-grab"
               }`}
               style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}

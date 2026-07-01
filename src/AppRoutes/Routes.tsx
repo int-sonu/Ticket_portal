@@ -73,6 +73,10 @@ const Routes: React.FC = () => {
 
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/callreports" element={<DashboardCallReport />} />
+            <Route
+              path="/unbilled-callreports"
+              element={<DashboardCallReport initialTab="UNBILLED" />}
+            />
             
             <Route path="/callreports/view" element={<CallReportViewPage />} />
 

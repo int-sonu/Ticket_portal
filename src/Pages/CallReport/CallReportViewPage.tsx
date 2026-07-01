@@ -452,14 +452,6 @@ const CallReportViewPage = ({
     customerViewRecord.cEmail ||
     customerViewRecord.Email ||
     "";
-  const contactPerson =
-    worksheetDetails.cContactPerson ||
-    worksheetDetails.ContactPerson ||
-    historySelectedRow.cContactPerson ||
-    historySelectedRow.ContactPerson ||
-    customerContactPerson ||
-    state.contactPerson ||
-    "-";
   const contactNumber =
     worksheetDetails.cContactNumber ||
     worksheetDetails.ContactNumber ||
@@ -530,6 +522,24 @@ const CallReportViewPage = ({
       state.dCreatedDate ||
       "",
   );
+  const callReportDateText = formatDisplayValue(
+    callreportSummary.dCreatedDate ||
+      callreportSummary.CreatedDate ||
+      historySelectedRow.dCreatedDate ||
+      historySelectedRow.dSortDate ||
+      historySelectedRow.CreatedDate ||
+      viewData.dCreatedDate ||
+      state.dCreatedDate ||
+      "",
+  );
+  const contactPerson =
+    worksheetDetails.cContactPerson ||
+    worksheetDetails.ContactPerson ||
+    historySelectedRow.cContactPerson ||
+    historySelectedRow.ContactPerson ||
+    customerContactPerson ||
+    state.contactPerson ||
+    "-";
   const ticketViewRecord = useMemo(
     () => pickTicketViewRecord(ticketViewData),
     [ticketViewData],
@@ -584,16 +594,17 @@ const CallReportViewPage = ({
     dCreatedDate ||
     "";
 
-  const ticketViewPeriod =
-    formatDisplayValue(
-      pickDisplayValue(ticketViewRecord, ["cPeriod", "Period"]),
-    ) || "";
-
   const ticketViewPriority =
     formatDisplayValue(
       pickDisplayValue(ticketViewRecord, ["cPriority", "Priority", "priority"]),
     ) || "";
   
+    
+  const ticketViewPeriod =
+    formatDisplayValue(
+      pickDisplayValue(ticketViewRecord, ["cPeriod", "Period"]),
+    ) || "";
+ 
   const ticketViewStatus =
     formatDisplayValue(
       pickDisplayValue(ticketViewRecord, [
@@ -744,16 +755,13 @@ const CallReportViewPage = ({
         "dScheduleDate",
       ]),
     ) || "";
-
-  const worksheetInfoRows = [
+  const callReportInfoRows = [
     {
       label: "Mode of Engagement",
       icon: EngagementMode,
       value:
         worksheetDetails.cCallMode ||
-        worksheetDetails.CallMode ||
         historySelectedRow.cCallMode ||
-        historySelectedRow.CallMode ||
         "-",
     },
     { label: "Contact Person", icon: contact, value: contactPerson },
@@ -774,261 +782,142 @@ const CallReportViewPage = ({
       label: "To Do",
       value:
         worksheetDetails.cToDo ||
-        worksheetDetails.ToDo ||
         historySelectedRow.cToDo ||
-        historySelectedRow.ToDo ||
         callreportSummary.cToDo ||
-        callreportSummary.ToDo ||
         "-",
     },
   ];
 
   return (
-    <div className={`${embedded ? "h-full" : "flex h-screen"} overflow-hidden bg-white`}>
-      <div className={`flex h-full min-h-0 w-full flex-col ${embedded ? "" : "px-4 py-2"}`}>
-        <div className="mx-auto flex h-full w-full max-w-[1320px] flex-col overflow-hidden">
-          <div className="sticky top-0 z-30 shrink-0 border-b border-slate-200 bg-white">
-            <div className="flex items-center justify-between px-2 py-1">
-    
-              {/* <div className="flex items-center gap-2">
+    <div
+      className={`flex w-full flex-col ${
+        embedded ? "h-[calc(100vh_-_20px)] min-h-0 overflow-hidden" : "bg-white px-4 py-2"
+      }`}
+    >
+      <div className="flex flex-col rounded-2xl border border-slate-200 bg-white">
+        <Spin spinning={isLoading} wrapperClassName="flex flex-col">
+          <div className="flex flex-col">
+            <div className="sticky top-0 z-30 flex items-center border-b border-slate-200 bg-white">
+              <div className="flex min-w-0 flex-1 items-center overflow-x-auto">
+                {tabs.map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setActiveTab(key)}
+                    className={`whitespace-nowrap border-r border-slate-200 px-4 py-2 text-center text-[14px] font-medium transition-colors ${
+                      activeTab === key
+                        ? "bg-sky-500 text-white"
+                        : "bg-white text-slate-900 hover:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 px-3">
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
                   aria-label="Share call report"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
                 >
                   <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
                   aria-label="Close"
-                  onClick={() => navigate(-1)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
+                  onClick={handleClose}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-slate-900 hover:bg-slate-100"
                 >
                   <img src={closeblack} alt="" className="h-4 w-4" aria-hidden="true" />
                 </button>
-              </div> */}
+              </div>
             </div>
 
-            <div className="flex items-end border-t border-slate-200 bg-white">
-              {tabs.map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setActiveTab(key)}
-                  className={`px-4 py-2 text-center text-base font-medium ${
-                    activeTab === key
-                      ? " bg-sky-500 text-white"
-                      : "bg-slate-50 text-black hover:bg-slate-100"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-              <div className="flex-1" />
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
-                aria-label="Share call report"
-              >
-                <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={handleClose}
-                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
-              >
-                <img src={closeblack} alt="" className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <Spin spinning={isLoading}>
-              <div
-                className={`rounded-tl-2xl relative min-h-0 flex-1 overflow-x-hidden px-3 pb-3 pt-2 ${
-                  activeTab === "details"
-                    ? "overflow-hidden"
-                    : "ticket-overview-scrollbar overflow-y-auto"
-                }`}
-              >
-                {activeTab === "callreport" ? (
-                  <>
-                    <div className="flex items-start justify-between px-3 pt-1">
-                      <div>
-                        <div className=" flex items-center gap-2 text-[14px] font-semibold text-slate-900">
-                          <span>Call Report Id : {callReportId || "-"}</span>
-                          <span className="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-normal text-sky-600">
-                            {ticketSummary.cTicketStatus || "Pending"}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-[14px] font-medium text-slate-900">
-                          {customerLabel || "-"}
-                        </div>
+            {activeTab === "callreport" ? (
+              <div className="sticky top-[41px] z-20 border-b border-slate-200 bg-white px-3 pb-3 pt-2">
+                <div className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-slate-900">
+                        <span>Call Report Id : {callReportId || "-"}</span>
+                        <span className="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-normal text-sky-600">
+                          {ticketViewStatus || ticketSummary.cTicketStatus || "Pending"}
+                        </span>
                       </div>
-                      <div className="pt-1 text-[13px] text-slate-900">
-                        Call Report on {dCreatedDate || "-"}
+                      <div className="mt-1 text-[14px] font-medium text-slate-900">
+                        {customerLabel || "-"}
+                      </div>
+                    </div>
+                    <div className="whitespace-nowrap pt-1 text-[13px] text-slate-900">
+                      Call Report on {callReportDateText || dCreatedDate || "-"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="relative min-h-0 w-full px-3 pb-3 pt-2">
+              {activeTab === "callreport" ? (
+                <>
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <div className="text-[16px] font-semibold text-slate-900">Work Sheet</div>
+                    <div className="mt-3 space-y-1.5 text-[14px] text-slate-700">
+                      <div>
+                        <span className="text-sky-700">Summary : </span>
+                        <span className="text-slate-900">{summary || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-sky-700">Comment : </span>
+                        <span className="text-slate-900">{description || "-"}</span>
                       </div>
                     </div>
 
-                    <div className="mt-6  border border-slate-200 bg-white px-4 py-3">
-                      <div className="text-[16px] font-semibold text-slate-900">Work Sheet</div>
-                      <div className="mt-3 space-y-1.5 text-[14px] text-slate-700">
-                        <div>
-                          <span className="text-slate-700">Summary : </span>
-                          <span className="text-slate-900">{summary || "-"}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-700">Comment : </span>
-                          <span className="text-slate-900">{description || "-"}</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 border-t border-slate-200 pt-3">
-                        <div className="grid gap-x-8 gap-y-2 md:grid-cols-3">
-                          {worksheetInfoRows.map((item) => (
-                            <div key={item.label} className="min-w-0">
-                              <div className="flex items-start gap-2 text-[13px] text-slate-700">
-                                <div className="min-w-0">
-                                  <span className="inline-flex items-center gap-1 font-semibold text-slate-900">
-                                    {item.icon ? (
-                                      <img
-                                        src={item.icon}
-                                        alt=""
-                                        className="h-3.5 w-3.5 shrink-0"
-                                        aria-hidden="true"
-                                      />
-                                    ) : null}
-                                    <span>
-                                      {item.label}
-                                      {" : "}
-                                    </span>
-                                  </span>
-                                  <span className="text-slate-500">{item.value || "-"}</span>
-                                </div>
+                    <div className="mt-3 border-t border-slate-200 pt-3">
+                      <div className="grid gap-x-8 gap-y-2 md:grid-cols-3">
+                        {callReportInfoRows.map((item) => (
+                          <div key={item.label} className="min-w-0">
+                            <div className="flex items-start gap-2 text-[13px] text-slate-700">
+                              <div className="min-w-0">
+                                <span className="inline-flex items-start gap-1 font-semibold text-slate-900">
+                                  {item.icon ? (
+                                    <img
+                                      src={item.icon}
+                                      alt=""
+                                      className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                                      aria-hidden="true"
+                                    />
+                                  ) : null}
+                                  <span>{item.label} : </span>
+                                </span>
+                                <span className="text-slate-500">{item.value || "-"}</span>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
                       </div>
-
                     </div>
-
-                    <div className="mt-4 flex justify-end px-1">
-                      <Button
-                        type="primary"
-                        className="!border-emerald-500 !bg-emerald-500 px-6"
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  </>
-                ) : null}
-                {activeTab === "details" ? (
-                  <div className="ticket-overview-scrollbar h-full min-h-0 overflow-y-auto overflow-x-hidden">
-                    <TicketOverviewSection
-                      ticketId={ticketViewId}
-                      customerId={ticketViewCustomerId}
-                      isLoading={isTicketViewLoading}
-                      activeTab="details"
-                      onTabChange={() => undefined}
-                      showTabs={false}
-                      showFilesTab={false}
-                      showFilesInDetails={true}
-                      showFollowUpAction={true}
-                      showAssetEditIcon={false}
-                      ticketNo={ticketViewTicketNo}
-                      customerName={ticketViewCustomerName}
-                      summary={ticketViewSummary}
-                      description={ticketViewDescription}
-                      createdDate={ticketViewCreatedDate}
-                      priority={ticketViewPriority}
-                      period={ticketViewPeriod}
-                      status={ticketViewStatus}
-                      ticketAge={ticketViewTicketAge}
-                      followupDate={ticketViewFollowupDate}
-                      address={ticketViewAddress}
-                      assetName={ticketViewAssetName}
-                      source={ticketViewSource}
-                      serviceType={ticketViewServiceType}
-                      group={ticketViewGroup}
-                      contactNumber={ticketViewContactNumber}
-                      email={ticketViewEmail}
-                      attachments={ticketViewAttachments}
-                      attachmentsLoading={isTicketViewLoading}
-                      createdByTeam={ticketViewCreatedByTeam}
-                      alternativeContacts={ticketViewAlternativeContacts}
-                      assignedTo={ticketViewAssignedTo}
-                      assignAgentNames={ticketViewAssignAgentNames}
-                      previousCallReport={null}
-                      onOpenCallReport={setNestedCallReportState}
-                      extraRows={
-                        ticketViewScheduledOn
-                          ? [{ label: "Scheduled on", value: ticketViewScheduledOn, icon: calender }]
-                          : []
-                      }
-                      onFollowUpClick={() => {
-                        navigate("/tickets/create", {
-                          state: {
-                            selectedRow: ticketViewRecord,
-                            followupSourceTicket: {
-                              nTicketId: ticketViewId,
-                              cViewSummary:
-                                ticketViewSummary || ticketViewDescription || "Follow up ticket",
-                              summary: ticketViewSummary,
-                              description: ticketViewDescription,
-                            },
-                            draftValues: {
-                              CustomerId: ticketViewCustomerId,
-                              ContactNo: ticketViewContactNumber,
-                              Email: ticketViewEmail,
-                              IssueSummary:
-                                ticketViewSummary || ticketViewDescription || "Follow up ticket",
-                              Description: ticketViewDescription || ticketViewSummary || "",
-                              Priority: ticketViewPriority || "Low",
-                              Group:
-                                getFieldValue(ticketViewRecord, ["nGroupId", "GroupId"]) === 0
-                                ? undefined
-                                : getFieldValue(ticketViewRecord, ["nGroupId", "GroupId"]),
-                            ServiceType:
-                              getFieldValue(ticketViewRecord, [
-                                "nServiceTypeId",
-                                "ServiceTypeId",
-                              ]) === 0
-                                ? undefined
-                                : getFieldValue(ticketViewRecord, [
-                                    "nServiceTypeId",
-                                    "ServiceTypeId",
-                                  ]),
-                            Source: getFieldValue(ticketViewRecord, [
-                              "nTicketSourceId",
-                              "TicketSourceId",
-                            ]),
-                            AssetId: getFieldValue(ticketViewRecord, [
-                              "nAssetId",
-                              "AssetId",
-                            ]),
-                            AssetName: ticketViewAssetName,
-                            files: ticketViewAttachments,
-                          },
-                          },
-                        });
-                      }}
-                    />
                   </div>
-                ) : null}
 
-                {activeTab === "history" ? (
-                  <TicketOverviewSection
+                  <div className="mt-4 flex justify-end px-1">
+                    <Button type="primary" className="!border-emerald-500 !bg-emerald-500 px-6">
+                      Edit
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+
+              {activeTab === "details" ? (
+                <TicketOverviewSection
                     ticketId={ticketViewId}
                     customerId={ticketViewCustomerId}
                     isLoading={isTicketViewLoading}
-                    activeTab="history"
+                    activeTab="details"
                     onTabChange={() => undefined}
                     showTabs={false}
                     showFilesTab={false}
                     showFilesInDetails={true}
-                    showFollowUpAction={false}
+                    showFollowUpAction={true}
                     showAssetEditIcon={false}
                     ticketNo={ticketViewTicketNo}
                     customerName={ticketViewCustomerName}
@@ -1036,9 +925,8 @@ const CallReportViewPage = ({
                     description={ticketViewDescription}
                     createdDate={ticketViewCreatedDate}
                     priority={ticketViewPriority}
-                    period={ticketViewPeriod}
                     status={ticketViewStatus}
-                    ticketAge={ticketViewTicketAge}
+                   period={ticketViewPeriod}
                     followupDate={ticketViewFollowupDate}
                     address={ticketViewAddress}
                     assetName={ticketViewAssetName}
@@ -1060,34 +948,120 @@ const CallReportViewPage = ({
                         ? [{ label: "Scheduled on", value: ticketViewScheduledOn, icon: calender }]
                         : []
                     }
-                  />
-                ) : null}
-
-                {activeTab === "bill" ? (
-                  <BillReadonlyView
-                    viewData={viewData}
-                    billViewData={billViewResponse}
-                    partListData={billPartList}
-                    loading={isBillViewLoading || isBillPartListLoading}
-                    fallbackState={{
-                      customerName,
-                      address: ticketSummary.cCustomerAddress || state.address,
-                      billNo,
-                      billDate,
-                      amount,
-                      payMode: billSummary.cPaymodeName || state.payMode,
-                      summary,
+                    onFollowUpClick={() => {
+                      navigate("/tickets/create", {
+                        state: {
+                          selectedRow: ticketViewRecord,
+                          followupSourceTicket: {
+                            nTicketId: ticketViewId,
+                            cViewSummary:
+                              ticketViewSummary || ticketViewDescription || "Follow up ticket",
+                            summary: ticketViewSummary,
+                            description: ticketViewDescription,
+                          },
+                          draftValues: {
+                            CustomerId: ticketViewCustomerId,
+                            ContactNo: ticketViewContactNumber,
+                            Email: ticketViewEmail,
+                            IssueSummary:
+                              ticketViewSummary || ticketViewDescription || "Follow up ticket",
+                            Description: ticketViewDescription || ticketViewSummary || "",
+                            Priority: ticketViewPriority || "Low",
+                            Group:
+                              getFieldValue(ticketViewRecord, ["nGroupId", "GroupId"]) === 0
+                                ? undefined
+                                : getFieldValue(ticketViewRecord, ["nGroupId", "GroupId"]),
+                            ServiceType:
+                              getFieldValue(ticketViewRecord, ["nServiceTypeId", "ServiceTypeId"]) ===
+                              0
+                                ? undefined
+                                : getFieldValue(ticketViewRecord, [
+                                    "nServiceTypeId",
+                                    "ServiceTypeId",
+                                  ]),
+                            Source: getFieldValue(ticketViewRecord, [
+                              "nTicketSourceId",
+                              "TicketSourceId",
+                            ]),
+                            AssetId: getFieldValue(ticketViewRecord, ["nAssetId", "AssetId"]),
+                            AssetName: ticketViewAssetName,
+                            files: ticketViewAttachments,
+                          },
+                        },
+                      });
                     }}
                   />
-                ) : null}
-              </div>
-            </Spin>
+              ) : null}
+
+              {activeTab === "history" ? (
+                <TicketOverviewSection
+                  ticketId={ticketViewId}
+                  customerId={ticketViewCustomerId}
+                  isLoading={isTicketViewLoading}
+                  activeTab="history"
+                  onTabChange={() => undefined}
+                  showTabs={false}
+                  showFilesTab={false}
+                  showFilesInDetails={true}
+                  showFollowUpAction={false}
+                  showAssetEditIcon={false}
+                  ticketNo={ticketViewTicketNo}
+                  customerName={ticketViewCustomerName}
+                  summary={ticketViewSummary}
+                  description={ticketViewDescription}
+                  createdDate={ticketViewCreatedDate}
+                  priority={ticketViewPriority}
+                  period={ticketViewPeriod}
+                  status={ticketViewStatus}
+                  followupDate={ticketViewFollowupDate}
+                  address={ticketViewAddress}
+                  assetName={ticketViewAssetName}
+                  source={ticketViewSource}
+                  serviceType={ticketViewServiceType}
+                  group={ticketViewGroup}
+                  contactNumber={ticketViewContactNumber}
+                  email={ticketViewEmail}
+                  attachments={ticketViewAttachments}
+                  attachmentsLoading={isTicketViewLoading}
+                  createdByTeam={ticketViewCreatedByTeam}
+                  alternativeContacts={ticketViewAlternativeContacts}
+                  assignedTo={ticketViewAssignedTo}
+                  assignAgentNames={ticketViewAssignAgentNames}
+                  previousCallReport={null}
+                  onOpenCallReport={setNestedCallReportState}
+                  extraRows={
+                    ticketViewScheduledOn
+                      ? [{ label: "Scheduled on", value: ticketViewScheduledOn, icon: calender }]
+                      : []
+                  }
+                />
+              ) : null}
+
+              {activeTab === "bill" ? (
+                <BillReadonlyView
+                  viewData={viewData}
+                  billViewData={billViewResponse}
+                  partListData={billPartList}
+                  loading={isBillViewLoading || isBillPartListLoading}
+                  fallbackState={{
+                    customerName,
+                    address: ticketSummary.cCustomerAddress || state.address,
+                    billNo,
+                    billId,
+                    billDate,
+                    amount,
+                    payMode: billSummary.cPaymodeName || state.payMode,
+                    summary,
+                  }}
+                />
+              ) : null}
+            </div>
           </div>
-        </div>
+        </Spin>
       </div>
       {nestedCallReportState ? (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
-          <div className="h-[75vh] w-full max-w-[920px] ml-75 overflow-hidden rounded-2xl shadow-2xl">
+          <div className="callreport-overview-scrollbar h-[75vh] w-full max-w-[920px] overflow-y-auto rounded-2xl shadow-2xl">
             <CallReportHistoryModal
               record={nestedCallReportState.selectedRow ?? nestedCallReportState}
               onClose={() => setNestedCallReportState(null)}

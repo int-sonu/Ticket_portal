@@ -10,6 +10,42 @@ export const billingApis = {
     return response.data;
   },
 
+  companyDetails: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Configuration/GetCompanyDetails",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  getConfiguration: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Configuration/GetConfiguration",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  billExportPdf: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Billing/BillExportPdf",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  sendBillMail: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Billing/SendBillMail",
+      payload,
+    );
+
+    return response.data;
+  },
+
   getTaxValue: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Billing/GetTaxValue",

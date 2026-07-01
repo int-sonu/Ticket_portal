@@ -2546,7 +2546,6 @@ const TicketView = () => {
           priority={priority}
           period={period}
           status={status}
-          ticketAge={ticketAge}
           followupDate={followupDate}
           address={address}
           assetName={selectedAssetName}

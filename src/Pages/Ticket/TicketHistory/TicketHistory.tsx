@@ -334,7 +334,7 @@ const TicketHistory = ({ ticketId, customerId, customerName, onOpenCallReport }:
           </Button>
         </div>
 
-        <div className="px-4 py-4 sm:px-5">
+        <div className="max-h-64 overflow-y-auto px-4 py-4 sm:px-5">
           {historyItems.length > 0 ? (
             <div className="space-y-4">
               {historyItems.map((item: Record<string, any>, index: number) => {
