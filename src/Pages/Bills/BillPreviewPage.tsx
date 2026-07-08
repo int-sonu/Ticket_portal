@@ -3,11 +3,10 @@ import { Button, Checkbox, Input, InputNumber, Select, message } from "antd";
 import {
   CloseOutlined,
   FileTextOutlined,
-  MailOutlined,
-  PhoneOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 import { billingApis } from "../../Axios/BillingApis";
 import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
@@ -37,6 +36,8 @@ type BillPart = {
 type BillPreviewState = {
   companyName?: string;
   billNo?: string;
+  billId?: string | number;
+  nBillId?: string | number;
   customerName?: string;
   customerId?: string | number;
   ticketNo?: string | number;
@@ -51,6 +52,8 @@ type BillPreviewState = {
   summary?: string;
   partList?: BillPart[];
   sessionPayload?: Record<string, any>;
+  isEditMode?: boolean;
+  sourcePage?: string;
 };
 
 type BillRow = {
@@ -140,6 +143,27 @@ const normalizeSingleRecord = (value: any) => {
   return {};
 };
 
+const formatDisplayValue = (value: any) => {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") {
+    return (
+      value?.name ??
+      value?.label ??
+      value?.title ??
+      value?.text ??
+      value?.value ??
+      value?.cName ??
+      value?.cTitle ??
+      value?.cDescription ??
+      ""
+    );
+  }
+
+  return String(value);
+};
+
 const toSafeNumber = (
   value: any,
   fallback = 0,
@@ -188,6 +212,71 @@ const normalizePartOptions = (response: any): PartOption[] => {
     nRate: Number(getFirstValue(item ?? {}, ["nRate", "rate", "price", "nPrice"]) || 0),
     raw: item,
   }));
+};
+
+const normalizeBillRows = (response: any): BillRow[] => {
+  const payload = response?.data ?? response ?? {};
+  const candidates = [
+    payload?.data?.itemDtls,
+    payload?.data?.ItemDtls,
+    payload?.itemDtls,
+    payload?.ItemDtls,
+    payload?.data?.billSummary?.itemDtls,
+    payload?.data?.billSummary?.ItemDtls,
+    payload?.billSummary?.itemDtls,
+    payload?.billSummary?.ItemDtls,
+    payload?.data?.partDetails,
+    payload?.data?.PartDetails,
+    payload?.partDetails,
+    payload?.PartDetails,
+  ];
+
+  const list = candidates.find((item) => Array.isArray(item)) ?? [];
+
+  return list.map((item: any, index: number) => {
+    const qty = toSafeNumber(
+      getFirstValue(item ?? {}, ["nQty", "qty", "Qty", "Quantity", "nQuantity"]),
+      0,
+      { min: 0, max: 999999999, decimals: 3 },
+    );
+    const rate = toSafeNumber(
+      getFirstValue(item ?? {}, ["nRate", "rate", "Rate", "Price", "nPrice"]),
+      0,
+      { min: 0, max: 999999999, decimals: 2 },
+    );
+    const discount = toSafeNumber(
+      getFirstValue(item ?? {}, ["nDiscAmt", "nDiscountAmt", "discount", "Discount"]),
+      0,
+      { min: 0, max: 999999999, decimals: 2 },
+    );
+    const tax = toSafeNumber(
+      getFirstValue(item ?? {}, ["nTaxAmount", "nTaxAmt", "tax", "Tax"]),
+      0,
+      { min: 0, max: 999999999, decimals: 2 },
+    );
+    const value = toSafeNumber(
+      getFirstValue(item ?? {}, ["nAmount", "nValue", "value", "Value"]),
+      qty * rate,
+      { min: 0, max: 999999999, decimals: 2 },
+    );
+    const total = toSafeNumber(
+      getFirstValue(item ?? {}, ["nTotalAmount", "total", "Total"]),
+      value - discount + tax,
+      { min: 0, max: 999999999, decimals: 2 },
+    );
+
+    return {
+      key: String(getFirstValue(item ?? {}, ["nRowId", "nBillItemId", "Id", "id"]) || index + 1),
+      partId:
+        String(getFirstValue(item ?? {}, ["nPartId", "partId", "PartId", "id"]) || "") || null,
+      qty,
+      rate,
+      value,
+      discount,
+      tax,
+      total,
+    };
+  });
 };
 
 const resolveTaxAmount = (response: any) => {
@@ -302,6 +391,10 @@ const BillPreviewPage: React.FC = () => {
       return {};
     }
   }, [location.state]);
+  const isEditMode = Boolean(
+    billData.isEditMode || billData.sourcePage === "bills" || billData.billId || billData.nBillId,
+  );
+  const editingBillId = Number(billData.billId ?? billData.nBillId ?? 0) || 0;
 
   const normalizeCallReportSnapshot = (value: Record<string, any> | undefined | null) => {
     if (!value || Object.keys(value).length === 0) return {};
@@ -389,6 +482,58 @@ const BillPreviewPage: React.FC = () => {
 
   const { data: customerDropdownData } = useGetCustomerDropDown(
     customerDropdownPayload,
+  );
+  const { data: lastBillNumberData } = useQuery({
+    queryKey: ["bill-last-number", effectiveCompanyId, sessionPayload],
+    queryFn: () =>
+      billingApis.lastBillNumber({
+        ...sessionPayload,
+        nCompanyId: effectiveCompanyId || Number(sessionPayload?.nCompanyId ?? 0) || 0,
+        cSchemaName: sessionPayload?.cSchemaName ?? "",
+        cDbName: sessionPayload?.cDbName ?? "",
+      }),
+    enabled:
+      !!effectiveCompanyId &&
+      !!sessionPayload?.cSchemaName &&
+      !!sessionPayload?.cDbName,
+  });
+  const { data: editBillViewData, isLoading: isEditBillLoading } = useQuery({
+    queryKey: ["bill-view-edit", editingBillId, sessionPayload],
+    queryFn: () =>
+      billingApis.billView({
+        ...sessionPayload,
+        nBillId: editingBillId,
+        BillId: editingBillId,
+        billId: editingBillId,
+    }),
+    enabled: isEditMode && !!editingBillId,
+  });
+  const editBillRecord = useMemo(
+    () =>
+      normalizeSingleRecord(editBillViewData?.data?.data ?? editBillViewData?.data ?? editBillViewData ?? {}),
+    [editBillViewData],
+  );
+  const editBillSummary = useMemo(
+    () =>
+      normalizeSingleRecord(
+        editBillRecord.billSummary ??
+          editBillRecord.BillSummary ??
+          editBillRecord.data?.billSummary ??
+          editBillRecord.data?.BillSummary ??
+          editBillRecord,
+      ),
+    [editBillRecord],
+  );
+  const editTicketSummary = useMemo(
+    () =>
+      normalizeSingleRecord(
+        editBillRecord.ticketSummary ??
+          editBillRecord.TicketSummary ??
+          editBillRecord.data?.ticketSummary ??
+          editBillRecord.data?.TicketSummary ??
+          {},
+      ),
+    [editBillRecord],
   );
 
   useEffect(() => {
@@ -478,14 +623,44 @@ const BillPreviewPage: React.FC = () => {
     let alive = true;
 
     const loadParts = async () => {
+      const ticketIdFromEdit =
+        Number(
+          editBillSummary.nTicketId ??
+            editBillSummary.nTicketNo ??
+            editBillSummary.TicketId ??
+            editTicketSummary.nTicketId ??
+            editTicketSummary.TicketId ??
+            billData.ticketNo ??
+            billData.sessionPayload?.nTicketId ??
+            0,
+        ) || 0;
+      const customerIdFromEdit =
+        Number(
+          editBillSummary.nCustomerId ??
+            editBillSummary.CustomerId ??
+            editTicketSummary.nCustomerId ??
+            editTicketSummary.CustomerId ??
+            billData.customerId ??
+            billData.sessionPayload?.nCustomerId ??
+            0,
+        ) || 0;
+      const assetIdFromEdit =
+        Number(
+          editBillSummary.nAssetId ??
+            editBillSummary.AssetId ??
+            editTicketSummary.nAssetId ??
+            editTicketSummary.AssetId ??
+            billData.sessionPayload?.nAssetId ??
+            0,
+        ) || 0;
       const payload = {
         ...sessionPayload,
         nCompanyId: effectiveCompanyId || Number(sessionPayload?.nCompanyId ?? 0) || 0,
         cSchemaName: sessionPayload?.cSchemaName ?? "",
         cDbName: sessionPayload?.cDbName ?? "",
-        nTicketId: Number(sessionPayload?.nTicketId ?? 0) || 0,
-        nCustomerId: Number(sessionPayload?.nCustomerId ?? 0) || 0,
-        nAssetId: Number(sessionPayload?.nAssetId ?? 0) || 0,
+        nTicketId: ticketIdFromEdit,
+        nCustomerId: customerIdFromEdit,
+        nAssetId: assetIdFromEdit,
       };
 
       if (!payload.nCompanyId || !payload.cSchemaName || !payload.cDbName) {
@@ -512,7 +687,33 @@ const BillPreviewPage: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, [sessionPayload]);
+  }, [sessionPayload, effectiveCompanyId, editBillSummary, editTicketSummary]);
+
+  useEffect(() => {
+    if (!isEditMode || !editBillViewData) return;
+
+    const normalizedRows = normalizeBillRows(editBillViewData);
+    if (normalizedRows.length > 0) {
+      setRows(normalizedRows);
+    }
+
+    const editBillRecord = normalizeSingleRecord(
+      editBillViewData?.data?.data ?? editBillViewData?.data ?? editBillViewData ?? {},
+    );
+    const editPayMode =
+      String(
+        getFirstValue(editBillRecord, [
+          "cPaymodeName",
+          "cPayMode",
+          "PayMode",
+          "PayModeName",
+        ]) || "",
+      ) || payMode;
+
+    if (editPayMode) {
+      setPayMode(editPayMode);
+    }
+  }, [editBillViewData, isEditMode]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -529,6 +730,17 @@ const BillPreviewPage: React.FC = () => {
   const billTotal = Math.max(0, totals.total - totals.discount + totals.tax);
   const selectedPayMode =
     PAY_MODE_OPTIONS.find((item) => item.key === payMode) ?? PAY_MODE_OPTIONS[0];
+  const lastBillNumberRecord = normalizeSingleRecord(
+    lastBillNumberData?.data?.data ?? lastBillNumberData?.data ?? lastBillNumberData ?? {},
+  );
+  const fetchedBillNo = getFirstValue(lastBillNumberRecord, [
+    "nBillNo",
+    "BillNo",
+    "billNo",
+    "LastBillNumber",
+    "lastBillNumber",
+    "nLastBillNumber",
+  ]);
 
   const readLatestCallReport = () => {
     const fromRouteState = normalizeCallReportSnapshot(billData.callreportData);
@@ -647,6 +859,9 @@ const BillPreviewPage: React.FC = () => {
     ];
 
     const payload = {
+      nBillId: editingBillId || Number(billData.billId ?? billData.nBillId ?? 0) || 0,
+      BillId: editingBillId || Number(billData.billId ?? billData.nBillId ?? 0) || 0,
+      billId: editingBillId || Number(billData.billId ?? billData.nBillId ?? 0) || 0,
       nTicketId: ticketId,
       nFollowupId: followupId,
       nFollowUpId: followupId,
@@ -672,6 +887,41 @@ const BillPreviewPage: React.FC = () => {
     try {
       const response = await billingApis.billSave(payload);
       message.success(response?.message || "Bill save successful.");
+
+      const callReportState = {
+        ...latestCallReport,
+        selectedRow:
+          latestCallReport.selectedRow ??
+          latestCallReport.data?.selectedRow ??
+          latestCallReport.data?.callreportSummary ??
+          latestCallReportSummary ??
+          {},
+        nCallReportId: followupId,
+        nFollowupId: followupId,
+        nFollowUpId: followupId,
+        nWorksheetId: followupId,
+        WorksheetId: followupId,
+        isFrom: "callreports",
+        billId: Number(response?.data?.nBillId ?? response?.data?.BillId ?? response?.nBillId ?? 0) || 0,
+      };
+
+      try {
+        sessionStorage.setItem(
+          CALL_REPORT_VIEW_STORAGE_KEY,
+          JSON.stringify(callReportState),
+        );
+      } catch {
+        // best effort only
+      }
+
+      if (billData.sourcePage === "bills" || isEditMode) {
+        navigate("/bills", { replace: true });
+      } else {
+        navigate("/callreports/view", {
+          state: callReportState,
+          replace: true,
+        });
+      }
     } catch (error: any) {
       console.error("Failed to save bill", error);
       message.error(error?.response?.data?.message || error?.message || "Unable to save bill");
@@ -1090,19 +1340,37 @@ const BillPreviewPage: React.FC = () => {
   };
 
   const displayDate = new Date().toLocaleString();
-  const customerName = billData.customerName || "-";
-  const billNo = billData.billNo || "-";
-  const customerId = billData.customerId || "-";
-  const contactNumber = billData.contactNumber || "-";
-  const email = billData.email || "-";
-  const summaryText = billData.summary || "-";
+  const headerDateText =
+    formatDisplayValue(
+      getFirstValue(editBillSummary, ["dBillDate", "BillDate", "dCreatedDate", "CreatedDate"]),
+    ) || displayDate;
+  const createdByLabel =
+    formatDisplayValue(
+      getFirstValue(editBillSummary, ["cCreatedBy", "CreatedBy", "CreatedByName", "cAgentName"]),
+    ) || "Testing Team";
+  const billNo = formatDisplayValue(
+    getFirstValue(editBillSummary, ["nBillNo", "BillNo", "billNo", "cBillNo"]),
+  ) || billData.billNo || fetchedBillNo || "-";
+  const customerName =
+    formatDisplayValue(
+      getFirstValue(editBillSummary, ["cCustomerName", "CustomerName", "Customer", "cName"]),
+    ) || billData.customerName || "-";
+  const gstNo =
+    formatDisplayValue(
+      getFirstValue(editBillSummary, ["cGstNumber", "cGSTNo", "GSTNo", "GSTNumber"]),
+    ) || "-";
+  const address =
+    formatDisplayValue(
+      getFirstValue(editBillSummary, ["cCustomerAddress", "CustomerAddress", "Address", "cAddress"]),
+    ) || "NIL";
+  const canEditBillItems = !isEditMode;
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <div className="flex items-center justify-between px-2 py-1">
-        <div className="text-[15px] font-semibold text-slate-900">Bill</div>
+      <div className="flex items-center justify-between bg-[#dcebf5] px-2 py-1 text-[11px] text-slate-600">
+        <div>Created by : {createdByLabel}</div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-500">{displayDate}</span>
+          <span>{headerDateText}</span>
           <Button
             type="text"
             size="small"
@@ -1113,43 +1381,25 @@ const BillPreviewPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="border-b  border-slate-200" />
-
-      <div className="mx-0 mt-1 rounded border border-sky-100 bg-[#eef6fd] text-[11px] text-slate-700">
-        <div className="grid grid-cols-1 lg:grid-cols-5">
-          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 lg:border-b-0 lg:border-r">
-            <FileTextOutlined />
-            <span className="text-slate-600">Bill No :</span>
+      <div className="mx-2 mt-2 rounded border border-sky-100 bg-[#eef6fd] text-[11px] text-slate-700">
+        <div className="grid grid-cols-1 gap-0 md:grid-cols-[1fr_1fr_1fr]">
+          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 md:border-b-0 md:border-r">
+            <FileTextOutlined className="text-slate-600" />
+            <span className="text-slate-900">Bill No :</span>
             <span className="font-medium text-slate-700">{billNo}</span>
           </div>
-          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 lg:border-b-0 lg:border-r">
-            <UserOutlined />
-            <span className="text-slate-600">Customer Name :</span>
+          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 md:border-b-0 md:border-r">
+            <UserOutlined className="text-slate-600" />
+            <span className="text-slate-900">Customer Name :</span>
             <span className="truncate font-medium text-slate-700">{customerName}</span>
           </div>
-          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 lg:border-b-0 lg:border-r">
-            <span className="font-semibold">ID :</span>
-            <span className="font-medium text-slate-700">{customerId}</span>
-          </div>
-          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 lg:border-b-0 lg:border-r">
-            <PhoneOutlined />
-            <span className="font-medium text-slate-700">{contactNumber}</span>
-          </div>
           <div className="flex items-center gap-2 whitespace-nowrap px-2 py-1">
-            <MailOutlined />
-            <span className="truncate font-medium text-slate-700">{email}</span>
+            <span className="text-slate-900">GST No :</span>
+            <span className="font-medium text-slate-700">{gstNo}</span>
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4">
-          <div className="flex items-center gap-2 whitespace-nowrap px-2 py-1 lg:col-span-2">
-            <span className="text-slate-600">Call Report Id :</span>
-            <span className="font-medium text-slate-700">{billData.ticketNo || "-"}</span>
-          </div>
-          <div className="px-2 py-1 lg:col-span-5">
-            <span className="text-slate-600">Summary :</span>
-            
-            <span className="break-words text-slate-700">{summaryText}</span>
-          </div>
+        <div className="border-t border-sky-100 px-2 py-2 text-slate-700">
+          <span className="text-slate-900">Address :</span> {address}
         </div>
       </div>
 
@@ -1181,9 +1431,10 @@ const BillPreviewPage: React.FC = () => {
                   <Select
                     className="w-full"
                     size="small"
-                    placeholder={loadingParts ? "Loading..." : "Select Part"}
+                    placeholder={loadingParts || isEditBillLoading ? "Loading..." : "Select Part"}
                     value={row.partId}
-                    loading={loadingParts}
+                    loading={loadingParts || isEditBillLoading}
+                    disabled={!canEditBillItems}
                     options={partOptions.map((part) => ({
                       label: part.cPartName,
                       value: String(part.nPartId),
@@ -1220,6 +1471,7 @@ const BillPreviewPage: React.FC = () => {
                     size="small"
                     min={0}
                     value={row.qty}
+                    disabled={!canEditBillItems}
                     onChange={(value) => {
                       const nextQty = Number(value || 0);
                       const nextValue = nextQty * Number(row.rate || 0);
@@ -1246,6 +1498,7 @@ const BillPreviewPage: React.FC = () => {
                     size="small"
                     min={0}
                     value={row.rate}
+                    disabled={!canEditBillItems}
                     prefix="₹"
                     onChange={(value) => {
                       const nextRate = Number(value || 0);
@@ -1274,6 +1527,7 @@ const BillPreviewPage: React.FC = () => {
                     size="small"
                     min={0}
                     value={row.discount}
+                    disabled={!canEditBillItems}
                     prefix="₹"
                     onChange={(value) => {
                       const nextDiscount = Number(value || 0);
@@ -1295,15 +1549,17 @@ const BillPreviewPage: React.FC = () => {
                 <div className="pl-1 text-slate-700">₹{Number(row.tax || 0).toFixed(2)}</div>
                 <div className="pl-1 text-slate-700">₹{Number(row.total || 0).toFixed(2)}</div>
                 <div className="flex justify-center pl-1 text-rose-500">
-                  <Button
-                    type="text"
-                    className="flex items-center justify-center p-0 hover:bg-rose-50"
-                    icon={<img src={deleteRed} alt="delete" className="h-4 w-4" />}
-                    onClick={() => deleteRow(row.key)}
-                  />
+                  {canEditBillItems ? (
+                    <Button
+                      type="text"
+                      className="flex items-center justify-center p-0 hover:bg-rose-50"
+                      icon={<img src={deleteRed} alt="delete" className="h-4 w-4" />}
+                      onClick={() => deleteRow(row.key)}
+                    />
+                  ) : null}
                 </div>
                 <div className="flex justify-center pl-1">
-                  {index === rows.length - 1 ? (
+                  {canEditBillItems && index === rows.length - 1 ? (
                     <Button
                       type="text"
                       className="flex h-5 w-5 items-center justify-center rounded-sm bg-[#e9eef3] p-0 hover:bg-slate-300"
@@ -1344,21 +1600,16 @@ const BillPreviewPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-            <div className="grid grid-cols-[auto_1fr] gap-x-12 gap-y-2 text-[11px] items-baseline w-full max-w-[280px]">
+            <div className="grid w-full max-w-[280px] grid-cols-[auto_1fr] items-baseline gap-x-12 gap-y-2 text-[11px]">
               <span className="text-slate-600 text-left">Pay Amount</span>
-              <span className="text-[24px] font-bold text-amber-500 text-right leading-none">
-                ₹{billTotal.toFixed(2)}
+              <span className="text-right text-[24px] font-bold leading-none text-amber-500">
+                {"₹"}{billTotal.toFixed(2)}
               </span>
 
               <span className="text-slate-600 text-left">Pay Mode</span>
-              <span className="font-medium text-slate-700 text-right">
+              <span className="text-right font-medium text-slate-700">
                 {selectedPayMode.label}
               </span>
-
-              <span className="text-slate-600 text-left">
-                {selectedPayMode.label}
-              </span>
-              <span className="font-medium text-slate-700 text-right">₹{billTotal.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center gap-2 mt-2">

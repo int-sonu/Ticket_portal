@@ -1,5 +1,5 @@
 import { AudioOutlined, UploadOutlined } from "@ant-design/icons";
-import { Checkbox, DatePicker, Form, Input, Modal, Radio, Select, message } from "antd";
+import { Checkbox, Form, Input, Modal, Radio, Select, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import { useGetActiveFollowupModes } from "../../Master/FollowUpMode/Hooks";
 import { useGetStatuses } from "../../Master/StatusMaster/Hooks";
 import { useCheckAmcExpiry } from "../../Master/CustomerMaster/Hooks";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
+import FollowupDateTimePicker from "./FollowupDateTimePicker";
 import RightSideDrawer from "../../../ui/Drawer/RightSideDrawer";
 import type { FormInstance } from "antd";
 
@@ -85,6 +86,17 @@ const getFirstTicketValue = (record: Record<string, any>, keys: string[]) =>
     undefined,
   );
 
+const parseDateValue = (value: any) => {
+  if (!value) return null;
+  if (dayjs.isDayjs(value)) return value;
+
+  const parsed = dayjs(value);
+  if (parsed.isValid()) return parsed;
+
+  const alt = dayjs(String(value).replace(/\//g, "-"));
+  return alt.isValid() ? alt : null;
+};
+
 interface QuickCallReportModalProps {
   open: boolean;
   onClose: () => void;
@@ -95,6 +107,7 @@ interface QuickCallReportModalProps {
   assignedAgentDetails?: any[];
   sessionPayload: Record<string, any>;
   skipAmcWarningOnSave?: boolean;
+  drawerWidth?: number;
   onSaved?: (result: {
     statusId: number;
     statusLabel: string;
@@ -112,6 +125,7 @@ const QuickCallReportModal = ({
   selectedCustomerName,
   sessionPayload,
   skipAmcWarningOnSave = false,
+  drawerWidth = 430,
   onSaved,
 }: QuickCallReportModalProps) => {
   const [form] = Form.useForm();
@@ -208,7 +222,16 @@ const QuickCallReportModal = ({
             ),
           };
         })
-        .filter(Boolean),
+        .filter(
+          (
+            item,
+          ): item is {
+            value: string;
+            label: string;
+            id: number;
+            shortName: string;
+          } => Boolean(item),
+        ),
     [followupModeData],
   );
 
@@ -270,10 +293,25 @@ const QuickCallReportModal = ({
   const isClosedStatus =
     normalizedStatusLabel.includes("closed") ||
     normalizedStatusLabel.includes("close");
+  const hasFollowupData = useMemo(() => {
+    const values = ticketForm?.getFieldsValue(true) ?? ticketValuesProp ?? {};
+
+    return Boolean(
+      values?.NextFollowupDate ||
+        values?.dNextFollowupDate ||
+        values?.FollowupDate ||
+        values?.ToDo ||
+        values?.cToDo ||
+        values?.OnsiteRequired ||
+        values?.bOnsiteRequired ||
+        values?.bNeedOnsite,
+    );
+  }, [ticketForm, ticketValuesProp, open]);
   const needsFollowupFields =
     normalizedStatusLabel.includes("onhold") ||
     normalizedStatusLabel.includes("pending") ||
-    normalizedStatusLabel.includes("processing");
+    normalizedStatusLabel.includes("processing") ||
+    hasFollowupData;
 
   useEffect(() => {
     if (!open) return;
@@ -282,12 +320,45 @@ const QuickCallReportModal = ({
     const defaultStatusId = getNumberValue(
       ticketValues?.nTicketStatus,
       ticketValues?.TicketStatus,
+      ticketValues?.nStatusId,
+      ticketValues?.StatusId,
       sessionPayload.nTicketStatus,
       5,
     );
+    const ticketStatusLabel = getTextValue(
+      ticketValues?.cTicketStatus,
+      ticketValues?.TicketStatus,
+      ticketValues?.Status,
+      ticketValues?.cStatus,
+    );
+    const matchedStatus = statusOptions.find(
+      (item) =>
+        normalizeStatusLabel(item.label) === normalizeStatusLabel(ticketStatusLabel),
+    );
+    const currentEngagementMode = getTextValue(
+      ticketValues?.cCallMode,
+      ticketValues?.CallMode,
+      ticketValues?.cCallreportMode,
+      ticketValues?.CallreportMode,
+      ticketValues?.cCallModeName,
+      ticketValues?.cCallModeShName,
+      ticketValues?.cCallreportModeName,
+      ticketValues?.cCallreportModeShName,
+      ticketValues?.EngagementMode,
+      ticketValues?.engagementMode,
+    );
+    const matchedEngagementMode = engagementOptions.find((item) => {
+      const normalizedItem = normalizeStatusLabel(item.label);
+      const normalizedValue = normalizeStatusLabel(currentEngagementMode);
+      return normalizedItem === normalizedValue;
+    });
 
     form.setFieldsValue({
-      EngagementMode: engagementOptions[0]?.value ?? "Mail",
+      EngagementMode:
+        matchedEngagementMode?.value ??
+        currentEngagementMode ??
+        engagementOptions[0]?.value ??
+        "Mail",
       ContactPersonName: getTextValue(
         ticketValues?.ContactPerson,
         ticketValues?.cContactPerson,
@@ -302,19 +373,34 @@ const QuickCallReportModal = ({
         ticketValues?.IssueSummary,
         ticketValues?.TicketSummary,
         ticketValues?.cTicketSummary,
+        ticketValues?.Summary,
+        ticketValues?.cSummary,
       ),
       Comment: getTextValue(
         ticketValues?.Comment,
         ticketValues?.Comments,
         ticketValues?.Description,
         ticketValues?.cDescription,
+        ticketValues?.cComment,
+        ticketValues?.cComments,
       ),
       UpdateStatus:
+        matchedStatus?.value ??
         statusOptions.find((item) => Number(item?.value) === defaultStatusId)?.value ??
         undefined,
-      ToDo: "",
-      NextFollowupDate: dayjs(),
-      OnsiteRequired: false,
+      ToDo: getTextValue(ticketValues?.ToDo, ticketValues?.cToDo, ticketValues?.Todo),
+      NextFollowupDate: parseDateValue(
+        ticketValues?.NextFollowupDate ??
+          ticketValues?.dNextFollowupDate ??
+          ticketValues?.FollowupDate ??
+          undefined,
+      ),
+      OnsiteRequired: Boolean(
+        ticketValues?.OnsiteRequired ??
+          ticketValues?.bOnsiteRequired ??
+          ticketValues?.bNeedOnsite ??
+          false,
+      ),
     });
     setSelectedFilesCount(0);
     setCloseAction("");
@@ -325,8 +411,9 @@ const QuickCallReportModal = ({
     sessionPayload.nTicketStatus,
     statusOptions,
     ticketForm,
-    ticketValuesProp,
-  ]);
+      ticketValuesProp,
+      open,
+    ]);
 
   const validateBeforeSubmit = async (modalValues: any, ticketValues: any) => {
     const missingFields = [
@@ -432,6 +519,14 @@ const QuickCallReportModal = ({
       (item: any) => String(item?.value) === String(values.EngagementMode ?? ""),
     );
     const selectedStatusValue = Number(selectedStatusId ?? 0) || 0;
+    const resolvedOnsiteRequired = Boolean(
+      modalValues?.OnsiteRequired ??
+        ticketValues?.OnsiteRequired ??
+        ticketValues?.bOnsiteRequired ??
+        ticketValues?.bNeedOnsite ??
+        ticketValues?.bOnSite ??
+        false,
+    );
     const customerId = Number(
       getFirstTicketValue(ticketValues ?? {}, [
         "CustomerId",
@@ -509,6 +604,11 @@ const QuickCallReportModal = ({
           cTodo: values.ToDo ?? "",
           dNextFollowupDate:
             normalizedNextFollowupDate ?? normalizedFollowupDate ?? "",
+          dFollowupDate: normalizedNextFollowupDate ?? normalizedFollowupDate ?? "",
+          bOnSite: resolvedOnsiteRequired,
+          OnsiteRequired: resolvedOnsiteRequired,
+          bOnsiteRequired: resolvedOnsiteRequired,
+          bNeedOnsite: resolvedOnsiteRequired,
           nStatus: selectedStatusValue,
           nCloseStatus: resolvedCloseAction?.value ?? 5,
           bClosedTrip: false,
@@ -599,7 +699,7 @@ const QuickCallReportModal = ({
       }
       open={open}
       onClose={onClose}
-      width={430}
+      width={420}
       className="quick-call-drawer"
       bodyStyle={{
         padding: 0,
@@ -629,10 +729,10 @@ const QuickCallReportModal = ({
         }}
         className="quick-call-report-form flex h-full min-h-0 flex-col"
       >
-        <div className="simple-master-drawer-scroll flex-1 overflow-y-auto overflow-x-hidden bg-white">
-          <div className="px-4 pb-0 pt-3">
-            <Form.Item label="Mode of Engagement" name="EngagementMode">
-              <Radio.Group className="flex flex-wrap gap-4">
+        <div className="simple-master-drawer-scroll flex-1 overflow-y-auto overflow-x-hidden bg-white pb-16">
+          <div className="px-4 pb-4 pt-3">
+            <Form.Item label="Mode of Engagement" name="EngagementMode" className="mb-4">
+              <Radio.Group className="flex flex-wrap gap-x-6 gap-y-2">
                 {(engagementOptions.length
                   ? engagementOptions
                   : []
@@ -647,6 +747,7 @@ const QuickCallReportModal = ({
             <Form.Item
               label="Contact Person Name"
               name="ContactPersonName"
+              className="mb-4"
               rules={[
                 {
                   required: true,
@@ -661,6 +762,7 @@ const QuickCallReportModal = ({
               <Form.Item
                 label="Mobile Number"
                 name="MobileNumber"
+                className="mb-4"
                 rules={[
                   {
                     required: true,
@@ -674,6 +776,7 @@ const QuickCallReportModal = ({
               <Form.Item
                 label="Email"
                 name="Email"
+                className="mb-4"
                 rules={[
                   {
                     required: true,
@@ -688,6 +791,7 @@ const QuickCallReportModal = ({
             <Form.Item
               label="Summary"
               name="Summary"
+              className="mb-4"
               rules={[
                 {
                   required: true,
@@ -701,6 +805,7 @@ const QuickCallReportModal = ({
             <Form.Item
               label="Comments"
               name="Comment"
+              className="mb-4"
               rules={[
                 {
                   required: true,
@@ -711,7 +816,7 @@ const QuickCallReportModal = ({
               <TextArea rows={4} className="!resize-none" />
             </Form.Item>
 
-            <div className="space-y-2 border-t border-slate-100 pt-2">
+            <div className="space-y-2 border-t border-slate-100 pt-3">
               <div className="flex items-center justify-between text-sky-600">
                 <button
                   type="button"
@@ -779,8 +884,8 @@ const QuickCallReportModal = ({
             </div>
           </div>
 
-          <div className="mt-2 bg-[#eaf5ff] px-4 pb-4 pt-3">
-            <Form.Item label="Update Status" name="UpdateStatus" className="mb-0">
+          <div className="mt-2 bg-[#eaf5ff] px-4 pb-6 pt-3">
+            <Form.Item label="Update Status" name="UpdateStatus" className="mb-3">
               <Select
                 allowClear
                 placeholder="Select Status"
@@ -817,11 +922,7 @@ const QuickCallReportModal = ({
                     ]}
                     className="mb-0"
                   >
-                    <DatePicker
-                      showTime
-                      format="DD/MM/YYYY hh:mm A"
-                      className="w-full"
-                    />
+                    <FollowupDateTimePicker />
                   </Form.Item>
 
                   <Form.Item

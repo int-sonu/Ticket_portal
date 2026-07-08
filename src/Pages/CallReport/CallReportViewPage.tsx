@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
-import { Button, Spin } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Modal, Spin, message } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { billingApis } from "../../Axios/BillingApis";
 import { customerApis } from "../../Axios/MasterApis";
@@ -13,6 +14,7 @@ import { useTicketView } from "../../Hooks/Ticket/useTicketQueries";
 import BillReadonlyView from "../Bills/BillReadonlyViewExact";
 import TicketOverviewSection from "../Ticket/TicketView/TicketOverviewSection";
 import CallReportHistoryModal from "./CallReportHistoryModal";
+import QuickCallReportModal from "../Ticket/Common/QuickCallReportModal";
 import shareIcon from "../../assets/icons/shareIcon.svg";
 import closeblack from "../../assets/icons/close-black.svg";
 import EngagementMode from "../../assets/icons/EngagementMode.svg";
@@ -236,9 +238,16 @@ const CallReportViewPage = ({
   onClose,
 }: CallReportViewPageProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const state = (overrideState ?? location.state ?? {}) as Record<string, any>;
+  const isUnbilledContext = String(state.isFrom ?? "")
+    .trim()
+    .toLowerCase()
+    .includes("unbilled");
   const historySelectedRow = normalizeSingleRecord(state.selectedRow);
+  const [worksheetEditOpen, setWorksheetEditOpen] = useState(false);
+  const [isNoNeedBillMode, setIsNoNeedBillMode] = useState(false);
   const [nestedCallReportState, setNestedCallReportState] = useState<Record<string, any> | null>(
     null,
   );
@@ -252,12 +261,18 @@ const CallReportViewPage = ({
   const [activeTab, setActiveTab] = useState<"callreport" | "details" | "history" | "bill">(
     "callreport",
   );
-  const tabs = [
-    ["callreport", "Call Report"],
-    ["details", "Details"],
-    ["history", "History"],
-    ["bill", "Bill"],
-  ] as const;
+  const tabs = isUnbilledContext
+    ? ([
+        ["callreport", "Call Report"],
+        ["details", "Ticket Details"],
+        ["history", "History"],
+      ] as const)
+    : ([
+        ["callreport", "Call Report"],
+        ["details", "Ticket Details"],
+        ["history", "History"],
+        ["bill", "Bill"],
+      ] as const);
 
   const sessionPayload = useMemo(() => getRequestPayload(), []);
 
@@ -544,6 +559,23 @@ const CallReportViewPage = ({
     () => pickTicketViewRecord(ticketViewData),
     [ticketViewData],
   );
+
+  const backendNoNeedBillFlag = Boolean(
+    viewData?.bNoNeedBill ??
+      viewData?.NoNeedBill ??
+      viewData?.IsNoNeedBill ??
+      viewData?.bDoNotBill ??
+      viewData?.DoNotBill ??
+      callreportSummary?.bNoNeedBill ??
+      callreportSummary?.NoNeedBill ??
+      callreportSummary?.IsNoNeedBill ??
+      callreportSummary?.bDoNotBill ??
+      callreportSummary?.DoNotBill,
+  );
+
+  useEffect(() => {
+    setIsNoNeedBillMode(backendNoNeedBillFlag);
+  }, [backendNoNeedBillFlag]);
   const ticketViewCustomerId = Number(
     pickDisplayValue(ticketViewRecord, ["nCustomerId", "CustomerId", "customerId"]) ||
       ticketSummary.nCustomerId ||
@@ -761,7 +793,11 @@ const CallReportViewPage = ({
       icon: EngagementMode,
       value:
         worksheetDetails.cCallMode ||
+        worksheetDetails.cCallModeName ||
+        worksheetDetails.cCallreportMode ||
+        worksheetDetails.cCallreportModeName ||
         historySelectedRow.cCallMode ||
+        historySelectedRow.cCallModeName ||
         "-",
     },
     { label: "Contact Person", icon: contact, value: contactPerson },
@@ -788,6 +824,294 @@ const CallReportViewPage = ({
     },
   ];
 
+  const currentCallModeValue =
+    worksheetDetails.cCallMode ||
+    worksheetDetails.cCallModeName ||
+    worksheetDetails.cCallreportMode ||
+    worksheetDetails.cCallreportModeName ||
+    historySelectedRow.cCallMode ||
+    historySelectedRow.cCallModeName ||
+    historySelectedRow.cCallreportMode ||
+    historySelectedRow.cCallreportModeName ||
+    "";
+
+  const worksheetEditTicketValues = useMemo(
+    () => ({
+      ...ticketViewRecord,
+      nTicketId: ticketViewId,
+      TicketId: ticketViewId,
+      ticketId: ticketViewId,
+      nCustomerId: ticketViewCustomerId,
+      CustomerId: ticketViewCustomerId,
+      customerId: ticketViewCustomerId,
+      CustomerName: ticketViewCustomerName,
+      cCustomerName: ticketViewCustomerName,
+      ContactPerson: contactPerson,
+      cContactPerson: contactPerson,
+      ContactNo: ticketViewContactNumber,
+      ContactNumber: ticketViewContactNumber,
+      cContactNumber: ticketViewContactNumber,
+      Email: ticketViewEmail,
+      cEmail: ticketViewEmail,
+      IssueSummary: ticketViewSummary,
+      TicketSummary: ticketViewSummary,
+      cTicketSummary: ticketViewSummary,
+      Description: ticketViewDescription,
+      cDescription: ticketViewDescription,
+      Comment: description,
+      Comments: description,
+      cComment: description,
+      cComments: description,
+      cCallMode: currentCallModeValue,
+      CallMode: currentCallModeValue,
+      cCallModeName: currentCallModeValue,
+      CallModeName: currentCallModeValue,
+      cCallreportMode: currentCallModeValue,
+      CallreportMode: currentCallModeValue,
+      cTicketStatus: ticketViewStatus,
+      TicketStatus: ticketViewStatus,
+      Status: ticketViewStatus,
+      cStatus: ticketViewStatus,
+      nStatusId: ticketSummary.nTicketStatus ?? ticketSummary.TicketStatus ?? state.nTicketStatus ?? 0,
+      StatusId: ticketSummary.nTicketStatus ?? ticketSummary.TicketStatus ?? state.nTicketStatus ?? 0,
+      nTicketStatus:
+        Number(
+          ticketSummary.nTicketStatus ??
+            ticketSummary.TicketStatus ??
+            state.nTicketStatus ??
+            0,
+        ) || 0,
+      ToDo: worksheetDetails.cToDo || callreportSummary.cToDo || "",
+      cToDo: worksheetDetails.cToDo || callreportSummary.cToDo || "",
+      NextFollowupDate:
+        worksheetDetails.dNextFollowupDate ||
+        callreportSummary.dFollowupDate ||
+        ticketViewFollowupDate ||
+        "",
+      dNextFollowupDate:
+        worksheetDetails.dNextFollowupDate ||
+        callreportSummary.dFollowupDate ||
+        ticketViewFollowupDate ||
+        "",
+      OnsiteRequired:
+        worksheetDetails.OnsiteRequired ??
+        worksheetDetails.bOnsiteRequired ??
+        worksheetDetails.bNeedOnsite ??
+        callreportSummary.OnsiteRequired ??
+        callreportSummary.bOnsiteRequired ??
+        callreportSummary.bNeedOnsite ??
+        false,
+      bOnsiteRequired:
+        worksheetDetails.bOnsiteRequired ??
+        worksheetDetails.OnsiteRequired ??
+        false,
+      bNeedOnsite:
+        worksheetDetails.bNeedOnsite ??
+        callreportSummary.bNeedOnsite ??
+        false,
+      attachments: ticketViewAttachments,
+      files: ticketViewAttachments,
+      FollowupDate: ticketViewFollowupDate,
+      nCallReportId: callReportId,
+      CallReportId: callReportId,
+    }),
+    [
+      callReportId,
+      callreportSummary.cToDo,
+      callreportSummary.dFollowupDate,
+      contactPerson,
+      description,
+      historySelectedRow.cCallMode,
+      historySelectedRow.cCallModeName,
+      historySelectedRow.cCallreportMode,
+      historySelectedRow.cCallreportModeName,
+      state.nTicketStatus,
+      ticketSummary.nTicketStatus,
+      ticketSummary.TicketStatus,
+      ticketViewAttachments,
+      ticketViewContactNumber,
+      ticketViewCustomerId,
+      ticketViewEmail,
+      ticketViewId,
+      ticketViewRecord,
+      ticketViewStatus,
+      ticketViewSummary,
+      ticketViewDescription,
+      ticketViewFollowupDate,
+      ticketViewTicketNo,
+      ticketViewCustomerName,
+      currentCallModeValue,
+      worksheetDetails.cCallMode,
+      worksheetDetails.cCallModeName,
+      worksheetDetails.cCallreportMode,
+      worksheetDetails.cCallreportModeName,
+      worksheetDetails.cToDo,
+      worksheetDetails.dNextFollowupDate,
+      worksheetDetails.OnsiteRequired,
+      worksheetDetails.bOnsiteRequired,
+      worksheetDetails.bNeedOnsite,
+      callreportSummary.OnsiteRequired,
+      callreportSummary.bOnsiteRequired,
+      callreportSummary.bNeedOnsite,
+    ],
+  );
+
+  const handleWorksheetEditSaved = () => {
+    void queryClient.invalidateQueries({ queryKey: ["callreport-view"] });
+    void queryClient.invalidateQueries({ queryKey: ["callreport-customer-view"] });
+    setWorksheetEditOpen(false);
+  };
+
+  const buildNoNeedBillPayload = () => ({
+    ...requestPayload,
+    nCallReportId: callReportId,
+    nFollowupId: callReportId,
+    nFollowUpId: callReportId,
+    nWorksheetId: callReportId,
+    WorksheetId: callReportId,
+    bNoNeedBill: true,
+    NoNeedBill: true,
+    IsNoNeedBill: true,
+    bDoNotBill: true,
+    DoNotBill: true,
+  });
+
+  const buildRevertBillPayload = () => ({
+    ...requestPayload,
+    nCallReportId: callReportId,
+    nFollowupId: callReportId,
+    nFollowUpId: callReportId,
+    nWorksheetId: callReportId,
+    WorksheetId: callReportId,
+    bNoNeedBill: false,
+    NoNeedBill: false,
+    IsNoNeedBill: false,
+    bDoNotBill: false,
+    DoNotBill: false,
+  });
+
+  const buildCallReportViewState = () => ({
+    ...viewData,
+    selectedRow:
+      viewData.selectedRow ??
+      historySelectedRow ??
+      callreportSummary ??
+      ticketSummary ??
+      {},
+    nCallReportId: callReportId,
+    nFollowupId: callReportId,
+    nFollowUpId: callReportId,
+    nWorksheetId: callReportId,
+    WorksheetId: callReportId,
+    isFrom: "callreports",
+  });
+
+  const handleDoNotBillClick = () => {
+    Modal.confirm({
+      title: "Do Not Bill",
+      centered: true,
+      content:
+        "This transaction will be marked as 'Do Not Bill.' No charges will be applied. Please verify and proceed accordingly.",
+      okText: "Confirm",
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          await ticketApis.callReportUpdateNoNeedBill(buildNoNeedBillPayload());
+          setIsNoNeedBillMode(true);
+          message.success("Marked as Do Not Bill");
+        } catch (error: any) {
+          message.error(
+            error?.response?.data?.message ||
+              error?.response?.data?.title ||
+              error?.message ||
+              "Unable to update call report billing state",
+          );
+          throw error;
+        }
+      },
+    });
+  };
+
+  const handleRevertBillClick = () => {
+    Modal.confirm({
+      title: "Apply Bill",
+      centered: true,
+      content:
+        "This transaction was previously marked as 'Do Not Bill.' Applying the bill will now charge the customer accordingly. Please verify and proceed accordingly.",
+      okText: "Confirm",
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          await ticketApis.callReportUpdateNoNeedBill(buildRevertBillPayload());
+          setIsNoNeedBillMode(false);
+          void queryClient.invalidateQueries({ queryKey: ["callreport-view"] });
+          message.success("Bill state reverted");
+          const nextViewState = buildCallReportViewState();
+          try {
+            sessionStorage.setItem(
+              "ticket_portal_callreport_view_state",
+              JSON.stringify(nextViewState),
+            );
+          } catch {
+            // best effort only
+          }
+
+          navigate("/callreports/view", {
+            state: nextViewState,
+            replace: true,
+          });
+        } catch (error: any) {
+          message.error(
+            error?.response?.data?.message ||
+              error?.response?.data?.title ||
+              error?.message ||
+              "Unable to revert billing state",
+          );
+          throw error;
+        }
+      },
+    });
+  };
+
+  const handleBillNowClick = () => {
+    const billPreviewState = {
+      customerName: ticketViewCustomerName,
+      customerId: ticketViewCustomerId,
+      ticketNo: ticketViewId || ticketNo,
+      nFollowupId: callReportId,
+      nFollowUpId: callReportId,
+      nWorksheetId: callReportId,
+      WorksheetId: callReportId,
+      nCompanyId: requestPayload.nCompanyId,
+      contactPerson,
+      contactNumber: ticketViewContactNumber,
+      email: ticketViewEmail,
+      summary,
+      partList: extractList(
+        billPartListResponse?.data ?? billPartListResponse ?? billPartList ?? [],
+      ),
+      sessionPayload: {
+        ...requestPayload,
+        nTicketId: ticketViewId,
+        nCustomerId: ticketViewCustomerId,
+        nFollowupId: callReportId,
+        nFollowUpId: callReportId,
+        nWorksheetId: callReportId,
+        WorksheetId: callReportId,
+      },
+      callreportData: viewData,
+    };
+
+    try {
+      sessionStorage.setItem("ticket_portal_bill_preview_state", JSON.stringify(billPreviewState));
+      sessionStorage.setItem("ticket_portal_callreport_view_state", JSON.stringify(viewData));
+    } catch {
+      // best effort only
+    }
+
+    navigate("/billsandreceipts/bills/add", { state: billPreviewState });
+  };
+
   return (
     <div
       className={`flex w-full flex-col ${
@@ -798,7 +1122,7 @@ const CallReportViewPage = ({
         <Spin spinning={isLoading} wrapperClassName="flex flex-col">
           <div className="flex flex-col">
             <div className="sticky top-0 z-30 flex items-center border-b border-slate-200 bg-white">
-              <div className="flex min-w-0 flex-1 items-center overflow-x-auto">
+              <div className="flex min-w-0 flex-1 items-center ">
                 {tabs.map(([key, label]) => (
                   <button
                     key={key}
@@ -898,12 +1222,6 @@ const CallReportViewPage = ({
                       </div>
                     </div>
                   </div>
-
-                  <div className="mt-4 flex justify-end px-1">
-                    <Button type="primary" className="!border-emerald-500 !bg-emerald-500 px-6">
-                      Edit
-                    </Button>
-                  </div>
                 </>
               ) : null}
 
@@ -917,17 +1235,18 @@ const CallReportViewPage = ({
                     showTabs={false}
                     showFilesTab={false}
                     showFilesInDetails={true}
-                    showFollowUpAction={true}
+                    showFollowUpAction={false}
                     showAssetEditIcon={false}
                     ticketNo={ticketViewTicketNo}
                     customerName={ticketViewCustomerName}
                     summary={ticketViewSummary}
-                    description={ticketViewDescription}
-                    createdDate={ticketViewCreatedDate}
-                    priority={ticketViewPriority}
-                    status={ticketViewStatus}
-                   period={ticketViewPeriod}
-                    followupDate={ticketViewFollowupDate}
+                  description={ticketViewDescription}
+                  createdDate={ticketViewCreatedDate}
+                  priority={ticketViewPriority}
+                  ticketAge={ticketViewTicketAge}
+                  status={ticketViewStatus}
+                  period={ticketViewPeriod}
+                  followupDate={ticketViewFollowupDate}
                     address={ticketViewAddress}
                     assetName={ticketViewAssetName}
                     source={ticketViewSource}
@@ -1011,6 +1330,7 @@ const CallReportViewPage = ({
                   description={ticketViewDescription}
                   createdDate={ticketViewCreatedDate}
                   priority={ticketViewPriority}
+                  ticketAge={ticketViewTicketAge}
                   period={ticketViewPeriod}
                   status={ticketViewStatus}
                   followupDate={ticketViewFollowupDate}
@@ -1069,7 +1389,61 @@ const CallReportViewPage = ({
           </div>
         </div>
       ) : null}
-    </div>
+
+      {activeTab === "callreport" ? (
+        <div className="mt-auto flex justify-end gap-3 px-6 -mb-165 pt-3">
+          {isUnbilledContext ? (
+            <>
+              {isNoNeedBillMode ? (
+                <Button danger ghost className="px-4" onClick={handleRevertBillClick}>
+                  Revert To Bill
+                </Button>
+              ) : (
+                <Button danger ghost className="px-4" onClick={handleDoNotBillClick}>
+                  Do Not Bill
+                </Button>
+              )}
+              <Button
+                type="primary"
+                className="!border-emerald-500 !bg-emerald-500 px-6"
+                onClick={() => setWorksheetEditOpen(true)}
+              >
+                Edit
+              </Button>
+              {!isNoNeedBillMode ? (
+                <Button
+                  type="primary"
+                  className="!border-emerald-500 !bg-emerald-500 px-6"
+                  onClick={handleBillNowClick}
+                >
+                  Bill Now
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <Button
+              type="primary"
+              className="!border-emerald-500 !bg-emerald-500 px-6"
+              onClick={() => setWorksheetEditOpen(true)}
+            >
+              Edit
+            </Button>
+          )}
+        </div>
+      ) : null}
+
+      <QuickCallReportModal
+        open={worksheetEditOpen}
+        onClose={() => setWorksheetEditOpen(false)}
+        ticketId={ticketViewId}
+        ticketValues={worksheetEditTicketValues}
+      selectedCustomerName={ticketViewCustomerName}
+      sessionPayload={requestPayload}
+      skipAmcWarningOnSave
+      drawerWidth={560}
+      onSaved={handleWorksheetEditSaved}
+    />
+  </div>
   );
 };
 

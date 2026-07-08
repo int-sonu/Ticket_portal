@@ -18,11 +18,19 @@ import calenderiCon from "../../../assets/icons/calenderiCon.svg";
 
 dayjs.extend(customParseFormat);
 
-const DISPLAY_FORMAT = "DD/MM/YYYY hh:mm A";
+const DISPLAY_FORMAT = "DD/MM/YYYY";
 const PARSE_FORMATS = [
   DISPLAY_FORMAT,
+  "DD/MM/YYYY HH:mm:ss",
+  "DD/MM/YYYY HH:mm",
+  "DD/MM/YYYY h:mm A",
+  "DD/MM/YYYY hh:mm A",
+  "DD/MM/YYYY, HH:mm:ss",
+  "DD/MM/YYYY, hh:mm A",
   "YYYY-MM-DD HH:mm:ss",
+  "YYYY-MM-DD HH:mm",
   "YYYY-MM-DDTHH:mm:ss",
+  "YYYY-MM-DDTHH:mm",
   "YYYY-MM-DD HH:mm",
   "YYYY-MM-DD",
 ];
@@ -44,16 +52,39 @@ const parseValue = (value?: Dayjs | string | null) => {
   }
 
   if (typeof value === "string") {
+    const cleaned = value.trim().replace(/,/g, "");
+
     for (const format of PARSE_FORMATS) {
-      const parsed = dayjs(value, format, true);
+      const parsed = dayjs(cleaned, format, true);
       if (parsed.isValid()) return parsed;
     }
 
-    const fallback = dayjs(value);
+    const fallback = dayjs(cleaned);
     if (fallback.isValid()) return fallback;
   }
 
   return null;
+};
+
+const formatDisplayFromRaw = (value?: Dayjs | string | null) => {
+  const parsed = parseValue(value);
+  if (parsed) return parsed.format(DISPLAY_FORMAT);
+
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const dateMatch = raw.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/);
+  if (!dateMatch) return raw;
+
+  const parts = dateMatch[1].replace(/-/g, "/").split("/");
+  if (parts.length !== 3) return dateMatch[1];
+
+  const [first, second, third] = parts;
+  const day = first.padStart(2, "0");
+  const month = second.padStart(2, "0");
+  const year = third.length === 2 ? `20${third}` : third;
+
+  return `${day}/${month}/${year}`;
 };
 
 const clampMinute = (minute: number) =>
@@ -101,9 +132,9 @@ const FollowupDateTimePicker = ({
   }, [selectedValue]);
 
   const activeValue = selectedValue ?? draftValue ?? dayjs().startOf("day");
-  const displayValue = selectedValue
-    ? selectedValue.format(DISPLAY_FORMAT)
-    : "";
+  const displayValue = selectedValue ? selectedValue.format(DISPLAY_FORMAT) : "";
+  const fallbackDisplayValue = formatDisplayFromRaw(value);
+  const visibleValue = displayValue || fallbackDisplayValue;
 
   const updateValue = (next: Dayjs) => {
     onChange?.(next);
@@ -169,6 +200,7 @@ const FollowupDateTimePicker = ({
   const days = Array.from({ length: 42 }, (_, index) =>
     startOfGrid.add(index, "day")
   );
+  const todayStart = dayjs().startOf("day");
 
   return (
     <Popover
@@ -186,7 +218,7 @@ const FollowupDateTimePicker = ({
       getPopupContainer={() => document.body}
       overlayClassName="followup-datetime-popover"
       content={
-        <div className="followup-date-picker">
+          <div className="followup-date-picker followup-date-picker--compact">
           <div className="followup-date-picker-header">
             <div className="followup-date-picker-group">
               <button
@@ -241,6 +273,8 @@ const FollowupDateTimePicker = ({
                 ? day.isSame(selectedValue, "day")
                 : false;
               const isToday = day.isSame(dayjs(), "day");
+              const isPastDay = day.isBefore(todayStart, "day");
+              const isDisabled = isPastDay;
 
               return (
                 <button
@@ -248,12 +282,17 @@ const FollowupDateTimePicker = ({
                   type="button"
                   className={[
                     "followup-day",
+                    isDisabled ? "is-disabled" : "",
                     isSelected ? "is-selected" : "",
                     isToday ? "is-today" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  onClick={() => handleDayClick(day)}
+                  onClick={() => {
+                    if (isDisabled) return;
+                    handleDayClick(day);
+                  }}
+                  disabled={isDisabled}
                 >
                   <span>{day.date()}</span>
                 </button>
@@ -422,7 +461,7 @@ const FollowupDateTimePicker = ({
       >
         <Input
           readOnly
-          value={displayValue}
+          value={visibleValue}
           placeholder="Select follow up date & time"
           suffix={<img src={calenderiCon} alt="calendar" />}
           className="followup-date-input pointer-events-none"

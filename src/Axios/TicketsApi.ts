@@ -388,6 +388,19 @@ export const ticketApis = {
     return response.data;
   },
 
+  callReportUpdateNoNeedBill: async (
+    payload: TicketPayload
+  ) => {
+    const response = await sendWithMethodFallback(
+      "post",
+      "/Api/V1/CallReport/CallReportUpdateNoNeedBill",
+      payload,
+      ["put"]
+    );
+
+    return response.data;
+  },
+
   callreportView: async (
     payload: TicketPayload
   ) => {

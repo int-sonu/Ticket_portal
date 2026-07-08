@@ -16,6 +16,7 @@ import MainLayout from "../layouts/MainLayout";
 
 import Dashboard from "../Pages/Dashboard/Dashboard";
 import DashboardCallReport from "../Pages/CallReport/CallReport";
+import UnbilledCallReportPage from "../Pages/CallReport/UnbilledCallReportPage";
 import CallReportViewPage from "../Pages/CallReport/CallReportViewPage";
 import TicketView from "../Pages/Ticket/TicketView/TicketView";
 
@@ -46,6 +47,8 @@ import AssignAgentTickets from "../Pages/Ticket/AssignAgentTickets/AssignAgentTi
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
 import BillPreviewPage from "../Pages/Bills/BillPreviewPage";
+import BillsListPage from "../Pages/Bills/BillsListPage";
+import ReceiptsListPage from "../Pages/Bills/ReceiptsListPage";
 import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
 import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
@@ -74,8 +77,12 @@ const Routes: React.FC = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/callreports" element={<DashboardCallReport />} />
             <Route
+              path="/billed-callreports"
+              element={<DashboardCallReport initialTab="BILLED" />}
+            />
+            <Route
               path="/unbilled-callreports"
-              element={<DashboardCallReport initialTab="UNBILLED" />}
+              element={<UnbilledCallReportPage />}
             />
             
             <Route path="/callreports/view" element={<CallReportViewPage />} />
@@ -191,7 +198,14 @@ const Routes: React.FC = () => {
               path="/billsandreceipts/bills/add"
               element={<BillPreviewPage />}
             />
+            <Route
+              path="/billsandreceipts/bills/edit"
+              element={<BillPreviewPage />}
+            />
+            <Route path="/bills" element={<BillsListPage />} />
+            <Route path="/receipts" element={<ReceiptsListPage />} />
             <Route path="/bills/add" element={<BillPreviewPage />} />
+            <Route path="/bills/edit" element={<BillPreviewPage />} />
           </Route>
 
           <Route path="/estimate-invoice" element={<EstimatePdfViewer />} />

@@ -1705,11 +1705,15 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   justify-content: center;
 }
 
+.followup-date-picker--compact {
+  width: 280px;
+}
+
 .followup-date-picker-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px 6px;
+  padding: 6px 10px 4px;
   border-bottom: 1px solid #e5e7eb;
   background: #ffffff;
 }
@@ -1725,17 +1729,17 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .followup-header-value {
-  min-width: 74px;
+  min-width: 60px;
   text-align: center;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: #111827;
   line-height: 1;
 }
 
 .followup-nav-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: 1px solid #cbd5e1;
   border-radius: 999px;
   background: #ffffff;
@@ -1754,10 +1758,10 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .followup-weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  padding: 8px 12px 4px;
+  gap: 2px;
+  padding: 6px 8px 3px;
   color: #475569;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0.04em;
@@ -1770,13 +1774,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 .followup-days-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px 4px;
-  padding: 0 10px 6px;
+  gap: 1px 2px;
+  padding: 0 8px 4px;
 }
 
 .followup-day {
   width: 100%;
-  min-height: 32px;
+  min-height: 26px;
   border: 0;
   background: transparent;
   display: flex;
@@ -1788,13 +1792,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .followup-day span {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 11px;
   transition:
     background-color 0.15s ease,
     color 0.15s ease,
@@ -1812,10 +1816,15 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
 .followup-day.is-disabled {
   cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .followup-day:not(.is-disabled):hover span {
   background: rgba(16, 185, 129, 0.12);
+}
+
+.followup-day.is-disabled:hover span {
+  background: transparent;
 }
 
 .followup-day.is-selected span {
@@ -1840,15 +1849,15 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   border-top: 1px solid #e5e7eb;
   background: #dbeafe;
   color: #0f172a;
-  padding: 10px 12px;
+  padding: 8px 10px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .followup-time-toggle-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 500;
   color: #0f172a;
 }
@@ -1863,13 +1872,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
 .followup-time-panel {
   background: #ffffff;
-  padding: 6px 6px 8px;
+  padding: 4px 4px 6px;
 }
 
 .followup-time-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .followup-time-field {
@@ -1879,20 +1888,20 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .followup-time-input {
-  width: 100px !important;
-  height: 65px !important;
+  width: 82px !important;
+  height: 56px !important;
   border-radius: 8px !important;
   background: #53a6f0 !important;
   border: 0 !important;
 }
 
 .followup-time-input .ant-input-number-input {
-  height: 60px !important;
+  height: 50px !important;
   text-align: center;
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 700;
   color: #ffffff;
-  padding: 0 12px !important;
+  padding: 0 8px !important;
 }
 
 .followup-time-input .ant-input-number-input-wrap {
@@ -1910,13 +1919,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 .followup-time-step {
   pointer-events: auto;
   width: 100%;
-  height: 18px;
+  height: 16px;
   border: 0;
   background: transparent;
   color: rgba(255, 255, 255, 0.98);
@@ -1935,7 +1944,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
 .followup-time-dot {
   color: #cbd5e1;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1;
   align-self: center;
@@ -1948,15 +1957,15 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .followup-meridiem-btn {
-  width: 34px;
-  height: 30px;
+  width: 30px;
+  height: 26px;
   border-radius: 8px;
   border: 1px solid #60a5fa;
   background: #ffffff;
   color: #0f172a;
   gap: 8px;
   padding: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }

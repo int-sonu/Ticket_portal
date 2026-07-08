@@ -392,7 +392,7 @@ export const followupApis = {
   followupActiveList: async (payload: FollowupPayload) => {
     const response = await axiosInstance
       .post(
-        '/Api/V1/CallreportMode/CallreportmodeActiveList',
+        '/Api/V1/CallreportMode/CallreportModeActiveList',
         payload
       )
       .catch((error) => {

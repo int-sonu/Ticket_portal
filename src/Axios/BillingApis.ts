@@ -1,10 +1,93 @@
 import axiosInstance from "./axios";
 
+const formatDate = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeBillListPayload = (payload: Record<string, any> = {}) => {
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  return {
+    ...payload,
+    dFromDate: payload?.dFromDate ?? payload?.cFromDate ?? formatDate(firstDayOfMonth),
+    dToDate: payload?.dToDate ?? payload?.cToDate ?? formatDate(today),
+    cFromDate: payload?.cFromDate ?? payload?.dFromDate ?? formatDate(firstDayOfMonth),
+    cToDate: payload?.cToDate ?? payload?.dToDate ?? formatDate(today),
+  };
+};
+
+const normalizeReceiptListPayload = (payload: Record<string, any> = {}) => {
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  return {
+    ...payload,
+    dFromDate: payload?.dFromDate ?? payload?.cFromDate ?? formatDate(firstDayOfMonth),
+    dToDate: payload?.dToDate ?? payload?.cToDate ?? formatDate(today),
+    cFromDate: payload?.cFromDate ?? payload?.dFromDate ?? formatDate(firstDayOfMonth),
+    cToDate: payload?.cToDate ?? payload?.dToDate ?? formatDate(today),
+  };
+};
+
+const normalizeBillDeletePayload = (payload: Record<string, any> = {}) => {
+  const billId =
+    payload?.nBillId ?? payload?.BillId ?? payload?.billId ?? payload?.id ?? 0;
+  const createdBy =
+    payload?.nCreatedby ??
+    payload?.nCreatedBy ??
+    payload?.id ??
+    payload?.nAgentId ??
+    payload?.createdBy ??
+    0;
+
+  return {
+    cDbName: payload?.cDbName,
+    cSchemaName: payload?.cSchemaName,
+    nCompanyId: payload?.nCompanyId,
+    nBillId: Number(billId) || 0,
+    nCreatedby: Number(createdBy) || 0,
+  };
+};
+
 export const billingApis = {
   billView: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Billing/BillView",
       payload,
+    );
+
+    return response.data;
+  },
+
+  billList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Billing/BillList",
+      normalizeBillListPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  billDelete: async (payload: any) => {
+    const response = await axiosInstance.delete(
+      "/Api/V1/Billing/BillDelete",
+      {
+        data: normalizeBillDeletePayload(payload),
+      },
+    );
+
+    return response.data;
+  },
+
+  receiptList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Receipt/ReceiptList",
+      normalizeReceiptListPayload(payload),
     );
 
     return response.data;

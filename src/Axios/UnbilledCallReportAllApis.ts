@@ -23,7 +23,7 @@ const normalizeCallReportListPayload = (payload: Record<string, any> = {}) => {
 export const unbilledCallReportApis = {
   unbilledCallReportList: async (payload: Record<string, any>) => {
     const response = await axiosInstance.post(
-      "/Api/V1/CallReport/UnBilledCallreportList",
+      "/Api/V1/CallReport/UnBilledCallreportListAll",
       normalizeCallReportListPayload(payload),
     );
 

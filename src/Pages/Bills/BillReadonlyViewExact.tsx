@@ -230,6 +230,29 @@ const collectBillIds = (value: any) => {
   visit(value);
   return ids;
 };
+
+const getBillPdfUrl = (response: any) => {
+  const responseData = response?.data ?? response ?? {};
+  const candidates = [
+    responseData?.data?.pdfPath,
+    responseData?.data?.cPdfPath,
+    responseData?.data?.filePath,
+    responseData?.data?.path,
+    responseData?.data?.pdfUri,
+    responseData?.data?.pdfUrl,
+    responseData?.data?.url,
+    responseData?.pdfPath,
+    responseData?.cPdfPath,
+    responseData?.filePath,
+    responseData?.path,
+    responseData?.pdfUri,
+    responseData?.pdfUrl,
+    responseData?.url,
+  ];
+
+  const match = candidates.find((item) => typeof item === "string" && item.trim());
+  return typeof match === "string" ? match.trim() : "";
+};
 const getFirstValue = (record: Record<string, any>, keys: string[]) => {
   for (const key of keys) {
     const value = record?.[key];
@@ -388,6 +411,9 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
 }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printPdfUrl, setPrintPdfUrl] = useState("");
   const storedCredentials = safeParse(localStorage.getItem("userCredentials"));
   const sessionPayload = useMemo(() => getRequestPayload(), []);
   const companyDetails = normalizeSingleRecord(
@@ -705,6 +731,90 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
     ],
   );
 
+  const handlePrintBill = async () => {
+    if (isPrinting) return;
+
+    const companyId = Number(companyDetailsPayload.nCompanyId ?? 0) || 0;
+    const schemaName = String(companyDetailsPayload.cSchemaName ?? "").trim();
+    const dbName = String(companyDetailsPayload.cDbName ?? "").trim();
+
+    if (!companyId || !schemaName || !dbName) {
+      return;
+    }
+
+    const billIdToExport = billId;
+    if (!billIdToExport) {
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      const configResponse = await billingApis.getConfiguration({
+        ...sessionPayload,
+        ...companyDetailsPayload,
+      });
+      const configuration = normalizeSingleRecord(
+        configResponse?.data?.data ?? configResponse?.data ?? configResponse ?? {},
+      );
+
+      const exportPayload = {
+        ...sessionPayload,
+        ...companyDetailsPayload,
+        ...billShareContext,
+        nCompanyId: companyId,
+        cSchemaName: schemaName,
+        cDbName: dbName,
+        nBillId: billIdToExport,
+        BillId: billIdToExport,
+        billId: billIdToExport,
+        cCompanyName:
+          billShareContext.companyName ??
+          configuration?.cCompanyName ??
+          configuration?.companyName ??
+          "",
+        cAddress:
+          billShareContext.companyAddress ??
+          configuration?.cAddress ??
+          configuration?.address ??
+          "",
+        cEmail:
+          billShareContext.companyEmail ??
+          configuration?.cEmail ??
+          configuration?.email ??
+          "",
+        cPhoneNo:
+          billShareContext.companyPhone ??
+          configuration?.cPhoneNo ??
+          configuration?.phoneNo ??
+          "",
+        nBillNo: billShareContext.billNo ?? "",
+        cBillNo: billShareContext.billNo ?? "",
+        customerName: billShareContext.customerName ?? "",
+        cCustomerName: billShareContext.customerName ?? "",
+        billSummary: billShareContext.billSummary ?? {},
+        ticketSummary: billShareContext.ticketSummary ?? {},
+        itemDtls: billShareContext.rows ?? [],
+        payDtls: billShareContext.payDtls ?? [],
+        totals: billShareContext.totals ?? {},
+      };
+
+      const exportResponse = await billingApis.billExportPdf(exportPayload);
+      const pdfUrl = getBillPdfUrl(exportResponse);
+
+      if (!pdfUrl) {
+        return;
+      }
+
+      const finalUrl = ensureAbsoluteUrl(pdfUrl);
+      setPrintPdfUrl(finalUrl);
+      setPrintModalOpen(true);
+    } catch (error) {
+      console.error("Failed to export bill PDF", error);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-4">
@@ -843,6 +953,10 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                 type="button"
                 className="flex h-9 w-9 items-center justify-center  hover:bg-slate-50"
                 aria-label="Print bill"
+                onClick={() => {
+                  void handlePrintBill();
+                }}
+                disabled={isPrinting}
               >
                 <img
                   src={printIcon}
@@ -1022,6 +1136,43 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {printModalOpen ? (
+        <div className="fixed inset-0 z-[1350] flex items-center justify-center bg-black/40 p-3">
+          <div className="flex h-[90vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div className="text-[18px] font-semibold text-slate-900">
+                Bill Print Preview
+              </div>
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
+                aria-label="Close print preview"
+                onClick={() => {
+                  setPrintModalOpen(false);
+                  setPrintPdfUrl("");
+                }}
+              >
+                <img src={closeblack} alt="" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 bg-slate-100 p-3">
+              {printPdfUrl ? (
+                <iframe
+                  title="Bill Print Preview"
+                  src={printPdfUrl}
+                  className="h-full w-full rounded-md border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                  Loading PDF preview...
+                </div>
+              )}
             </div>
           </div>
         </div>
