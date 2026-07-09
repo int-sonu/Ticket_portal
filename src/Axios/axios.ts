@@ -7,6 +7,14 @@ const axiosInstance = axios.create({
   },
 });
 
+const normalizeBasePath = (apiBaseUrl: string) => {
+  try {
+    return new URL(apiBaseUrl).pathname.replace(/\/$/, '') || '/';
+  } catch {
+    return apiBaseUrl.replace(/\/$/, '');
+  }
+};
+
 // Add a request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
@@ -14,10 +22,12 @@ axiosInstance.interceptors.request.use(
       // Dynamically get the loaded configuration
       const appConfig = getConfig();
       
-      // We manually construct the full URL to avoid Axios baseURL resolution quirks
-      // especially when API_BASE_URL contains paths like /Api/V1
+      // In dev, route requests through the Vite proxy so the browser sees same-origin calls.
+      // In production, keep the configured absolute API URL.
       if (appConfig.API_BASE_URL && config.url && !config.url.startsWith('http')) {
-        const base = appConfig.API_BASE_URL.replace(/\/$/, '');
+        const base = import.meta.env.DEV
+          ? normalizeBasePath(appConfig.API_BASE_URL)
+          : appConfig.API_BASE_URL.replace(/\/$/, '');
         
         // Remove /Api/V1 from the start of the request URL if it was already included
         let path = config.url.replace(/^\//, '');

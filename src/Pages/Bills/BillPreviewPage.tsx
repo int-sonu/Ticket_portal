@@ -391,8 +391,10 @@ const BillPreviewPage: React.FC = () => {
       return {};
     }
   }, [location.state]);
+  const isCallReportBill = billData.sourcePage === "callreports";
   const isEditMode = Boolean(
-    billData.isEditMode || billData.sourcePage === "bills" || billData.billId || billData.nBillId,
+    !isCallReportBill &&
+      (billData.isEditMode || billData.sourcePage === "bills" || billData.billId || billData.nBillId),
   );
   const editingBillId = Number(billData.billId ?? billData.nBillId ?? 0) || 0;
 
@@ -914,7 +916,7 @@ const BillPreviewPage: React.FC = () => {
         // best effort only
       }
 
-      if (billData.sourcePage === "bills" || isEditMode) {
+      if (billData.sourcePage === "bills" || isEditMode || isCallReportBill) {
         navigate("/bills", { replace: true });
       } else {
         navigate("/callreports/view", {
@@ -1363,7 +1365,7 @@ const BillPreviewPage: React.FC = () => {
     formatDisplayValue(
       getFirstValue(editBillSummary, ["cCustomerAddress", "CustomerAddress", "Address", "cAddress"]),
     ) || "NIL";
-  const canEditBillItems = !isEditMode;
+  const canEditBillItems = !isEditMode || isCallReportBill;
 
   return (
     <div className="flex min-h-screen flex-col bg-white">

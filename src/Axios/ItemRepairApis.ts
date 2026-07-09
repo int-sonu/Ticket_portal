@@ -4,11 +4,48 @@ export interface ItemRepairPayload {
   [key: string]: any;
 }
 
+const normalizeAssignedItemRepairPayload = (payload: ItemRepairPayload = {}) => {
+  const creatorId =
+    payload?.nCreatedBy ??
+    payload?.nCreatedby ??
+    payload?.createdBy ??
+    payload?.creatorId ??
+    payload?.id ??
+    payload?.nAgentId ??
+    0;
+
+  return {
+    ...payload,
+    nCreatedBy: Number(creatorId) || 0,
+    nCreatedby: Number(creatorId) || 0,
+    createdBy: Number(creatorId) || 0,
+    creatorId: Number(creatorId) || 0,
+  };
+};
+
 export const itemRepairApis = {
   repairItemActivityList: async (payload: ItemRepairPayload) => {
     const response = await axiosInstance.post(
-      "/Api/V1/ItemRepair/RepairItemActivityList",
-      payload
+      "/Api/V1/ItemRepair/AssignedItemRepairListByCreator",
+      normalizeAssignedItemRepairPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  repairItemFinishedList: async (payload: ItemRepairPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/ItemRepair/AssignedItemRepairFinishedListByCreator",
+      normalizeAssignedItemRepairPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  unassignedItemRepairList: async (payload: ItemRepairPayload) => {
+    const response = await axiosInstance.post(
+      "http://postgresqlticketapi.ortezerp.in/Api/V1/ItemRepair/UnassignedItemRepairList",
+      normalizeAssignedItemRepairPayload(payload),
     );
 
     return response.data;

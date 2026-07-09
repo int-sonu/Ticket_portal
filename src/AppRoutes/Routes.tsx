@@ -17,6 +17,7 @@ import MainLayout from "../layouts/MainLayout";
 import Dashboard from "../Pages/Dashboard/Dashboard";
 import DashboardCallReport from "../Pages/CallReport/CallReport";
 import UnbilledCallReportPage from "../Pages/CallReport/UnbilledCallReportPage";
+import BillingCustomerCallReportPage from "../Pages/CallReport/BillingCustomerCallReportPage";
 import CallReportViewPage from "../Pages/CallReport/CallReportViewPage";
 import TicketView from "../Pages/Ticket/TicketView/TicketView";
 
@@ -47,8 +48,11 @@ import AssignAgentTickets from "../Pages/Ticket/AssignAgentTickets/AssignAgentTi
 import TicketHistory from "../Pages/Ticket/TicketHistory/TicketHistory";
 import TicketFollowUp from "../Pages/Ticket/TicketFollowUp/TicketFollowUp";
 import BillPreviewPage from "../Pages/Bills/BillPreviewPage";
+import BillViewPage from "../Pages/Bills/BillViewPage";
 import BillsListPage from "../Pages/Bills/BillsListPage";
 import ReceiptsListPage from "../Pages/Bills/ReceiptsListPage";
+import AssignedItemRepairPage from "../Pages/ItemRepair/AssignedItemRepairPage";
+import PendingItemRepairPage from "../Pages/ItemRepair/PendingItemRepairPage";
 import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
 import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
@@ -175,6 +179,14 @@ const Routes: React.FC = () => {
             <Route path="/tickets/view" element={<TicketView />} />
 
             <Route path="/tickets/view/:id" element={<TicketView />} />
+            <Route
+              path="/itemrepair/assignitemforrepair/itemforrepairview"
+              element={<TicketView />}
+            />
+            <Route
+              path="/itemrepair/assignitemforrepair/itemforrepairview/:id"
+              element={<TicketView />}
+            />
 
             <Route path="/tickets/merge" element={<MergeTicketsPage />} />
 
@@ -199,13 +211,25 @@ const Routes: React.FC = () => {
               element={<BillPreviewPage />}
             />
             <Route
+              path="/billsandreceipts/bill/view"
+              element={<BillViewPage />}
+            />
+            <Route
+              path="/billsandreceipts/bills/customercallreport"
+              element={<BillingCustomerCallReportPage />}
+            />
+            <Route
               path="/billsandreceipts/bills/edit"
               element={<BillPreviewPage />}
             />
+            <Route path="/billsandreceipts/bills" element={<BillsListPage />} />
             <Route path="/bills" element={<BillsListPage />} />
             <Route path="/receipts" element={<ReceiptsListPage />} />
             <Route path="/bills/add" element={<BillPreviewPage />} />
             <Route path="/bills/edit" element={<BillPreviewPage />} />
+            <Route path="/item-repair/assign" element={<AssignedItemRepairPage />} />
+            <Route path="/item-repair/assigned" element={<AssignedItemRepairPage />} />
+            <Route path="/item-repair/pending" element={<PendingItemRepairPage />} />
           </Route>
 
           <Route path="/estimate-invoice" element={<EstimatePdfViewer />} />

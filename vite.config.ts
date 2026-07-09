@@ -13,4 +13,13 @@ export default defineConfig({
     tailwindcss(),
     nodePolyfills(),
   ],
+  server: {
+    proxy: {
+      '/Api': {
+        target: 'https://postgresqlticketapi.ortezerp.in',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
 })

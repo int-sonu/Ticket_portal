@@ -264,6 +264,17 @@ export const useRepairItemActivityList = (
   });
 };
 
+export const useRepairItemFinishedList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["repair-item-finished-list", payload],
+    queryFn: () => itemRepairApis.repairItemFinishedList(payload),
+    enabled,
+  });
+};
+
 // ============================
 // ASSIGN AGENT
 // ============================

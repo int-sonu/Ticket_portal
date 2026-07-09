@@ -14,6 +14,15 @@ export const useGetVendors = (payload: any) => {
   });
 };
 
+export const useGetVendorDropdown = (payload: any, enabled = true) => {
+  return useQuery({
+    queryKey: ["vendor-dropdown", payload],
+
+    queryFn: () => vendorApis.vendorDropDown(payload),
+    enabled: enabled && !!payload,
+  });
+};
+
 // ============================
 // SAVE
 // ============================

@@ -29,12 +29,15 @@ import sendIcon from "../../../assets/icons/sendIcon.svg";
 import mergeIcon from "../../../assets/icons/mergeIcon.svg";
 import calendarIcon from "../../../assets/icons/calenderiCon.svg";
 import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
+import { useGetAgentDropdown } from "../../Master/Agent/Hooks";
 import {
   useGetCustomerAlternativeContacts,
   useGetCustomerAssetDepartments,
   useGetCustomerBrandOptions,
   useGetCustomerWiseAssets,
 } from "../../Master/CustomerMaster/Hooks";
+import { useGetParts } from "../../Master/Parts/Hooks";
+import { useGetVendorDropdown } from "../../Master/VendorMaster/Hooks";
 import { useGetStatuses } from "../../Master/StatusMaster/Hooks";
 import TransferTicketModal from "../Common/TransferTicketModal";
 import ShareInfoModal from "../Common/ShareInfoModal";
@@ -926,6 +929,7 @@ const TicketView = () => {
 
   const state = (location.state as TicketViewState | null) ?? {};
   const selectedRow = state.selectedRow ?? state.savedTicketRecord ?? {};
+  const isItemRepairContext = state.isFrom === "item-repair";
   const isFollowupPage = location.pathname
     .toLowerCase()
     .includes("/tickets/followup/");
@@ -956,6 +960,9 @@ const TicketView = () => {
       ? state.activeTab
       : "details",
   );
+  const [repairPanelTab, setRepairPanelTab] = useState<
+    "activity" | "callReports"
+  >("activity");
   const [quickCallOpen, setQuickCallOpen] = useState(
     Boolean(state.openQuickCall),
   );
@@ -1155,6 +1162,14 @@ const TicketView = () => {
     }
   }, [ticketId]);
   const supportSessionPayload = useMemo(() => getRequestPayload(), []);
+  const repairSupportPayload = useMemo(
+    () => ({
+      ...supportSessionPayload,
+      pageNumber: 1,
+      pageSize: 1000,
+    }),
+    [supportSessionPayload],
+  );
 
   const payload = useMemo(
     () => ({
@@ -1336,7 +1351,19 @@ const TicketView = () => {
     assignAgentPayload,
     !!groupId,
   );
-  useRepairItemActivityList(repairItemPayload, !!ticketId);
+  const { data: repairAgentDropdownData } = useGetAgentDropdown(
+    repairSupportPayload,
+    isItemRepairContext,
+  );
+  const { data: repairVendorDropdownData } = useGetVendorDropdown(
+    repairSupportPayload,
+    isItemRepairContext,
+  );
+  const { data: repairPartsData } = useGetParts(
+    repairSupportPayload,
+    isItemRepairContext,
+  );
+  useRepairItemActivityList(repairItemPayload, !!ticketId && isItemRepairContext);
   const { data: ticketHistoryData } = useTicketHistory(
     historyPayload,
     !!ticketId && !!supportSessionPayload.nCompanyId,
@@ -1419,6 +1446,18 @@ const TicketView = () => {
         };
       }),
     [assignAgentListData],
+  );
+  const repairAgentDropdownOptions = useMemo(
+    () => extractList(repairAgentDropdownData),
+    [repairAgentDropdownData],
+  );
+  const repairVendorDropdownOptions = useMemo(
+    () => extractList(repairVendorDropdownData),
+    [repairVendorDropdownData],
+  );
+  const repairPartsOptions = useMemo(
+    () => extractList(repairPartsData),
+    [repairPartsData],
   );
   const historyItems = useMemo(
     () => extractList(ticketHistoryData),
@@ -1678,9 +1717,35 @@ const TicketView = () => {
         ? [{ label: "Scheduled on", value: scheduledOn, icon: calendarIcon }]
         : [];
 
-      return rows.filter((item) => String(item.value ?? "").trim() !== "");
+      const repairRows =
+        state.isFrom === "item-repair"
+          ? [
+              {
+                label: "Repair Vendors",
+                value: String(repairVendorDropdownOptions.length || 0),
+              },
+              {
+                label: "Repair Agents",
+                value: String(repairAgentDropdownOptions.length || 0),
+              },
+              {
+                label: "Repair Parts",
+                value: String(repairPartsOptions.length || 0),
+              },
+            ]
+          : [];
+
+      return [...rows, ...repairRows].filter((item) => String(item.value ?? "").trim() !== "");
     },
-    [isFollowupPage, resolvedRecord, scheduledOn],
+    [
+      isFollowupPage,
+      repairAgentDropdownOptions.length,
+      repairPartsOptions.length,
+      repairVendorDropdownOptions.length,
+      resolvedRecord,
+      scheduledOn,
+      state.isFrom,
+    ],
   );
   const selectedAssetName = displayAssetName || assetName || "+Add Asset";
   const assetModalDepartments = useMemo(() => {

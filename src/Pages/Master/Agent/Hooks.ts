@@ -32,11 +32,11 @@ export const useGetAgentDetails = (payload: AgentPayload) => {
   });
 };
 
-export const useGetAgentDropdown = (payload: AgentPayload) => {
+export const useGetAgentDropdown = (payload: AgentPayload, enabled = true) => {
   return useQuery({
     queryKey: AGENT_KEYS.dropdown(JSON.stringify(payload)),
     queryFn: () => agentApis.agentDropDown(payload),
-    enabled: !!payload,
+    enabled: enabled && !!payload,
   });
 };
 

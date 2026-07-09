@@ -1543,6 +1543,17 @@ export const vendorApis = {
     return response.data;
   },
 
+  vendorDropDown: async (
+    payload: any
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Vendor/VendorDropDown",
+      payload
+    );
+
+    return response.data;
+  },
+
   vendorSave: async (
     payload: any
   ) => {

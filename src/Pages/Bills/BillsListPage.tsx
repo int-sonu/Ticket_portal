@@ -8,6 +8,8 @@ import { billingApis } from "../../Axios/BillingApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
+import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
+import CustomerPickerModal from "../Ticket/TicketCreate/CustomerPickerModal";
 import editIcon from "../../assets/icons/edit-black.svg";
 import deleteRed from "../../assets/icons/delete-red.svg";
 
@@ -176,11 +178,21 @@ const BillsListPage = () => {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isAddBillModalOpen, setIsAddBillModalOpen] = useState(false);
+  const { data: customerDropdownData } = useGetCustomerDropDown({
+    ...payload,
+    pageNumber: 1,
+    pageSize: 1000,
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["bill-list", payload],
     queryFn: () => billingApis.billList(payload),
   });
+  const customers = useMemo(
+    () => extractList(customerDropdownData),
+    [customerDropdownData],
+  );
 
   const sourceRows = useMemo(() => extractBillRows(data), [data]);
 
@@ -234,6 +246,19 @@ const BillsListPage = () => {
     });
   };
 
+  const handleViewBill = (row: (typeof tableRows)[number]) => {
+    navigate("/billsandreceipts/bill/view", {
+      state: {
+        billId: row.billId,
+        nBillId: row.billId,
+        billNo: row.billNo,
+        billData: row.raw,
+        sessionPayload: payload,
+        sourcePage: "bills",
+      },
+    });
+  };
+
   const handleDeleteBill = async (row: (typeof tableRows)[number]) => {
     const billId = row.billId;
     if (!billId) {
@@ -248,7 +273,7 @@ const BillsListPage = () => {
       const response = await billingApis.billDelete({
         ...payload,
         nBillId: billId,
-        nCreatedby: payload?.nCreatedBy ?? payload?.id ?? payload?.nAgentId ?? 0,
+        nCreatedby: payload?.id ?? payload?.nAgentId ?? 0,
       });
       message.success(response?.message || "Bill deleted successfully.");
       void queryClient.invalidateQueries({ queryKey: ["bill-list"] });
@@ -256,6 +281,47 @@ const BillsListPage = () => {
       console.error("Failed to delete bill", error);
       message.error(error?.response?.data?.message || error?.message || "Unable to delete bill");
     }
+  };
+
+  const handleCustomerSelect = (customerId: any) => {
+    const customer = customers.find((item: any) => {
+      const itemId = getFieldValue(item, ["nCustomerId", "customerId", "CustomerId", "id", "Id"]);
+      return String(itemId ?? "") === String(customerId);
+    });
+
+    const customerName =
+      formatDisplayValue(
+        getFieldValue(customer ?? {}, ["cCustomerName", "CustomerName", "name", "cName"]),
+      ) || "Customer";
+    const customerPhone =
+      formatDisplayValue(
+        getFieldValue(customer ?? {}, [
+          "cMobileNo",
+          "cPhoneNo",
+          "cContactNumber",
+          "mobile",
+          "phone",
+        ]),
+      ) || "NIL";
+    const customerEmail =
+      formatDisplayValue(
+        getFieldValue(customer ?? {}, ["cEmail", "email", "cEmailId"]),
+      ) || "NIL";
+
+    setIsAddBillModalOpen(false);
+
+    navigate("/billsandreceipts/bills/customercallreport", {
+      state: {
+        customerId,
+        nCustomerId: customerId,
+        customerName,
+        CustomerName: customerName,
+        phone: customerPhone,
+        email: customerEmail,
+        sessionPayload: payload,
+        sourcePage: "bills",
+      },
+    });
   };
 
   return (
@@ -275,7 +341,7 @@ const BillsListPage = () => {
             />
             <button
               type="button"
-              onClick={() => navigate("/billsandreceipts/bills/add")}
+              onClick={() => setIsAddBillModalOpen(true)}
               className="rounded-md bg-emerald-500 w-25 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
             >
               Add Bill
@@ -306,7 +372,18 @@ const BillsListPage = () => {
                   {tableRows.map((row) => (
                     <div
                       key={`${row.billNo}-${row.srl}`}
-                      className="grid grid-cols-[48px_84px_1fr_1fr_120px_100px_60px_60px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700 hover:bg-sky-50"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        void handleViewBill(row);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          void handleViewBill(row);
+                        }
+                      }}
+                      className="grid cursor-pointer grid-cols-[48px_84px_1fr_1fr_120px_100px_60px_60px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700 hover:bg-sky-50"
                     >
                       <div>{row.srl}</div>
                       <div>{row.billNo}</div>
@@ -318,7 +395,10 @@ const BillsListPage = () => {
                         type="button"
                         className="flex items-center justify-center rounded-sm hover:bg-sky-100"
                         aria-label={`Edit bill ${row.billNo}`}
-                        onClick={() => handleEditBill(row)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleEditBill(row);
+                        }}
                       >
                         <img src={editIcon} alt="" className="h-4 w-4" />
                       </button>
@@ -326,7 +406,10 @@ const BillsListPage = () => {
                         type="button"
                         className="flex items-center justify-center rounded-sm hover:bg-rose-100"
                         aria-label={`Delete bill ${row.billNo}`}
-                        onClick={() => void handleDeleteBill(row)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleDeleteBill(row);
+                        }}
                       >
                         <img src={deleteRed} alt="" className="h-4 w-4" />
                       </button>
@@ -361,8 +444,16 @@ const BillsListPage = () => {
           </div>
         ) : null}
       </div>
+
+      <CustomerPickerModal
+        open={isAddBillModalOpen}
+        customers={customers}
+        onCancel={() => setIsAddBillModalOpen(false)}
+        onSelect={handleCustomerSelect}
+      />
     </div>
   );
 };
 
 export default BillsListPage;
+

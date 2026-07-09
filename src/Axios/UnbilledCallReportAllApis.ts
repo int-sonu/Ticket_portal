@@ -29,4 +29,30 @@ export const unbilledCallReportApis = {
 
     return response.data;
   },
+
+  customerWiseUnbilledCallReportList: async (payload: Record<string, any>) => {
+    try {
+      const response = await axiosInstance.post(
+        "http://postgresqlticketapi.ortezerp.in/Api/V1/CallReport/CustomerWiseUnBilledCallreportList",
+        payload,
+      );
+
+      return response.data;
+    } catch (error: any) {
+      const statusCode = error?.response?.status ?? error?.response?.data?.statusCode;
+      const message = String(
+        error?.response?.data?.message ?? error?.message ?? "",
+      ).toLowerCase();
+
+      if (statusCode === 404 || message.includes("not found")) {
+        return {
+          statusCode: 200,
+          data: [],
+          message: "No customer found",
+        };
+      }
+
+      throw error;
+    }
+  },
 };

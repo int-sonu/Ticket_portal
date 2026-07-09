@@ -10,8 +10,14 @@ export const useUserLogin = () => {
         // You can store token/session info here, e.g. localStorage.setItem('token', data.token);
       }
     },
-    onError: (error) => {
-      console.error('Login error', error);
+    onError: (error: any) => {
+      const status = error?.response?.status;
+      const data = error?.response?.data;
+      console.error('Login error', {
+        message: error?.message,
+        status,
+        data,
+      });
     }
   });
 };

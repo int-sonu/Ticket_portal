@@ -27,9 +27,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
-import EmailIcon from "../../../assets/icons/email-icon.svg";
 import closedTicketIcon from "../../../assets/icons/closedTicketIcon.svg";
-import mobileIcon from "../../../assets/icons/mobileicon.svg";
 import { ticketApis } from "../../../Axios/TicketsApi";
 import { useTicketAttachments } from "../../../Hooks/Ticket/useTicketAttachments";
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
@@ -58,6 +56,7 @@ import {
 import QuickCallReportModal from "../Common/QuickCallReportModal";
 import { useGetServiceTypeDropdown } from "../../Master/ServiceType/Hooks";
 import { useGetTicketSourceDropdown } from "../../Master/TicketSource/Hooks";
+import CustomerPickerModal from "./CustomerPickerModal";
 import shareIcon from "../../../assets/icons/shareIcon.svg"
 
 dayjs.extend(customParseFormat);
@@ -557,10 +556,6 @@ const TicketForm = ({
     useState(false);
   const [customerPickerOpen, setCustomerPickerOpen] =
     useState(false);
-  const [customerDropdownOpen, setCustomerDropdownOpen] =
-    useState(false);
-  const [customerSearch, setCustomerSearch] =
-    useState("");
   const [assetPickerOpen, setAssetPickerOpen] =
     useState(false);
   const [assetDropdownOpen, setAssetDropdownOpen] =
@@ -1038,46 +1033,6 @@ const TicketForm = ({
     ]) || ""
     );
   }, [customerLookup, selectedCustomerId]);
-  const selectedCustomerInitial = String(
-    selectedCustomerName || initialValues?.CustomerName || "C"
-  )
-    .replace(/[^a-z0-9]/gi, "")
-    .charAt(0)
-    .toUpperCase();
-  const filteredCustomers = useMemo(() => {
-    const search = customerSearch.trim().toLowerCase();
-    if (!search) return customers;
-
-    return customers.filter((customer: any, index: number) => {
-      const name =
-        getFirstValue(customer, [
-          "cCustomerName",
-          "CustomerName",
-          "name",
-        ]) || `Customer ${index + 1}`;
-      const id =
-        getFirstValue(customer, [
-          "nCustomerId",
-          "id",
-        ]) || index + 1;
-      const email = getFirstValue(customer, [
-        "cEmail",
-        "email",
-      ]);
-      const phone = getFirstValue(customer, [
-        "cMobileNo",
-        "cPhoneNo",
-        "mobile",
-        "phone",
-      ]);
-
-      return [name, id, email, phone]
-        .filter(Boolean)
-        .some((value) =>
-          String(value).toLowerCase().includes(search)
-        );
-    });
-  }, [customerSearch, customers]);
 
   const groupOptions = useMemo(
     () =>
@@ -2705,62 +2660,18 @@ const TicketForm = ({
                   value={selectedCustomerName}
                   readOnly
                   placeholder="Select customer"
-                  onClick={() =>
-                    setCustomerDropdownOpen(true)
-                  }
-                  onFocus={() =>
-                    setCustomerDropdownOpen(true)
-                  }
+                  onClick={() => setCustomerPickerOpen(true)}
                 addonAfter={
                   <Button
                     type="primary"
                     icon={<SearchOutlined />}
                     className="ticket-search-button !h-7 !w-9 border-0 !rounded-l-none !rounded-r-md m-0"
                     onClick={() => {
-                      setCustomerDropdownOpen(false);
-                      setCustomerPickerOpen(true); 
+                      setCustomerPickerOpen(true);
                     }}
                   />
                 }
                 />
-
-                {customerDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border border-slate-200 bg-white shadow-lg">
-                    {filteredCustomers.map(
-                      (customer: any, index: number) => {
-                        const name =
-                          getFirstValue(customer, [
-                            "cCustomerName",
-                            "CustomerName",
-                            "name",
-                          ]) || `Customer ${index + 1}`;
-                        const id =
-                          getFirstValue(customer, [
-                            "nCustomerId",
-                            "id",
-                          ]) || index + 1;
-
-                        return (
-                          <button
-                            type="button"
-                            key={`${id}-${index}`}
-                            className=" flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-sky-50"
-                            onClick={() => {
-                              handleCustomerSelect(id);
-                              setCustomerDropdownOpen(false);
-                              openCustomerTickets(id, name);
-                            }}
-                          >
-                            <span className="font-medium text-slate-900">
-                              {name}
-                            </span>
-                            
-                          </button>
-                        );
-                      }
-                    )}
-                  </div>
-                )}
               </div>
             </Form.Item>
             <Form.Item name="CustomerId" hidden>
@@ -3594,93 +3505,13 @@ const TicketForm = ({
         </div>
       </Modal>
 
-      <Modal
+      <CustomerPickerModal
         open={customerPickerOpen}
-        title="Customer"
-        footer={null}
-        width={500}
-        closeIcon={<CloseOutlined />}
-        className="ticket-picker-modal"
+        customers={customers}
+        selectedCustomerId={selectedCustomerId}
         onCancel={() => setCustomerPickerOpen(false)}
-      >
-        <Input
-          prefix={<SearchOutlined />}
-          placeholder="Search"
-          className="mb-3"
-          value={customerSearch}
-          onChange={(event) =>
-            setCustomerSearch(event.target.value)
-          }
-        />
-
-        <div className="space-y-3">
-          {filteredCustomers.map(
-            (customer: any, index: number) => {
-              const name =
-                getFirstValue(customer, [
-                  "cCustomerName",
-                  "CustomerName",
-                  "name",
-                ]) || "Customer";
-              const id =
-                getFirstValue(customer, [
-                  "nCustomerId",
-                  "id",
-                ]) || index + 1;
-              const email =
-                getFirstValue(customer, [
-                  "cEmail",
-                  "email",
-                ]);
-              const phone =
-                getFirstValue(customer, [
-                  "cMobileNo",
-                  "cPhoneNo",
-                  "mobile",
-                  "phone",
-                ]);
-
-              return (
-                <button
-                  type="button"
-                  key={`${id}-${index}`}
-                  className="ticket-customer-card"
-                  onClick={() => {
-                    setCustomerPickerOpen(false);
-                    openCustomerTickets(id, name);
-                  }}
-                >
-                  <div className="flex items-center justify-between border-b border-sky-100 pb-2">
-                    <span className="font-medium">
-                      {name}
-                    </span>
-                    <span>ID :{id}</span>
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
-                    <span>
-                      <img
-                        src={EmailIcon}
-                        alt="Mail"
-                        className="mr-2 inline-block h-4 w-4 align-middle"
-                      />
-                      {email}
-                    </span>
-                    <span>
-                      <img
-                        src={mobileIcon}
-                        alt="Mobile"
-                        className="mr-2 inline-block h-4 w-4 align-middle"
-                      />
-                      {phone || "-"}
-                    </span>
-                  </div>
-                </button>
-              );
-            }
-          )}
-        </div>
-      </Modal>
+        onSelect={(value) => handleCustomerSelect(value)}
+      />
 
       <SimpleMasterDrawer
         open={customerOpen}
