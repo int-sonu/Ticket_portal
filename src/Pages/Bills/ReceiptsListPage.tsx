@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Empty, Input, Spin } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { billingApis } from "../../Axios/BillingApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
+import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
+import CustomerPickerModal from "../Ticket/TicketCreate/CustomerPickerModal";
 
 type ReceiptRow = Record<string, any>;
 
@@ -158,6 +161,7 @@ const getSearchText = (row: ReceiptRow) =>
     .join(" ");
 
 const ReceiptsListPage = () => {
+  const navigate = useNavigate();
   const payload = useMemo(
     () => ({
       ...getRequestPayload(),
@@ -168,11 +172,21 @@ const ReceiptsListPage = () => {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isAddReceiptModalOpen, setIsAddReceiptModalOpen] = useState(false);
+  const { data: customerDropdownData } = useGetCustomerDropDown({
+    ...payload,
+    pageNumber: 1,
+    pageSize: 1000,
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["receipt-list", payload],
     queryFn: () => billingApis.receiptList(payload),
   });
+  const customers = useMemo(
+    () => extractList(customerDropdownData),
+    [customerDropdownData],
+  );
 
   const sourceRows = useMemo(() => extractReceiptRows(data), [data]);
 
@@ -191,6 +205,37 @@ const ReceiptsListPage = () => {
     const maxPage = Math.max(1, Math.ceil(totalRows / pageSize));
     if (currentPage > maxPage) setCurrentPage(maxPage);
   }, [currentPage, pageSize, totalRows]);
+
+  const handleCustomerSelect = (customerId: any) => {
+    const customer = customers.find((item: any) => {
+      const itemId =
+        item?.nCustomerId ??
+        item?.customerId ??
+        item?.CustomerId ??
+        item?.id ??
+        item?.Id;
+      return String(itemId ?? "") === String(customerId);
+    });
+
+    const customerName =
+      customer?.cCustomerName ??
+      customer?.CustomerName ??
+      customer?.name ??
+      customer?.cName ??
+      "Customer";
+
+    setIsAddReceiptModalOpen(false);
+    navigate("/receipts/add", {
+      state: {
+        customerId,
+        nCustomerId: customerId,
+        customerName,
+        CustomerName: customerName,
+        sessionPayload: payload,
+        sourcePage: "receipts",
+      },
+    });
+  };
 
   const paginatedRows = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -228,6 +273,7 @@ const ReceiptsListPage = () => {
             />
             <button
               type="button"
+              onClick={() => setIsAddReceiptModalOpen(true)}
               className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
             >
               Add Receipt
@@ -295,6 +341,16 @@ const ReceiptsListPage = () => {
           </div>
         ) : null}
       </div>
+
+      <CustomerPickerModal
+        open={isAddReceiptModalOpen}
+        customers={customers}
+        title="Choose a customer to add receipt"
+        searchPlaceholder="Search customer"
+        emptyMessage="No customer found"
+        onCancel={() => setIsAddReceiptModalOpen(false)}
+        onSelect={handleCustomerSelect}
+      />
     </div>
   );
 };

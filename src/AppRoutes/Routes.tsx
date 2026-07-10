@@ -51,6 +51,7 @@ import BillPreviewPage from "../Pages/Bills/BillPreviewPage";
 import BillViewPage from "../Pages/Bills/BillViewPage";
 import BillsListPage from "../Pages/Bills/BillsListPage";
 import ReceiptsListPage from "../Pages/Bills/ReceiptsListPage";
+import ReceiptCreatePage from "../Pages/Bills/ReceiptCreatePage";
 import AssignedItemRepairPage from "../Pages/ItemRepair/AssignedItemRepairPage";
 import PendingItemRepairPage from "../Pages/ItemRepair/PendingItemRepairPage";
 import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
@@ -225,6 +226,7 @@ const Routes: React.FC = () => {
             <Route path="/billsandreceipts/bills" element={<BillsListPage />} />
             <Route path="/bills" element={<BillsListPage />} />
             <Route path="/receipts" element={<ReceiptsListPage />} />
+            <Route path="/receipts/add" element={<ReceiptCreatePage />} />
             <Route path="/bills/add" element={<BillPreviewPage />} />
             <Route path="/bills/edit" element={<BillPreviewPage />} />
             <Route path="/item-repair/assign" element={<AssignedItemRepairPage />} />

@@ -34,6 +34,28 @@ const normalizeReceiptListPayload = (payload: Record<string, any> = {}) => {
   };
 };
 
+const normalizeReceiptCustomerPayload = (payload: Record<string, any> = {}) => ({
+  ...payload,
+  nCustomerId:
+    payload?.nCustomerId ??
+    payload?.customerId ??
+    payload?.CustomerId ??
+    payload?.id ??
+    0,
+  customerId:
+    payload?.customerId ??
+    payload?.nCustomerId ??
+    payload?.CustomerId ??
+    payload?.id ??
+    0,
+  CustomerId:
+    payload?.CustomerId ??
+    payload?.nCustomerId ??
+    payload?.customerId ??
+    payload?.id ??
+    0,
+});
+
 const normalizeBillDeletePayload = (payload: Record<string, any> = {}) => {
   const billId =
     payload?.nBillId ?? payload?.BillId ?? payload?.billId ?? payload?.id ?? 0;
@@ -88,6 +110,24 @@ export const billingApis = {
     const response = await axiosInstance.post(
       "/Api/V1/Receipt/ReceiptList",
       normalizeReceiptListPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  outstandingBillListCustomerWise: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Receipt/OutstandingBillListCustomerWise",
+      normalizeReceiptCustomerPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  lastReceiptNumber: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Receipt/LastReceiptNumber",
+      payload,
     );
 
     return response.data;

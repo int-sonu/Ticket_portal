@@ -28,6 +28,8 @@ import postponeIcon from "../../../assets/icons/postponeIcon.svg";
 import sendIcon from "../../../assets/icons/sendIcon.svg";
 import mergeIcon from "../../../assets/icons/mergeIcon.svg";
 import calendarIcon from "../../../assets/icons/calenderiCon.svg";
+import editBlackIcon from "../../../assets/icons/edit-black.svg";
+import deleteRedIcon from "../../../assets/icons/delete-red.svg";
 import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
 import { useGetAgentDropdown } from "../../Master/Agent/Hooks";
 import {
@@ -202,6 +204,49 @@ const formatTicketAge = (createdDate: any, nowMs = Date.now()): string => {
   const minutes = totalMinutes % 60;
 
   return `${days} day${days === 1 ? "" : "s"} ${hours} hr ${minutes} min`;
+};
+
+const formatRepairDateLabel = (value: any) => {
+  const text = formatDisplayValue(value);
+  if (!text) return "";
+
+  const parsedMs = parseTicketDate(text);
+  if (parsedMs === null) return text;
+
+  const parsedDate = new Date(parsedMs);
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  const month = parsedDate.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const year = parsedDate.getFullYear();
+
+  const hours24 = parsedDate.getHours();
+  const hours12 = hours24 % 12 || 12;
+  const minutes = String(parsedDate.getMinutes()).padStart(2, "0");
+  const meridiem = hours24 >= 12 ? "PM" : "AM";
+
+  return `${day} ${month} ${year} ${hours12}:${minutes} ${meridiem}`;
+};
+
+const isCallReportHistoryItem = (item: Record<string, any>) => {
+  const title = normalizeText(
+    formatDisplayValue(
+      getFieldValue(item, [
+        "cViewSummary",
+        "ViewSummary",
+        "Summary",
+        "Title",
+        "Action",
+        "Activity",
+      ]),
+    ),
+  );
+  const historySummary = normalizeText(
+    formatDisplayValue(
+      getFieldValue(item, ["cHistorySummary", "HistorySummary", "cViewSummary", "ViewSummary"]),
+    ),
+  );
+  const typeValue = Number(getFieldValue(item, ["nType", "Type", "type"]) || 0);
+
+  return typeValue === 2 || title.includes("callreport") || historySummary.includes("callreport");
 };
 
 const getTicketStatusValue = (record: any) =>
@@ -1363,7 +1408,10 @@ const TicketView = () => {
     repairSupportPayload,
     isItemRepairContext,
   );
-  useRepairItemActivityList(repairItemPayload, !!ticketId && isItemRepairContext);
+  const { data: repairItemActivityData } = useRepairItemActivityList(
+    repairItemPayload,
+    !!ticketId && isItemRepairContext,
+  );
   const { data: ticketHistoryData } = useTicketHistory(
     historyPayload,
     !!ticketId && !!supportSessionPayload.nCompanyId,
@@ -1463,6 +1511,20 @@ const TicketView = () => {
     () => extractList(ticketHistoryData),
     [ticketHistoryData],
   );
+  const repairActivityItems = useMemo(() => {
+    const nestedRepairItems = Array.isArray(
+      (resolvedRecord as Record<string, any>)?.partsRepair?.[0]?.repairItemActivity,
+    )
+      ? (resolvedRecord as Record<string, any>)?.partsRepair?.[0]?.repairItemActivity
+      : [];
+
+    if (nestedRepairItems.length > 0) return nestedRepairItems;
+
+    const apiRepairItems = extractList(repairItemActivityData);
+    if (apiRepairItems.length > 0) return apiRepairItems;
+
+    return historyItems;
+  }, [historyItems, repairItemActivityData, resolvedRecord]);
   const latestShareHistoryRecordId = useMemo(() => {
     const reversedItems = [...historyItems].reverse();
 
@@ -1974,12 +2036,7 @@ const TicketView = () => {
     );
     const createdBy = formatDisplayValue(
       getFieldValue(item, [
-        "CreatedByName",
-        "cCreatedByName",
-        "AgentName",
-        "cAgentName",
-        "CreatedBy",
-        "cCreatedBy",
+     "cAssignedAgent",
       ]),
     );
 
@@ -2518,8 +2575,7 @@ const TicketView = () => {
   };
 
   if (isItemRepairContext) {
-    const repairActivityItems = historyItems;
-    const repairCallReportItems = historyItems.filter((item) =>
+    const repairCallReportItems = repairActivityItems.filter((item) =>
       isCallReportHistoryItem(item),
     );
     const visibleRepairItems =
@@ -2538,7 +2594,7 @@ const TicketView = () => {
         ]),
       ) ||
       formatDisplayValue(
-        getFieldValue(historyItems[0] ?? {}, [
+        getFieldValue(repairActivityItems[0] ?? {}, [
           "Comment",
           "Remarks",
           "Remark",
@@ -2574,8 +2630,8 @@ const TicketView = () => {
         </div>
 
         <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="grid min-h-0 flex-1 lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
+          <div className="grid min-h-0 flex-1 lg:grid-cols-2">
+            <div className="min-w-0 border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-slate-900">
@@ -2625,7 +2681,7 @@ const TicketView = () => {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-col">
+            <div className="min-w-0 flex min-h-0 flex-col">
               <div className="flex items-center gap-8 border-b border-slate-200 px-4 pt-4 text-base font-semibold">
                 <button
                   type="button"
@@ -2654,7 +2710,7 @@ const TicketView = () => {
               <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
                 <div className="max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
                   {visibleRepairItems.length > 0 ? (
-                    <div className="relative space-y-4 border-l border-sky-300 pl-4">
+                    <div className="relative space-y-5 border-l-2 border-sky-300 pl-5">
                       {visibleRepairItems.map((item: Record<string, any>, index: number) => {
                         const title = formatDisplayValue(
                           getFieldValue(item, [
@@ -2664,6 +2720,10 @@ const TicketView = () => {
                             "Title",
                             "Action",
                             "Activity",
+                            "cStatusName",
+                            "StatusName",
+                            "Status",
+                            "cRepairStatusName",
                           ]),
                         ) || "Activity";
                         const remarks = formatDisplayValue(
@@ -2673,48 +2733,101 @@ const TicketView = () => {
                             "Comment",
                             "Description",
                             "cDescription",
+                            "cComment",
+                            "cRemarks",
+                            "cRemark",
                             "CallSummary",
                             "cCallSummary",
                           ]),
                         );
                         const actor = formatDisplayValue(
                           getFieldValue(item, [
-                            "CreatedByName",
-                            "cCreatedByName",
-                            "AgentName",
-                            "cAgentName",
-                            "CreatedBy",
-                            "cCreatedBy",
+                            "cAssignedAgent",
                           ]),
                         );
-                        const dateText = formatDisplayValue(
+                        const isAssignedEntry = normalizeText(title).includes("assigned");
+                        const isTransferEntry =
+                          normalizeText(title).includes("transfer") ||
+                          normalizeText(title).includes("vendor");
+                        const actorLabel = isAssignedEntry
+                          ? "Assigned to :"
+                          : isTransferEntry
+                            ? "Vendor Name :"
+                            : "";
+                        const showActions = index === 0 && isAssignedEntry;
+                        const dateText = formatRepairDateLabel(
                           getFieldValue(item, [
-                            "dSortDate",
-                            "SortDate",
-                            "dCreatedDate",
-                            "CreatedDate",
-                            "CreatedOn",
-                            "CreatedDateTime",
+                            ...(isAssignedEntry
+                              ? [
+                                  "cCreatedDate",
+                                  "CreatedDate",
+                                  "dCreatedDate",
+                                  "CreatedOn",
+                                  "CreatedDateTime",
+                                  "dSortDate",
+                                  "SortDate",
+                                ]
+                              : [
+                                  "cCreatedDate",
+                                  "dSortDate",
+                                  "cSortDate",
+                                  "SortDate",
+                                  "dCreatedDate",
+                                  "CreatedDate",
+                                  "CreatedOn",
+                                  "CreatedDateTime",
+                                ]),
                           ]),
                         );
+                        const datePrefix = isAssignedEntry ? "Assigned on : " : "On : ";
 
                         return (
-                          <div key={`${title}-${index}`} className="relative">
-                            <span className="absolute -left-[21px] top-2 h-3.5 w-3.5 rounded-full bg-sky-400 ring-4 ring-white" />
-                            <div className="text-sm font-medium text-slate-900">
-                              {title}
-                              {dateText ? (
-                                <span className="ml-2 text-xs font-normal italic text-slate-500">
-                                  ({dateText})
-                                </span>
+                          <div key={`${title}-${index}`} className="relative pb-3">
+                            <span className="absolute -left-[23px] top-1.5 h-4 w-4 rounded-full border-2 border-sky-300 bg-sky-400 ring-4 ring-white" />
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="text-sm font-medium text-slate-900">
+                                {title}
+                                {dateText ? (
+                                  <span className="ml-2 text-xs font-normal italic text-slate-500">
+                                    ({datePrefix}
+                                    {dateText})
+                                  </span>
+                                ) : null}
+                              </div>
+                              {showActions ? (
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  <button
+                                    type="button"
+                                    aria-label="Edit timeline entry"
+                                    className="inline-flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-slate-100"
+                                  >
+                                    <img src={editBlackIcon} alt="" className="h-[15px] w-[15px]" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label="Delete timeline entry"
+                                    className="inline-flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-red-50"
+                                  >
+                                    <img src={deleteRedIcon} alt="" className="h-[15px] w-[15px]" />
+                                  </button>
+                                </div>
                               ) : null}
                             </div>
                             {actor ? (
-                              <div className="mt-1 text-sm text-slate-700">{actor}</div>
+                              <div className="mt-1 text-sm text-slate-700">
+                                {actorLabel ? (
+                                  <>
+                                    <span className="font-medium text-slate-900">{actorLabel}</span>{" "}
+                                    <span>{actor}</span>
+                                  </>
+                                ) : (
+                                  actor
+                                )}
+                              </div>
                             ) : null}
                             {remarks ? (
                               <div className="mt-1 text-sm text-slate-600">
-                                Comment : {remarks}
+                                <span className="font-medium text-slate-900">Comment :</span> {remarks}
                               </div>
                             ) : null}
                           </div>

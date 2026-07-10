@@ -11,6 +11,9 @@ type CustomerPickerModalProps = {
   open: boolean;
   customers: any[];
   selectedCustomerId?: any;
+  title?: string;
+  searchPlaceholder?: string;
+  emptyMessage?: string;
   onCancel: () => void;
   onSelect: (customerId: any) => void;
 };
@@ -40,6 +43,9 @@ const CustomerPickerModal = ({
   open,
   customers,
   selectedCustomerId,
+  title = "Choose a customer to bill",
+  searchPlaceholder = "Search customer",
+  emptyMessage = "No customer found",
   onCancel,
   onSelect,
 }: CustomerPickerModalProps) => {
@@ -101,7 +107,7 @@ const CustomerPickerModal = ({
 
         <div className="pr-12">
           <h1 className="pt-1 text-[18px] font-medium text-slate-900">
-            Choose a customer to bill
+            {title}
           </h1>
         </div>
 
@@ -111,7 +117,7 @@ const CustomerPickerModal = ({
           <Input
             allowClear
             prefix={<SearchOutlined className="text-slate-500" />}
-            placeholder="Search customer"
+            placeholder={searchPlaceholder}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="h-[34px]"
@@ -187,7 +193,7 @@ const CustomerPickerModal = ({
             </div>
           ) : (
             <div className="flex min-h-[128px] items-center justify-center rounded-xl border border-slate-200">
-              <div className="text-sm text-slate-500">No customer found</div>
+              <div className="text-sm text-slate-500">{emptyMessage}</div>
             </div>
           )}
         </div>

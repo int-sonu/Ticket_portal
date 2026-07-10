@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getConfig } from './config';
+import { hydrateSessionStorage } from '../Utils/session';
 
 const axiosInstance = axios.create({
   headers: {
@@ -39,9 +40,10 @@ axiosInstance.interceptors.request.use(
       }
       
       // Attach session info to headers if a user is logged in
+      const hydratedSession = hydrateSessionStorage();
       const sessionStr = sessionStorage.getItem('userSession');
       if (sessionStr) {
-        const session = JSON.parse(sessionStr);
+        const session = hydratedSession || JSON.parse(sessionStr);
         if (session.cSessionId) {
           // You may need to adapt this header based on your backend's exact requirements
           // E.g., 'Authorization': `Bearer ${session.cSessionId}` or a custom header:

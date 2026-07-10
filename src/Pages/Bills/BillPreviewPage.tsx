@@ -92,13 +92,13 @@ const BILL_PAY_MODE_STORAGE_KEY = "ticket_portal_bill_pay_mode";
 
 const PAY_MODE_OPTIONS: PayModeOption[] = [
   { key: "QR", label: "QR Code", image: qrPayModeImage },
+  { key: "Cash", label: "Cash", image: cashPayModeImage },
   { key: "UPI", label: "UPI", image: upiPayModeImage },
   { key: "Card", label: "Card", image: masterPayModeImage },
   { key: "Net Banking", label: "Net Banking", image: netPayModeImage },
   { key: "Cheque", label: "Cheque", image: chequePayModeImage },
   { key: "Complimentary", label: "Complimentary", image: complementaryPayModeImage },
   { key: "Company", label: "Company Credit", image: companyPayModeImage },
-  { key: "Cash", label: "Cash", image: cashPayModeImage },
   { key: "Split", label: "Split", image: splitPayModeImage },
 ];
 
@@ -1056,26 +1056,8 @@ const BillPreviewPage: React.FC = () => {
     switch (mode) {
       case "QR":
         return (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 text-sm font-medium text-slate-700">QR Code</div>
-              <img src={qrFullImage} alt="QR Code" className="mx-auto max-h-64 w-full max-w-[240px] object-contain" />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <div className="mb-1 text-sm text-slate-600">Customer Mobile No/Email Id</div>
-                <Input
-                  value={modeFields.customerContact ?? ""}
-                  onChange={(event) => updatePayModeField(mode, "customerContact", event.target.value)}
-                  placeholder="Enter Mobile No/Email Id"
-                />
-              </div>
-              <div className="flex items-end justify-end">
-                <div className="text-right text-xs text-slate-500">Scan the QR and complete payment</div>
-              </div>
-            </div>
-          </div>
-        );
+       <img src={qrFullImage} alt="QR Code" className="mx-auto max-h-65 w-full max-w-[240px] object-contain " />   
+      );
       case "Cash":
         return (
           <div className="grid gap-4 md:grid-cols-2">
