@@ -775,6 +775,17 @@ export const partsApis = {
 
 export const customerApis = {
 
+  customerProfile: async (
+    payload: CustomerPayload
+  ) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Customer/CustomerProfile',
+      payload
+    );
+
+    return response.data;
+  },
+
   customerList: async (
     payload: CustomerPayload
   ) => {

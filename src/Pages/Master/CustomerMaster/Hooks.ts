@@ -15,6 +15,14 @@ export const useGetCustomers = (payload: any) => {
   });
 };
 
+export const useGetCustomerProfile = (payload: any, enabled = true) => {
+  return useQuery({
+    queryKey: ["customer-profile", payload],
+    queryFn: () => customerApis.customerProfile(payload),
+    enabled: enabled && !!payload?.nCustomerId,
+  });
+};
+
 export const useGetCustomerDropDown = (payload: any) => {
   return useQuery({
     queryKey: ["customer-dropdown", payload],

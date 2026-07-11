@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Input, Modal, Select, message } from "antd";
+import { Button, Dropdown, Input, Modal, Select, message } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -42,6 +42,7 @@ import { useGetParts } from "../../Master/Parts/Hooks";
 import { useGetVendorDropdown } from "../../Master/VendorMaster/Hooks";
 import { useGetStatuses } from "../../Master/StatusMaster/Hooks";
 import TransferTicketModal from "../Common/TransferTicketModal";
+import RepairStatusModal from "../Common/RepairStatusModal";
 import ShareInfoModal from "../Common/ShareInfoModal";
 import ShareTicketModal from "../Common/ShareTicketModal";
 import FollowupModal from "../Common/FollowupPostponeModal";
@@ -1018,6 +1019,8 @@ const TicketView = () => {
   const [shareInfoOpen, setShareInfoOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [transferType, setTransferType] = useState<"agent" | "vendor">("agent");
+  const [repairStatusOpen, setRepairStatusOpen] = useState(false);
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [estimateOpen, setEstimateOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -1379,6 +1382,51 @@ const TicketView = () => {
     }),
     [customerId, supportSessionPayload, ticketId],
   );
+  const repairActionPayload = useMemo(() => {
+    const repairRecord =
+      (resolvedRecord as Record<string, any>)?.partsRepair?.[0] ?? resolvedRecord;
+    const itemRepairId = Number(
+      getFieldValue(repairRecord, [
+        "nItemRepairId",
+        "ItemRepairId",
+        "nRepairId",
+        "RepairId",
+        "nPartRepairId",
+        "PartRepairId",
+        "nId",
+        "Id",
+      ]) || 0,
+    );
+    const callPartId = Number(
+      getFieldValue(repairRecord, [
+        "nCallPartId",
+        "CallPartId",
+        "callPartId",
+        "nTicketCallPartId",
+        "TicketCallPartId",
+        "nCallPartsId",
+      ]) ??
+      getFieldValue(resolvedRecord, [
+        "nCallPartId",
+        "CallPartId",
+        "callPartId",
+        "nTicketCallPartId",
+        "TicketCallPartId",
+        "nCallPartsId",
+      ]) ??
+      0,
+    );
+
+    return {
+      ...repairItemPayload,
+      nItemRepairId: itemRepairId,
+      ItemRepairId: itemRepairId,
+      nRepairId: itemRepairId,
+      RepairId: itemRepairId,
+      nCallPartId: callPartId,
+      CallPartId: callPartId,
+    };
+  }, [repairItemPayload, resolvedRecord]);
 
   const { data: customerAssetDepartmentsData } =
     useGetCustomerAssetDepartments(supportSessionPayload);
@@ -2078,6 +2126,23 @@ const TicketView = () => {
       ) ?? null,
     [statusLookupOptions],
   );
+  const repairWaitingStatusOption = useMemo(
+    () =>
+      statusLookupOptions.find((item: any) =>
+        normalizeText(item.label).replace(/\s+/g, "").includes("waitingforcustomerapproval"),
+      ) ?? {
+        id: Number(
+          getFieldValue(resolvedRecord, [
+            "nNextStatusId",
+            "NextStatusId",
+            "nItemRepairStatusId",
+            "ItemRepairStatusId",
+          ]) || 0,
+        ),
+        label: "Waiting For Customer Approval",
+      },
+    [resolvedRecord, statusLookupOptions],
+  );
   const isWorkflowStarted = workflowStarted;
   useEffect(() => {
     if (!ticketId) return;
@@ -2630,7 +2695,7 @@ const TicketView = () => {
         </div>
 
         <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="grid min-h-0 flex-1 lg:grid-cols-2">
+          <div className="grid min-h-0 flex-1 lg:grid-cols-2 ">
             <div className="min-w-0 border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
                 <div className="space-y-1">
@@ -2713,7 +2778,7 @@ const TicketView = () => {
                     <div className="relative space-y-5 border-l-2 border-sky-300 pl-5">
                       {visibleRepairItems.map((item: Record<string, any>, index: number) => {
                         const title = formatDisplayValue(
-                          getFieldValue(item, [
+                          getFieldValue(item,[
                             "cViewSummary",
                             "ViewSummary",
                             "Summary",
@@ -2760,7 +2825,6 @@ const TicketView = () => {
                             ...(isAssignedEntry
                               ? [
                                   "cCreatedDate",
-                                  "CreatedDate",
                                   "dCreatedDate",
                                   "CreatedOn",
                                   "CreatedDateTime",
@@ -2773,7 +2837,6 @@ const TicketView = () => {
                                   "cSortDate",
                                   "SortDate",
                                   "dCreatedDate",
-                                  "CreatedDate",
                                   "CreatedOn",
                                   "CreatedDateTime",
                                 ]),
@@ -2853,21 +2916,47 @@ const TicketView = () => {
               <img src={EstimateIcon} alt="" className="h-5 w-5" />
               Estimate
             </button>
-            <button
-              type="button"
-              onClick={() => setTransferOpen(true)}
-              className="inline-flex items-center gap-2 rounded-md border border-emerald-500 px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
+            <Dropdown
+              trigger={["click"]}
+              menu={{
+                items: [
+                  { key: "agent", label: "Agent" },
+                  { key: "vendor", label: "External Vendor" },
+                ],
+                onClick: ({ key }) => {
+                  setTransferType(key as "agent" | "vendor");
+                  setTransferOpen(true);
+                },
+              }}
             >
-              <img src={transferIcon} alt="" className="h-5 w-5" />
-              Transfer
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuickCallOpen(true)}
-              className="inline-flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-md border border-emerald-500 px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
+              >
+                <img src={transferIcon} alt="" className="h-5 w-5" />
+                Transfer
+              </button>
+            </Dropdown>
+            <Dropdown
+              trigger={["click"]}
+              placement="topRight"
+              menu={{
+                items: [
+                  {
+                    key: String(repairWaitingStatusOption.id || "waiting-approval"),
+                    label: repairWaitingStatusOption.label,
+                  },
+                ],
+                onClick: () => setRepairStatusOpen(true),
+              }}
             >
-              Update Status
-            </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+              >
+                Update Status
+              </button>
+            </Dropdown>
           </div>
         </div>
 
@@ -2884,10 +2973,55 @@ const TicketView = () => {
         <TransferTicketModal
           open={transferOpen}
           ticketId={ticketId}
+          transferType={transferType}
+          transferContext="repair"
+          repairPayload={{
+            ...repairActionPayload,
+            nCallPartId:
+              repairActionPayload.nCallPartId ||
+              Number(
+                getFieldValue(repairActivityItems[0] ?? {}, [
+                  "nCallPartId",
+                  "CallPartId",
+                  "callPartId",
+                  "nTicketCallPartId",
+                ]) || 0,
+              ),
+            CallPartId:
+              repairActionPayload.CallPartId ||
+              Number(
+                getFieldValue(repairActivityItems[0] ?? {}, [
+                  "nCallPartId",
+                  "CallPartId",
+                  "callPartId",
+                  "nTicketCallPartId",
+                ]) || 0,
+              ),
+          }}
           onClose={() => setTransferOpen(false)}
           onTransferred={() => {
             queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
             queryClient.invalidateQueries({ queryKey: ["ticket-history"] });
+            queryClient.invalidateQueries({ queryKey: ["repair-item-activity-list"] });
+          }}
+        />
+        <RepairStatusModal
+          open={repairStatusOpen}
+          onClose={() => setRepairStatusOpen(false)}
+          statusId={repairWaitingStatusOption.id}
+          statusName={repairWaitingStatusOption.label}
+          repairPayload={{
+            ...repairActionPayload,
+            nCallPartId:
+              repairActionPayload.nCallPartId ||
+              Number(getFieldValue(repairActivityItems[0] ?? {}, ["nCallPartId", "CallPartId", "callPartId"]) || 0),
+            CallPartId:
+              repairActionPayload.CallPartId ||
+              Number(getFieldValue(repairActivityItems[0] ?? {}, ["nCallPartId", "CallPartId", "callPartId"]) || 0),
+          }}
+          onUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+            queryClient.invalidateQueries({ queryKey: ["repair-item-activity-list"] });
           }}
         />
         <EstimateModal
@@ -2897,6 +3031,7 @@ const TicketView = () => {
           historyId={estimateHistoryId}
           customerId={customerId}
           customerName={customerName}
+          sessionPayload={sessionPayload}
         />
       </TicketPageShell>
     );
@@ -2968,7 +3103,7 @@ const TicketView = () => {
               onClick={handleUnShare}
               className="!border-emerald-500 !bg-white !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600 ml-106 "
             >
-              Un Share
+              UnShare
             </Button>
           </div>
         </div>
@@ -3204,7 +3339,10 @@ const TicketView = () => {
             </Button>
             <Button
               className="!border-black !text-black rounded-[4px] border-black bg-white text-black shadow-none h-8 px-3"
-              onClick={() => setTransferOpen(true)}
+              onClick={() => {
+                setTransferType("agent");
+                setTransferOpen(true);
+              }}
             >
               <img src={transferIcon} alt="" className="h-5 w-5 " /> Transfer
             </Button>
@@ -3329,6 +3467,8 @@ const TicketView = () => {
         open={transferOpen}
         onClose={() => setTransferOpen(false)}
         ticketId={ticketId}
+        transferType={transferType}
+        transferContext="ticket"
       />
       <FollowupModal
         open={postponeOpen}

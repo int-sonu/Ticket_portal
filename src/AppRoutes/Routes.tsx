@@ -58,6 +58,7 @@ import TicketEstimatePage from "../Pages/Ticket/Common/TicketEstimatePage";
 import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
 import ShareCallReportView from "../Pages/Ticket/Common/ShareCallReportView";
+import CustomerProfileDetailsPage from "../Pages/CustomerProfileDetailsPage";
 
 const Routes: React.FC = () => {
   return (
@@ -124,6 +125,8 @@ const Routes: React.FC = () => {
             <Route path="/masters/parts" element={<PartsList />} />
 
             <Route path="/masters/customer" element={<CustomerList />} />
+
+            <Route path="/more/customer-details" element={<CustomerProfileDetailsPage />} />
 
             <Route path="/masters/servicetype" element={<ServiceTypeList />} />
 

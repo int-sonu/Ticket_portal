@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../Axios/axios';
 import { billingApis } from '../../../Axios/BillingApis';
 import { getConfig } from '../../../Axios/config';
+import { getRequestPayload } from '../../../Utils/requestPayload';
 import deleteRed from '../../../assets/icons/delete-red.svg';
 import narrationIcon from '../../../assets/icons/NarrationIcon.svg';
 import shareIcon from '../../../assets/icons/shareIcon.svg';
@@ -18,7 +19,7 @@ interface EstimateModalProps {
   historyId?: number;
   estimateId?: number;
   customerName: string;
-  sessionPayload: any;
+  sessionPayload?: any;
 }
 
 declare global {
@@ -35,7 +36,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   historyId,
   estimateId,
   customerName,
-  sessionPayload,
+  sessionPayload = getRequestPayload(),
 }) => {
   const navigate = useNavigate();
   const [estimateNo, setEstimateNo] = useState<string>('01');
@@ -454,6 +455,12 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   };
 
   const handleAddRow = () => {
+    const validationError = validateEstimateItems(items);
+    if (validationError) {
+      message.warning(validationError);
+      return;
+    }
+
     setItems([
       ...items,
       { key: Date.now(), partId: null, qty: 0, rate: 0, value: 0, discount: 0, tax: 0, total: 0, narration: '' }
@@ -477,11 +484,11 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
 
         if (field === 'partId') {
           if (part) {
-            updated.rate = part.nRate || 0;
+            updated.rate = 0;
             updated.qty = isServiceCharge ? 0 : 1;
             updated.tax = 0;
             if (isServiceCharge) {
-              updated.total = part.nRate || 0;
+              updated.total = 0;
             }
           }
         }
@@ -533,6 +540,44 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const grandTotal = manualGrandTotal ?? calculatedGrandTotal;
   const roundOff = grandTotal - totalValue;
   const notes = items.filter((item) => (item.cNarration || '').trim());
+
+  const validateEstimateItems = (estimateItems: any[]) => {
+    for (let index = 0; index < estimateItems.length; index += 1) {
+      const item = estimateItems[index];
+      const rowNumber = index + 1;
+
+      if (!Number(item.partId || 0)) {
+        return `Please select a part `;
+      }
+
+      const part = partList.find((partItem) => partItem.nPartId === item.partId);
+      if (isServiceChargePart(part)) {
+        const amount = Number(item.total);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          return `Please enter an amount`;
+        }
+        continue;
+      }
+
+      const quantity = Number(item.qty);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return `Please enter a quantity greater than 0 `;
+      }
+
+      const amount = Number(item.rate);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return `Please enter an amount  `;
+      }
+
+      const discount = Number(item.discount);
+      const value = Number(item.value);
+      if (!Number.isFinite(discount) || discount < 0 || discount > value) {
+        return `Discount cannot be greater than the item value in row ${rowNumber}`;
+      }
+    }
+
+    return '';
+  };
 
   const handleOpenNarration = (key: number) => {
     setOpenNarrationKey(key);
@@ -832,6 +877,12 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   };
 
   const handleSaveEstimate = async () => {
+    const validationError = validateEstimateItems(items);
+    if (validationError) {
+      message.warning(validationError);
+      return;
+    }
+
     try {
       setIsSaving(true);
 

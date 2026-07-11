@@ -24,6 +24,18 @@ const normalizeAssignedItemRepairPayload = (payload: ItemRepairPayload = {}) => 
 };
 
 export const itemRepairApis = {
+  itemRepairAction: async (payload: ItemRepairPayload | FormData) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/ItemRepair/ItemRepairAction",
+      payload,
+      payload instanceof FormData
+        ? { headers: { "Content-Type": "multipart/form-data" } }
+        : undefined,
+    );
+
+    return response.data;
+  },
+
   repairItemActivityList: async (payload: ItemRepairPayload) => {
     const response = await axiosInstance.post(
       "/Api/V1/ItemRepair/AssignedItemRepairListByCreator",
