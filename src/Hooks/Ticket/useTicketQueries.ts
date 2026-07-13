@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ticketApis } from "../../Axios/TicketsApi";
 import { itemRepairApis } from "../../Axios/ItemRepairApis";
+import type { ItemRepairPayload } from "../../Axios/ItemRepairApis";
 import { callReportApis } from "../../Axios/CallReportApis";
 import { callReportBillingApis } from "../../Axios/CallReportBillingApis";
 import { unbilledCallReportApis } from "../../Axios/UnbilledCallReportAllApis";
@@ -260,6 +261,17 @@ export const useRepairItemActivityList = (
   return useQuery({
     queryKey: ["repair-item-activity-list", payload],
     queryFn: () => itemRepairApis.repairItemActivityList(payload),
+    enabled,
+  });
+};
+
+export const useRepairItemActivityDropDown = (
+  payload: ItemRepairPayload,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: ["repair-item-activity-dropdown", payload],
+    queryFn: () => itemRepairApis.repairItemActivityDropDown(payload),
     enabled,
   });
 };

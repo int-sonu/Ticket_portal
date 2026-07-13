@@ -59,6 +59,9 @@ import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
 import ShareCallReportView from "../Pages/Ticket/Common/ShareCallReportView";
 import CustomerProfileDetailsPage from "../Pages/CustomerProfileDetailsPage";
+import LeaveApplicationPage from "../Pages/More/LeaveApplication/LeaveApplicationPage";
+import LeaveApprovalPage from "../Pages/More/LeaveApproval/LeaveApprovalPage";
+import LeaveApprovalViewPage from "../Pages/More/LeaveApproval/LeaveApprovalViewPage";
 
 const Routes: React.FC = () => {
   return (
@@ -127,6 +130,11 @@ const Routes: React.FC = () => {
             <Route path="/masters/customer" element={<CustomerList />} />
 
             <Route path="/more/customer-details" element={<CustomerProfileDetailsPage />} />
+            <Route path="/more/leave-application" element={<LeaveApplicationPage />} />
+            <Route path="/more/leaveapplication" element={<LeaveApplicationPage />} />
+            <Route path="/more/leaveapproval" element={<LeaveApprovalPage />} />
+            <Route path="/more/leave-approval" element={<LeaveApprovalPage />} />
+            <Route path="/more/leaveapproval/view" element={<LeaveApprovalViewPage />} />
 
             <Route path="/masters/servicetype" element={<ServiceTypeList />} />
 

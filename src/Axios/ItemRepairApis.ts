@@ -24,6 +24,15 @@ const normalizeAssignedItemRepairPayload = (payload: ItemRepairPayload = {}) => 
 };
 
 export const itemRepairApis = {
+  repairItemActivityDropDown: async (payload: ItemRepairPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/ItemRepair/RepairItemActivityList",
+      payload,
+    );
+
+    return response.data;
+  },
+
   itemRepairAction: async (payload: ItemRepairPayload | FormData) => {
     const response = await axiosInstance.post(
       "/Api/V1/ItemRepair/ItemRepairAction",

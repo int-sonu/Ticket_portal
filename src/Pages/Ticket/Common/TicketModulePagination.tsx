@@ -5,6 +5,7 @@ type TicketModulePaginationProps = PaginationProps & {
   className?: string;
   showSizeChanger?: boolean;
   elevated?: boolean;
+  compact?: boolean;
 };
 
 const buildPageWindow = (current: number, maxPage: number) => {
@@ -28,6 +29,7 @@ const TicketModulePagination = ({
   className = "",
   showSizeChanger = true,
   elevated = true,
+  compact = false,
   ...props
 }: TicketModulePaginationProps) => {
   const total = props.total ?? 0;
@@ -56,9 +58,11 @@ const TicketModulePagination = ({
 
   return (
     <div className={className || "w-full"}>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-hidden">
         <div
-          className={`flex w-full min-w-[820px] items-center justify-between gap-4 rounded-xl border border-slate-300 bg-white px-0 py-2 text-sm text-slate-700 ${
+          className={`flex min-w-0 w-full flex-wrap items-center justify-between rounded-xl border border-slate-300 bg-white px-0 py-2 text-slate-700 ${
+            compact ? "gap-2 text-xs" : "gap-4 text-sm"
+          } ${
             elevated ? "shadow-[0_4px_20px_rgba(0,0,0,0.08)]" : "shadow-none"
           }`}
         >
@@ -66,11 +70,11 @@ const TicketModulePagination = ({
             Showing {start}-{end} of {total} entries
           </div>
 
-          <div className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap">
-            <Button disabled={isFirstPage} onClick={() => changePage(1)}>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2 whitespace-nowrap">
+            <Button size={compact ? "small" : "middle"} disabled={isFirstPage} onClick={() => changePage(1)}>
               &lt;&lt; Prev
             </Button>
-            <Button disabled={isFirstPage} onClick={() => changePage(current - 1)}>
+            <Button size={compact ? "small" : "middle"} disabled={isFirstPage} onClick={() => changePage(current - 1)}>
               &lt; Prev
             </Button>
 
@@ -83,6 +87,7 @@ const TicketModulePagination = ({
                 <Button
                   key={page}
                   type={page === current ? "primary" : "default"}
+                  size={compact ? "small" : "middle"}
                   onClick={() => changePage(page)}
                   className="min-w-[32px] px-3"
                 >
@@ -91,10 +96,10 @@ const TicketModulePagination = ({
               )
             )}
 
-            <Button disabled={isLastPage} onClick={() => changePage(current + 1)}>
+            <Button size={compact ? "small" : "middle"} disabled={isLastPage} onClick={() => changePage(current + 1)}>
               Next &gt;
             </Button>
-            <Button disabled={isLastPage} onClick={() => changePage(maxPage)}>
+            <Button size={compact ? "small" : "middle"} disabled={isLastPage} onClick={() => changePage(maxPage)}>
               Next &gt;&gt;
             </Button>
           </div>
@@ -102,6 +107,7 @@ const TicketModulePagination = ({
           {showSizeChanger ? (
             <div className="flex items-center gap-2 whitespace-nowrap">
               <Select
+                size={compact ? "small" : "middle"}
                 value={pageSize}
                 onChange={changePageSize}
                 options={[10, 20, 50, 100].map((size) => ({

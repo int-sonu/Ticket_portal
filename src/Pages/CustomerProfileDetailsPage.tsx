@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
 import { Input, Spin } from "antd";
 import { CloseOutlined, MailFilled, PhoneFilled, SearchOutlined } from "@ant-design/icons";
+import { useLocation, useNavigate } from "react-router-dom";
 import CustomPagination from "../ui/Table/CustomPagination";
 import { useGetCustomerProfile, useGetCustomers } from "./Master/CustomerMaster/Hooks";
 import { extractList } from "./Master/Common/SimpleMasterUtils";
 import { getRequestPayload } from "../Utils/requestPayload";
 import CustomerTicketChart from "./CustomerTicketChart";
+import CustomerProfileTickets from "./CustomerProfileTickets";
+import CustomerProfileBills from "./CustomerProfileBills";
+import CustomerProfileAssets from "./CustomerProfileAssets";
 
 const show = (value: any, fallback = "N/A") => String(value ?? "").trim() || fallback;
 
@@ -52,8 +56,11 @@ const findProfileNumber = (
 };
 
 const CustomerProfileDetailsPage = () => {
-  const [selected, setSelected] = useState<any>();
-  const [tab, setTab] = useState("Profile");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const returnState = (location.state ?? {}) as { selectedCustomer?: any; tab?: string };
+  const selected = returnState.selectedCustomer;
+  const tab = selected ? returnState.tab ?? "Profile" : "Profile";
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -61,6 +68,23 @@ const CustomerProfileDetailsPage = () => {
   const { data, isLoading } = useGetCustomers(listPayload);
   const profilePayload = useMemo(() => ({ ...getRequestPayload(), nCustomerId: Number(selected?.id || 0), CustomerId: Number(selected?.id || 0) }), [selected]);
   const { data: profileResponse, isLoading: profileLoading } = useGetCustomerProfile(profilePayload, !!selected);
+
+  const openCustomer = (customer: any) => {
+    navigate(location.pathname, {
+      state: { selectedCustomer: customer, tab: "Profile" },
+    });
+  };
+
+  const changeTab = (nextTab: string) => {
+    navigate(location.pathname, {
+      replace: true,
+      state: { selectedCustomer: selected, tab: nextTab },
+    });
+  };
+
+  const backToCustomerList = () => {
+    navigate(location.pathname, { replace: true, state: null });
+  };
 
   const customers = useMemo(() => extractList(data).map((item: any, index: number) => ({
     id: item?.nCustomerId ?? item?.CustomerId ?? item?.customerId ?? index,
@@ -74,7 +98,7 @@ const CustomerProfileDetailsPage = () => {
   if (!selected) return <div className="flex h-full flex-col bg-white p-4 [&_*]:border-slate-200">
     <div className="mb-3 flex items-center justify-between"><h1 className="text-xl">Customer Details</h1><Input className="max-w-[300px]" prefix={<SearchOutlined />} placeholder="Search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
     <div className="flex-1 overflow-auto"><div className="grid grid-cols-[40px_1fr_150px_2fr] border-y px-2 py-3 text-sm font-medium"><span>Srl</span><span>Customer Name</span><span>Mobile No</span><span>Email</span></div>
-      {isLoading ? <div className="flex h-52 items-center justify-center"><Spin /></div> : visible.map((item, index) => <button key={item.id} type="button" onClick={() => setSelected(item)} className="grid w-full grid-cols-[40px_1fr_150px_2fr] border-b px-2 py-4 text-left text-sm hover:bg-slate-50"><span>{(page - 1) * pageSize + index + 1}</span><span>{item.name}</span><span>{item.mobile}</span><span>{item.email}</span></button>)}
+      {isLoading ? <div className="flex h-52 items-center justify-center"><Spin /></div> : visible.map((item, index) => <button key={item.id} type="button" onClick={() => openCustomer(item)} className="grid w-full grid-cols-[40px_1fr_150px_2fr] border-b px-2 py-4 text-left text-sm hover:bg-slate-50"><span>{(page - 1) * pageSize + index + 1}</span><span>{item.name}</span><span>{item.mobile}</span><span>{item.email}</span></button>)}
     </div><CustomPagination current={page} pageSize={pageSize} total={filtered.length} onChange={setPage} onShowSizeChange={(_, size) => { setPageSize(size); setPage(1); }} />
   </div>;
 
@@ -162,13 +186,19 @@ const CustomerProfileDetailsPage = () => {
 
 
 
-  return <div className="h-full overflow-auto bg-white p-4 [&_*]:border-slate-200">
-    <div className="flex border"><div className="flex">{["Profile", "Tickets", "Bills", "Asset"].map((name) => <button key={name} onClick={() => setTab(name)} className={`px-4 py-2 ${tab === name ? "bg-sky-600 font-semibold text-white" : ""}`}>{name}</button>)}</div><button className="ml-auto px-4 text-xl" onClick={() => { setSelected(undefined); setTab("Profile"); }}><CloseOutlined /></button></div>
+  return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white p-4 [&_*]:border-slate-200">
+    <div className="flex flex-none border"><div className="flex">{["Profile", "Tickets", "Bills", "Asset"].map((name) => <button key={name} onClick={() => changeTab(name)} className={`px-4 py-2 ${tab === name ? "bg-sky-600 font-semibold text-white" : ""}`}>{name}</button>)}</div><button className="ml-auto px-4 text-xl" onClick={backToCustomerList}><CloseOutlined /></button></div>
     {profileLoading ? <div className="flex h-64 items-center justify-center"><Spin /></div> : tab === "Profile" ? <>
-      <div className="flex items-center gap-7 p-6"><div className="flex h-24 w-24 items-center justify-center rounded-full bg-sky-300 text-3xl">{initials}</div><div className="flex-1"><div className="mb-3 text-lg">{name}</div><div className="grid grid-cols-4 rounded border text-sm"><span className="border-r p-2"><MailFilled className="mr-2" />{email}</span><span className="border-r p-2"><PhoneFilled className="mr-2" />{mobile}</span><span className="border-r p-2"><b>ID</b> {selected.id}</span><span className="p-2"><b>GST NO</b> {show(profile?.cGSTNo ?? profile?.cGstnNummber)}</span></div><div className="mt-3"><b>Address :</b> {show(profile?.cAddress)}</div></div></div>
+      <div className="min-h-0 flex-1 overflow-auto"><div className="flex items-center gap-7 p-6"><div className="flex h-24 w-24 items-center justify-center rounded-full bg-sky-300 text-3xl">{initials}</div><div className="flex-1"><div className="mb-3 text-lg">{name}</div><div className="grid grid-cols-4 rounded border text-sm"><span className="border-r p-2"><MailFilled className="mr-2" />{email}</span><span className="border-r p-2"><PhoneFilled className="mr-2" />{mobile}</span><span className="border-r p-2"><b>ID</b> {selected.id}</span><span className="p-2"><b>GST NO</b> {show(profile?.cGSTNo ?? profile?.cGstnNummber)}</span></div><div className="mt-3"><b>Address :</b> {show(profile?.cAddress)}</div></div></div>
       <div className="flex justify-between bg-sky-50 p-3 text-xs"><span>Customer from : {show(profile?.dCreatedDate)}</span><span>Last ticket created date : {show(profile?.dLastTicketCreatedDate)}</span></div>
-      <div className="mt-3 grid min-h-[315px] gap-16 md:grid-cols-2"><CustomerTicketChart total={total} resolved={resolved} unresolved={unresolved} modes={modes} /><section className="rounded-2xl border p-5"><h2 className="text-lg">Contacts</h2><div className="flex rounded bg-sky-50 p-3"><div>{name}<div className="text-sm text-slate-500">{mobile}</div><div className="text-sm text-slate-500">{email}</div></div><span className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white"><PhoneFilled /></span></div><h3 className="mt-3 border-t pt-3">Alternative Contacts</h3>{alternativeContacts.length ? <div className="space-y-2 pt-2">{alternativeContacts.map((contact: any, index: number) => <div key={`${contact.contactNumber}-${index}`} className="flex rounded bg-sky-50 p-3"><div>{show(contact.contactPerson)}<div className="text-sm text-slate-500">{show(contact.contactNumber, "NIL")}</div><div className="text-sm text-slate-500">{show(contact.contactEmail)}</div></div><span className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white"><PhoneFilled /></span></div>)}</div> : <div className="text-center text-sm text-slate-500">No Alternative Contacts</div>}</section></div>
-    </> : <div className="flex h-72 items-center justify-center text-slate-500">No {tab.toLowerCase()} data available</div>}
+      <div className="mt-3 grid min-h-[315px] gap-16 md:grid-cols-2"><CustomerTicketChart total={total} resolved={resolved} unresolved={unresolved} modes={modes} /><section className="rounded-2xl border p-5"><h2 className="text-lg">Contacts</h2><div className="flex rounded bg-sky-50 p-3"><div>{name}<div className="text-sm text-slate-500">{mobile}</div><div className="text-sm text-slate-500">{email}</div></div><span className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white"><PhoneFilled /></span></div><h3 className="mt-3 border-t pt-3">Alternative Contacts</h3>{alternativeContacts.length ? <div className="space-y-2 pt-2">{alternativeContacts.map((contact: any, index: number) => <div key={`${contact.contactNumber}-${index}`} className="flex rounded bg-sky-50 p-3"><div>{show(contact.contactPerson)}<div className="text-sm text-slate-500">{show(contact.contactNumber, "NIL")}</div><div className="text-sm text-slate-500">{show(contact.contactEmail)}</div></div><span className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white"><PhoneFilled /></span></div>)}</div> : <div className="text-center text-sm text-slate-500">No Alternative Contacts</div>}</section></div></div>
+    </> : tab === "Tickets" ? (
+      <CustomerProfileTickets customerId={selected.id} customerName={name} />
+    ) : tab === "Bills" ? (
+      <CustomerProfileBills customerId={selected.id} returnCustomer={selected} />
+    ) : tab === "Asset" ? (
+      <CustomerProfileAssets customerId={selected.id} />
+    ) : <div className="flex h-72 items-center justify-center text-slate-500">No {tab.toLowerCase()} data available</div>}
   </div>;
 };
 

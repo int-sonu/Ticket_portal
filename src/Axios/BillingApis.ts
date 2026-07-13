@@ -95,6 +95,15 @@ export const billingApis = {
     return response.data;
   },
 
+  billListCustomerWise: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Billing/BillListCustomerWise",
+      normalizeReceiptCustomerPayload(payload),
+    );
+
+    return response.data;
+  },
+
   billDelete: async (payload: any) => {
     const response = await axiosInstance.delete(
       "/Api/V1/Billing/BillDelete",

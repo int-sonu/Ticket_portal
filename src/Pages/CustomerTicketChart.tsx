@@ -1,4 +1,15 @@
-import { useState } from "react";
+import { useMemo } from "react";
+import {
+  ArcElement,
+  Chart as ChartJS,
+  Legend,
+  Tooltip,
+  type ChartOptions,
+  type Plugin,
+} from "chart.js";
+import { Doughnut } from "react-chartjs-2";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface CustomerMode {
   key: string | number;
@@ -19,50 +30,88 @@ const CustomerTicketChart = ({
   unresolved,
   modes,
 }: CustomerTicketChartProps) => {
-  const [activeSegment, setActiveSegment] = useState<"Resolved" | "Unresolved" | "Total" | null>(null);
-  const radius = 88;
-  const circumference = 2 * Math.PI * radius;
-  const resolvedRatio = total > 0 ? Math.min(resolved / total, 1) : 1;
-  const unresolvedRatio = total > 0
-    ? Math.min(unresolved / total, 1 - resolvedRatio)
-    : 0;
-  const activeCount = activeSegment === "Resolved"
-    ? resolved
-    : activeSegment === "Unresolved"
-      ? unresolved
-      : total;
+  const resolvedCount = Number(resolved) || 0;
+  const unresolvedCount = Number(unresolved) || 0;
+  const statusTotal = resolvedCount + unresolvedCount;
+  const displayTotal = Number(total) > 0 ? Number(total) : statusTotal;
+
+  const centerTextPlugin = useMemo<Plugin<"doughnut">>(() => ({
+    id: "customerTicketCenterText",
+    afterDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+
+      const x = (chartArea.left + chartArea.right) / 2;
+      const y = (chartArea.top + chartArea.bottom) / 2;
+
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#2d6a8c";
+      ctx.font = "14px sans-serif";
+      ctx.fillText("Total", x, y - 12);
+      ctx.font = "700 23px sans-serif";
+      ctx.fillText(String(displayTotal), x, y + 14);
+      ctx.restore();
+    },
+  }), [displayTotal]);
+
+  const chartData = useMemo(() => ({
+    labels: ["Resolved", "Unresolved"],
+    datasets: [
+      {
+        label: "Tickets",
+        data: [resolvedCount, unresolvedCount],
+        backgroundColor: ["#19c7a0", "#f58a0a"],
+        borderColor: "#ffffff",
+        borderWidth: 2,
+        hoverOffset: 4,
+        weight: 1.2,
+      },
+      {
+        label: "Total",
+        data: [displayTotal || 1],
+        backgroundColor: ["#e9e1d6"],
+        borderColor: "#ffffff",
+        borderWidth: 5,
+        hoverOffset: 0,
+        weight: 1,
+      },
+    ],
+  }), [displayTotal, resolvedCount, unresolvedCount]);
+
+  const chartOptions = useMemo<ChartOptions<"doughnut">>(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    cutout: "45%",
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        filter: (context) => context.datasetIndex === 0,
+        callbacks: {
+          label: (context) => `${context.label}: ${context.parsed}`,
+        },
+      },
+    },
+  }), []);
 
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border p-4">
       <h2 className="m-0 text-lg">Attended Tickets</h2>
 
-      <div className="relative flex flex-1 items-center justify-center py-4">
-        <svg
-          width="270"
-          height="270"
-          viewBox="0 0 270 270"
-          role="img"
-          aria-label={`${total} attended tickets`}
-          onMouseLeave={() => setActiveSegment(null)}
-        >
-          {total > 0 ? <g transform="rotate(-90 135 135)">
-            <circle cx="135" cy="135" r={radius} fill="none" stroke="#e9e1d6" strokeWidth="30" />
-            <circle cx="135" cy="135" r={radius} fill="none" stroke="#19c7a0" strokeWidth="30" strokeDasharray={`${circumference * resolvedRatio} ${circumference}`} className="cursor-pointer" onPointerEnter={() => setActiveSegment("Resolved")} onPointerDown={() => setActiveSegment("Resolved")} />
-            {unresolvedRatio > 0 ? (
-              <circle cx="135" cy="135" r={radius} fill="none" stroke="#f58a0a" strokeWidth="30" strokeDasharray={`${circumference * unresolvedRatio} ${circumference}`} strokeDashoffset={-circumference * resolvedRatio} className="cursor-pointer" onPointerEnter={() => setActiveSegment("Unresolved")} onPointerDown={() => setActiveSegment("Unresolved")} />
-            ) : null}
-            <circle cx="135" cy="135" r="61" fill="none" stroke="#e9e1d6" strokeWidth="24" />
-          </g> : null}
-          <text x="135" y="131" textAnchor="middle" fill="#2d6a8c" fontSize="14">Total</text>
-          <text x="135" y="156" textAnchor="middle" fill="#2d6a8c" fontSize="23" fontWeight="700">{total}</text>
-          <circle cx="135" cy="135" r="48" fill="transparent" className="cursor-pointer" onPointerEnter={() => setActiveSegment("Total")} onPointerDown={() => setActiveSegment("Total")} />
-        </svg>
-        {activeSegment ? (
-          <div className="pointer-events-none absolute left-1/2 top-1/2 min-w-[120px] -translate-x-1/2 translate-y-7 rounded border border-slate-300 bg-white px-3 py-2 text-center text-sm shadow-md">
-            <div>{activeSegment} : {activeCount}</div>
+      {statusTotal > 0 ? (
+        <div className="relative mx-auto h-[270px] w-[270px] py-4" role="img" aria-label={`${displayTotal} attended tickets`}>
+          <Doughnut data={chartData} options={chartOptions} plugins={[centerTextPlugin]} />
+        </div>
+      ) : (
+        <div className="flex h-[270px] items-center justify-center py-4 text-center text-[#2d6a8c]" role="status" aria-label={`${displayTotal} attended tickets`}>
+          <div>
+            <div className="text-sm">Total</div>
+            <div className="text-[23px] font-bold leading-6">{displayTotal}</div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
 
       <div className="flex gap-4 border-b pb-4 text-sm text-[#2d6a8c]">
         <span className="flex items-center gap-1 rounded bg-slate-50 p-2 text-[#19a98a]"><i className="h-3 w-3 rounded-full bg-[#19c7a0]" />Resolved : {String(resolved).padStart(2, "0")}</span>

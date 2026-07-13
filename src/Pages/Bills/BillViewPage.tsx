@@ -40,6 +40,18 @@ const BillViewPage = () => {
 
   const canLoadBill = !!billId;
 
+  const closeBillView = () => {
+    if (billState.returnTo) {
+      navigate(billState.returnTo, {
+        replace: true,
+        state: billState.returnState,
+      });
+      return;
+    }
+
+    navigate("/billsandreceipts/bills", { replace: true });
+  };
+
   const { data: billViewResponse, isLoading: isBillViewLoading } = useQuery({
     queryKey: ["bill-view-page", billRequestPayload],
     queryFn: () => billingApis.billView(billRequestPayload),
@@ -74,7 +86,7 @@ const BillViewPage = () => {
         <button
           type="button"
           aria-label="Close bill view"
-          onClick={() => navigate("/billsandreceipts/bills", { replace: true })}
+          onClick={closeBillView}
           className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"
         >
           <CloseOutlined />
