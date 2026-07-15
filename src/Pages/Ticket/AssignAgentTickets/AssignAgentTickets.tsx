@@ -15,6 +15,8 @@ interface AssignAgentTicketsLocationState {
   draftValues?: Record<string, any>;
   agentName?: string;
   agentId?: string | number;
+  taskDate?: string;
+  dDate?: string;
 }
 
 const getFieldValue = (record: any, keys: string[]) => {
@@ -85,6 +87,13 @@ const AssignAgentTickets = () => {
     searchParams.get("nAgentId") ??
     "";
 
+  const taskDate =
+    locationState.taskDate ??
+    locationState.dDate ??
+    searchParams.get("dDate") ??
+    searchParams.get("date") ??
+    "";
+
   useEffect(() => {
     setSearchText(agentName);
   }, [agentName]);
@@ -94,11 +103,11 @@ const AssignAgentTickets = () => {
       ...getRequestPayload(),
       pageNumber: 1,
       pageSize: 1000,
-      dDate: formatRequestDate(new Date()),
+      dDate: taskDate ? taskDate.replaceAll("-", "/") : formatRequestDate(new Date()),
       agentId,
       nAgentId: agentId,
     }),
-    [agentId]
+    [agentId, taskDate]
   );
 
   const { data, isFetching, isError } = useAssignAgentTicketList(

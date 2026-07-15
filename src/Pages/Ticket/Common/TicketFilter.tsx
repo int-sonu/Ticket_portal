@@ -66,18 +66,6 @@ const TicketFilter = ({
 
         <Col span={6}>
           <Form.Item
-            label="Agent"
-            name="AgentId"
-          >
-            <Select
-              allowClear
-              placeholder="Select Agent"
-            />
-          </Form.Item>
-        </Col>
-
-        <Col span={6}>
-          <Form.Item
             label="Status"
             name="Status"
           >

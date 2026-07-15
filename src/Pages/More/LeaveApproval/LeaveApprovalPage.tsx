@@ -53,7 +53,7 @@ const LeaveApprovalPage = () => {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white p-5">
       <header className="mb-3 flex flex-none items-center justify-between gap-3">
-        <h1 className="m-0 text-xl font-medium text-slate-950">Leave Approval</h1>
+        <h1 className="m-0 w-650 text-xl font-medium text-slate-950">Leave Approval</h1>
         <Input
           className="w-[240px]"
           prefix={<SearchOutlined className="text-slate-500" />}

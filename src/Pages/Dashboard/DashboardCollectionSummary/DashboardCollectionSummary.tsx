@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardCollectionSummaryProps {
   amount?: string;
@@ -9,9 +10,13 @@ const DashboardCollectionSummary: React.FC<DashboardCollectionSummaryProps> = ({
   amount = '₹ 0.00',
   className = '',
 }) => {
+  const navigate = useNavigate();
+
   return (
-    <div
-      className={`w-full bg-white rounded-xl border border-slate-100 p-5 flex flex-col gap-5 min-h-[240px] shadow-sm ${className}`}
+    <button
+      type="button"
+      onClick={() => navigate('/more/collectionsummary')}
+      className={`w-full bg-white rounded-xl border border-slate-100 p-5 flex flex-col gap-5 min-h-[240px] shadow-sm text-left transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-md ${className}`}
     >
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-slate-800 text-[15px] tracking-wide">
@@ -24,7 +29,7 @@ const DashboardCollectionSummary: React.FC<DashboardCollectionSummaryProps> = ({
           No Data Available
         </span>
       </div>
-    </div>
+    </button>
   );
 };
 

@@ -1361,7 +1361,6 @@ const CallReportViewPage = ({
                 <BillReadonlyView
                   viewData={viewData}
                   billViewData={billViewResponse}
-                  partListData={billPartList}
                   loading={isBillViewLoading || isBillPartListLoading}
                   fallbackState={{
                     customerName,

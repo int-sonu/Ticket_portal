@@ -321,6 +321,18 @@ export const ticketApis = {
     return response.data;
   },
 
+  closedTicketReviewList: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/ClosedTicketReviewList",
+        payload
+      );
+
+    return response.data;
+  },
+
   callReportList: async (
     payload: TicketPayload
   ) => {

@@ -7,7 +7,6 @@ import { useQuery } from "@tanstack/react-query";
 import { billingApis } from "../../Axios/BillingApis";
 import BillReadonlyViewExact from "./BillReadonlyViewExact";
 import { getRequestPayload } from "../../Utils/requestPayload";
-import { extractList } from "../Master/Common/SimpleMasterUtils";
 
 type BillViewState = Record<string, any>;
 
@@ -25,8 +24,14 @@ const BillViewPage = () => {
   );
 
   const billId =
-    Number(billState.billId ?? billState.nBillId ?? billState.billData?.nBillId ?? billState.billData?.BillId ?? 0) ||
-    0;
+    Number(
+      billState.billId ??
+        billState.nBillId ??
+        billState.billData?.nBillId ??
+        billState.billData?.BillId ??
+        billState.billData?.billId ??
+        0,
+    ) || 0;
 
   const billRequestPayload = useMemo(
     () => ({
@@ -58,19 +63,6 @@ const BillViewPage = () => {
     enabled: canLoadBill,
   });
 
-  const partListData = useMemo(() => {
-    const responseData = billViewResponse?.data ?? billViewResponse ?? {};
-    return extractList(
-      responseData?.data?.itemDtls ??
-        responseData?.data?.ItemDtls ??
-        responseData?.itemDtls ??
-        responseData?.ItemDtls ??
-        responseData?.data?.billSummary?.itemDtls ??
-        responseData?.data?.billSummary?.ItemDtls ??
-        [],
-    );
-  }, [billViewResponse]);
-
   if (!billId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4">
@@ -100,7 +92,6 @@ const BillViewPage = () => {
               viewData={billState}
               fallbackState={billState}
               billViewData={billViewResponse}
-              partListData={partListData}
               loading={isBillViewLoading}
             />
           </div>

@@ -19,7 +19,6 @@ type BillReadonlyViewExactProps = {
   viewData?: Record<string, any>;
   fallbackState?: Record<string, any>;
   billViewData?: Record<string, any>;
-  partListData?: any[];
   loading?: boolean;
 };
 
@@ -406,7 +405,6 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
   viewData = {},
   fallbackState = {},
   billViewData = {},
-  partListData = [],
   loading = false,
 }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -651,14 +649,37 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
     fallbackState.payMode ||
     "-";
 
+  const itemSourceCandidates = [
+    billSummary.itemDtls,
+    billSummary.ItemDtls,
+    billSummary.partDetails,
+    billSummary.PartDetails,
+    billSummary.rows,
+    billSummary.Rows,
+    billViewData.itemDtls,
+    billViewData.ItemDtls,
+    billViewData.partDetails,
+    billViewData.PartDetails,
+    billViewData.rows,
+    billViewData.Rows,
+    resolvedBillViewData.itemDtls,
+    resolvedBillViewData.ItemDtls,
+    resolvedBillViewData.partDetails,
+    resolvedBillViewData.PartDetails,
+    resolvedBillViewData.rows,
+    resolvedBillViewData.Rows,
+    resolvedBillViewData.data?.itemDtls,
+    resolvedBillViewData.data?.ItemDtls,
+    resolvedBillViewData.data?.partDetails,
+    resolvedBillViewData.data?.PartDetails,
+    resolvedBillViewData.data?.rows,
+    resolvedBillViewData.data?.Rows,
+  ];
+
   const rowSource =
-    (Array.isArray(billSummary.itemDtls) && billSummary.itemDtls.length > 0
-      ? billSummary.itemDtls
-      : Array.isArray(billSummary.ItemDtls) && billSummary.ItemDtls.length > 0
-        ? billSummary.ItemDtls
-        : Array.isArray(partListData) && partListData.length > 0
-          ? partListData
-          : []) ?? [];
+    itemSourceCandidates.find(
+      (candidate) => Array.isArray(candidate) && candidate.length > 0,
+    ) ?? [];
 
   const rows = useMemo(() => normalizePartRows(rowSource), [rowSource]);
 

@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Card,
   Input,
-  Popover,
   Space,
   Typography,
 } from "antd";
@@ -16,6 +15,7 @@ import { getRequestPayload } from "../../../Utils/requestPayload";
 import tabIcon from "../../../assets/icons/tabIcon.svg";
 import tabIconActive from "../../../assets/icons/tabIconActive.svg";
 import searchFilterIcon from "../../../assets/icons/searchFilterIcon.svg";
+import DateFilterIconPopover from "../../../ui/CalendarPopup/DateFilterIconPopover";
 import AntTable from "../../../ui/Table/AntTable";
 import QuickCallReportModal from "../Common/QuickCallReportModal";
 import TicketModulePagination from "../Common/TicketModulePagination";
@@ -37,6 +37,22 @@ const formatApiDate = (date: Date) => {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}/${month}/${day}`;
+};
+
+const formatCalendarDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeDate = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const parseCalendarDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 };
 
 const getRows = (response: any) => {
@@ -242,19 +258,6 @@ const formatPeriodValue = (value: any) => {
   return String(value);
 };
 
-const normalizeText = (value: any) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase();
-
-const matchesFilterValue = (value: any, filterValue: string | null) => {
-  if (!filterValue) {
-    return true;
-  }
-
-  return normalizeText(value) === normalizeText(filterValue);
-};
-
 const isOverdueTicket = (record: any) => {
   const status = String(
     getFieldValue(record, [
@@ -337,46 +340,6 @@ const tabToViewSource = (tab: string) => {
   }
 };
 
-const priorityOptions = [
-  "Very Low",
-  "Low",
-  "Medium",
-  "High",
-  "Very High",
-];
-
-const stageOptions = [
-  "All Tickets",
-  "On Hold",
-  "Transferred",
-  "On Site",
-  "Shared",
-  "Pending",
-];
-
-const getBooleanField = (record: any, keys: string[]) => {
-  const value = getFieldValue(record, keys);
-
-  return value === true || value === "true" || value === 1 || value === "1";
-};
-
-const getTicketStatusText = (record: any) =>
-  String(
-    getFieldValue(record, [
-      "Status",
-      "StatusName",
-      "cStatus",
-      "cStatusName",
-      "TicketStatus",
-      "TicketStatusName",
-      "cCurrentStatus",
-      "cCurrentStatusName",
-      "cTicketStatus",
-      "nStatus",
-      "nTicketStatus",
-    ]) ?? ""
-  ).toLowerCase();
-
 const getTicketIdValue = (record: any) =>
   Number(
     getFieldValue(record, [
@@ -392,6 +355,7 @@ const TicketList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = (location.state as Record<string, any> | null) ?? {};
+  const filterPanelRef = useRef<HTMLDivElement>(null);
   const [quickCallOpen, setQuickCallOpen] = useState(
     Boolean(locationState.openQuickCall)
   );
@@ -402,10 +366,13 @@ const TicketList = () => {
       : "ONGOING"
   );
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filterPriority, setFilterPriority] = useState<string | null>(null);
-  const [filterStage, setFilterStage] = useState<string | null>(null);
-  const [draftPriority, setDraftPriority] = useState<string | null>(null);
-  const [draftStage, setDraftStage] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [draftFilterDate, setDraftFilterDate] = useState(() =>
+    formatCalendarDate(new Date())
+  );
+  const [draftCalendarMonth, setDraftCalendarMonth] = useState(() =>
+    normalizeDate(new Date())
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchText, setSearchText] = useState("");
@@ -432,6 +399,23 @@ const TicketList = () => {
       setActiveTab(locationState.activeTab);
     }
   }, [locationState.activeTab]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterPanelRef.current &&
+        !filterPanelRef.current.contains(event.target as Node)
+      ) {
+        setFilterOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -474,7 +458,7 @@ const TicketList = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterPriority, filterStage, pageSize, searchText]);
+  }, [activeTab, filterDate, pageSize, searchText]);
 
   const getTableData = () => {
     switch (activeTab) {
@@ -548,17 +532,6 @@ const TicketList = () => {
       "nPriorityId",
     ]);
 
-  const getTicketStatusId = (record: any) =>
-    Number(
-      getFieldValue(record, [
-        "nticketstatus",
-        "nTicketStatus",
-        "nTicketstatus",
-        "nStatus",
-        "statusId",
-      ]) || 0
-    );
-
   const getStageValue = (record: any) =>
     getFieldValue(record, [
       "Status",
@@ -576,40 +549,6 @@ const TicketList = () => {
       "nStatus",
       "nTicketStatus",
     ]);
-
-  const matchesStageFilter = (record: any) => {
-    if (!filterStage || filterStage === "All Tickets") {
-      return true;
-    }
-
-    const statusId = getTicketStatusId(record);
-
-    if (filterStage === "On Hold") {
-      return statusId === 2;
-    }
-
-    if (filterStage === "Transferred") {
-      return getBooleanField(record, [
-        "bTransfered",
-        "bTransferred",
-        "isTransferred",
-      ]);
-    }
-
-    if (filterStage === "On Site") {
-      return getBooleanField(record, ["bOnSite", "isOnSite"]);
-    }
-
-    if (filterStage === "Shared") {
-      return getBooleanField(record, ["bShared", "isShared"]);
-    }
-
-    if (filterStage === "Pending") {
-      return statusId === 1 || statusId === 7;
-    }
-
-    return true;
-  };
 
   const filteredRows = getTableData().filter((record: any) => {
     const query = searchText.trim().toLowerCase();
@@ -642,10 +581,21 @@ const TicketList = () => {
         .toLowerCase()
         .includes(query);
 
-    const priorityMatches =
-      !filterPriority || matchesFilterValue(priorityValue, filterPriority);
+    const createdDate = parseTicketDate(
+      getFieldValue(record, [
+        "CreatedDate",
+        "CreatedDateTime",
+        "CreatedOn",
+        "dCreatedDate",
+        "dCreatedOn",
+        "cDate",
+      ])
+    );
+    const dateMatches =
+      !filterDate ||
+      (createdDate ? formatCalendarDate(createdDate) === filterDate : false);
 
-    return searchMatches && priorityMatches && matchesStageFilter(record);
+    return searchMatches && dateMatches;
   }).sort((a: any, b: any) => getTicketIdValue(b) - getTicketIdValue(a));
 
   const totalRows = filteredRows.length;
@@ -662,20 +612,23 @@ const TicketList = () => {
     setFilterOpen(open);
 
     if (open) {
-      setDraftPriority(filterPriority);
-      setDraftStage(filterStage);
+      const initialDate = filterDate ? parseCalendarDate(filterDate) : new Date();
+      const normalizedInitialDate = normalizeDate(initialDate);
+      setDraftCalendarMonth(normalizedInitialDate);
+      setDraftFilterDate(formatCalendarDate(normalizedInitialDate));
     }
   };
 
   const handleResetFilters = () => {
-    setDraftPriority(filterPriority);
-    setDraftStage(filterStage);
+    const initialDate = filterDate ? parseCalendarDate(filterDate) : new Date();
+    const normalizedInitialDate = normalizeDate(initialDate);
+    setDraftCalendarMonth(normalizedInitialDate);
+    setDraftFilterDate(formatCalendarDate(normalizedInitialDate));
     setFilterOpen(false);
   };
 
   const handleApplyFilters = () => {
-    setFilterPriority(draftPriority);
-    setFilterStage(draftStage);
+    setFilterDate(draftFilterDate);
     setCurrentPage(1);
     setFilterOpen(false);
   };
@@ -684,111 +637,6 @@ const TicketList = () => {
     setCurrentPage(page);
     setPageSize(nextPageSize);
   };
-
-  const filterContent = (
-    <div
-      className="ticket-filter-panel"
-      style={{
-        width: 320,
-        borderRadius: 8,
-        padding: "1px 20px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#1f2937",
-          marginBottom: 14,
-        }}
-      >
-        Priority Level
-      </div>
-
-      <div className="ticket-priority-steps">
-        {priorityOptions.map((item) => {
-          const active = draftPriority === item;
-
-          return (
-            <button
-              key={item}
-              type="button"
-              className={`ticket-priority-step ${active ? "is-active" : ""}`}
-              onClick={() =>
-                setDraftPriority((value) => (value === item ? null : item))
-              }
-            >
-              <span className="ticket-priority-dot" />
-              <span className="ticket-priority-label">{item}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div
-        style={{
-          height: 1,
-          background: "#eef2f7",
-          margin: "20px 0",
-        }}
-      />
-
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#1f2937",
-          marginBottom: 12,
-        }}
-      >
-        Ticket Stages
-      </div>
-
-      <Space wrap size={8}>
-        {stageOptions.map((item) => {
-          const active = draftStage === item;
-
-          return (
-            <Button
-              key={item}
-              size="small"
-              type={active ? "primary" : "default"}
-              onClick={() =>
-                setDraftStage((value) =>
-                  value === item ? null : item
-                )
-              }
-              style={{
-                borderRadius: 999,
-                height: 30,
-                padding: "0 14px",
-                fontSize: 11,
-                boxShadow: "none",
-                borderColor: active ? "#1677ff" : "#111827",
-              }}
-            >
-              {item}
-            </Button>
-          );
-        })}
-      </Space>
-
-      <Space
-        style={{
-          width: "100%",
-          justifyContent: "flex-end",
-          marginTop: 220,
-        }}
-      >
-        <Button className="ticket-filter-cancel" onClick={handleResetFilters}>
-          Cancel
-        </Button>
-        <Button type="primary" onClick={handleApplyFilters}>
-          Apply
-        </Button>
-      </Space>
-    </div>
-  );
 
   const columns = [
     {
@@ -1046,34 +894,25 @@ const TicketList = () => {
               }}
             />
 
-            <Popover
-              trigger="click"
-              placement="bottomRight"
-              open={filterOpen}
-              onOpenChange={handleOpenChange}
-              content={filterContent}
-            >
-              <Button
-                icon={
-                  <img
-                    src={searchFilterIcon}
-                    alt=""
-                    aria-hidden="true"
-                    style={{
-                      width: 16,
-                      height: 16,
-                      display: "block",
-                    }}
-                  />
-                }
-                style={{
-                  width: 38,
-                  height: 28,
-                  padding: 0,
-                  borderRadius: 8,
+            <div ref={filterPanelRef}>
+              <DateFilterIconPopover
+                open={filterOpen}
+                iconSrc={searchFilterIcon}
+                ariaLabel="Filter tickets"
+                onOpenToggle={() => handleOpenChange(!filterOpen)}
+                month={draftCalendarMonth}
+                selectedDate={parseCalendarDate(draftFilterDate)}
+                onMonthChange={setDraftCalendarMonth}
+                onYearChange={setDraftCalendarMonth}
+                onSelectDate={(date) => {
+                  const normalizedDate = normalizeDate(date);
+                  setDraftCalendarMonth(normalizedDate);
+                  setDraftFilterDate(formatCalendarDate(normalizedDate));
                 }}
+                onApply={handleApplyFilters}
+                onCancel={handleResetFilters}
               />
-            </Popover>
+            </div>
 
          <Button
   type="primary"

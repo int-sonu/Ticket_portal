@@ -135,6 +135,18 @@ export const useClosedTicketList = (
   });
 };
 
+export const useClosedTicketReviewList = (
+  payload: any,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["closed-ticket-review-list", payload],
+    queryFn: () =>
+      ticketApis.closedTicketReviewList(payload),
+    enabled,
+  });
+};
+
 export const useCallReportList = (
   payload: any,
   enabled = true

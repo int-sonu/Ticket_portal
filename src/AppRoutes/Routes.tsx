@@ -59,9 +59,15 @@ import EstimatePdfViewer from "../Pages/Ticket/Common/EstimatePdfViewer";
 import MergeTicketsPage from "../Pages/Ticket/Common/MergeTicketsPage";
 import ShareCallReportView from "../Pages/Ticket/Common/ShareCallReportView";
 import CustomerProfileDetailsPage from "../Pages/CustomerProfileDetailsPage";
+import CollectionSummaryListPage from "../Pages/More/CollectionSummary/CollectionSummaryListPage";
 import LeaveApplicationPage from "../Pages/More/LeaveApplication/LeaveApplicationPage";
 import LeaveApprovalPage from "../Pages/More/LeaveApproval/LeaveApprovalPage";
 import LeaveApprovalViewPage from "../Pages/More/LeaveApproval/LeaveApprovalViewPage";
+import TravelingExpensePage from "../Pages/More/TravelingExpenseModalPage";
+import TravelingExpenseViewPage from "../Pages/More/TravelingExpenseViewPage";
+import TravelLogPage from "../Pages/More/TravelLogPage";
+import ReviewClosedTicketsPage from "../Pages/More/ReviewClosedTicketsPage";
+import TaskCalendarPage from "../Pages/More/TaskCalendarPage";
 
 const Routes: React.FC = () => {
   return (
@@ -130,11 +136,23 @@ const Routes: React.FC = () => {
             <Route path="/masters/customer" element={<CustomerList />} />
 
             <Route path="/more/customer-details" element={<CustomerProfileDetailsPage />} />
+            <Route path="/more/collectionsummary" element={<CollectionSummaryListPage />} />
+            <Route path="/more/collection-summary" element={<CollectionSummaryListPage />} />
+            <Route path="/more/traveling-expense" element={<TravelingExpensePage />} />
+            <Route path="/more/travelingexpense" element={<TravelingExpensePage />} />
+            <Route path="/more/travelingexpense/view" element={<TravelingExpenseViewPage />} />
+            <Route path="/more/traveling-expense/view" element={<TravelingExpenseViewPage />} />
+            <Route path="/more/travel-log" element={<TravelLogPage />} />
+            <Route path="/more/task-calendar" element={<TaskCalendarPage />} />
             <Route path="/more/leave-application" element={<LeaveApplicationPage />} />
             <Route path="/more/leaveapplication" element={<LeaveApplicationPage />} />
             <Route path="/more/leaveapproval" element={<LeaveApprovalPage />} />
             <Route path="/more/leave-approval" element={<LeaveApprovalPage />} />
             <Route path="/more/leaveapproval/view" element={<LeaveApprovalViewPage />} />
+            <Route
+              path="/more/review-closed-tickets"
+              element={<ReviewClosedTicketsPage />}
+            />
 
             <Route path="/masters/servicetype" element={<ServiceTypeList />} />
 

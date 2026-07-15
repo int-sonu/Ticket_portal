@@ -87,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
       icon: moreIcon,
       subItems: [
         { name: 'Customer Details', path: '/more/customer-details' },
-        { name: 'Collection Summary', path: '/more/collection-summary' },
+        { name: 'Collection Summary', path: '/more/collectionsummary' },
         { name: 'Punch In & Punch Out', path: '/more/punch-io' },
         { name: 'Leave Application', path: '/more/leaveapplication' },
         { name: 'Leave Approval', path: '/more/leaveapproval' },

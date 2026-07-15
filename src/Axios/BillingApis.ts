@@ -124,6 +124,78 @@ export const billingApis = {
     return response.data;
   },
 
+  collectionSummaryList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/CollectionSummary/CollectionSummaryList",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  travelExpenseList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TravelExpenseList",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  travelExpense: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TravelExpense",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  travelLogList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TravelLogList",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  otherExpenseList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/OtherExpenses/OtherExpenseList",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  otherExpensesSave: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/OtherExpenses/OtherExpensesSave",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  otherExpensesUpdate: async (payload: any) => {
+    const response = await axiosInstance.put(
+      "/Api/V1/OtherExpenses/OtherExpensesUpdate",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  otherExpensesDelete: async (payload: any) => {
+    const response = await axiosInstance.delete(
+      "/Api/V1/OtherExpenses/OtherExpensesDelete",
+      { data: payload },
+    );
+
+    return response.data;
+  },
+
   outstandingBillListCustomerWise: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Receipt/OutstandingBillListCustomerWise",

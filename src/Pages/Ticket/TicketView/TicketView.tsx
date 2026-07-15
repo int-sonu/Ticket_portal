@@ -770,6 +770,7 @@ const buildTicketStatusUpdatePayload = (
   sessionPayload: Record<string, any>,
   nextStatusId: number,
   nextStatusLabel: string,
+  comment = "",
 ) => {
   const ticketIdValue =
     Number(ticketId || 0) ||
@@ -785,6 +786,8 @@ const buildTicketStatusUpdatePayload = (
     Status: nextStatusLabel,
     cStatus: nextStatusLabel,
     nCompanyId: Number(sessionPayload.nCompanyId ?? 0) || 0,
+    cComment: String(comment ?? "").trim(),
+    Comment: String(comment ?? "").trim(),
     nModifiedBy: Number(
       sessionPayload.nAgentId ??
         sessionPayload.id ??
@@ -976,6 +979,7 @@ const TicketView = () => {
   const state = (location.state as TicketViewState | null) ?? {};
   const selectedRow = state.selectedRow ?? state.savedTicketRecord ?? {};
   const isItemRepairContext = state.isFrom === "item-repair";
+  const isReviewClosedContext = state.isFrom === "review-closed-tickets";
   const isFollowupPage = location.pathname
     .toLowerCase()
     .includes("/tickets/followup/");
@@ -994,6 +998,8 @@ const TicketView = () => {
       ? "Created Tickets"
       : state.isFrom === "postponed"
       ? "Postponed"
+      : state.isFrom === "review-closed-tickets"
+      ? "Review Closed Tickets"
       : isFollowupPage
       ? "Follow Up"
       : "Ticket";
@@ -1030,6 +1036,9 @@ const TicketView = () => {
   const [sessionMergeBanner, setSessionMergeBanner] = useState<TicketViewState["mergeBanner"] | null>(null);
   const [hideMergedBanner, setHideMergedBanner] = useState(false);
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [reviewCommentOpen, setReviewCommentOpen] = useState(false);
+  const [reviewComment, setReviewComment] = useState("");
+  const [pendingReviewAction, setPendingReviewAction] = useState<"verify" | "reject" | null>(null);
   const [historyCallReportState, setHistoryCallReportState] = useState<Record<string, any> | null>(
     null,
   );
@@ -2143,6 +2152,27 @@ const TicketView = () => {
       },
     [resolvedRecord, statusLookupOptions],
   );
+  const reviewVerifyStatusOption = useMemo(
+    () =>
+      statusLookupOptions.find((item: any) => {
+        const label = normalizeText(item.label).replace(/\s+/g, "");
+        return (
+          label.includes("verify") ||
+          label.includes("verified") ||
+          label.includes("approved") ||
+          label.includes("complete") ||
+          label.includes("closed")
+        );
+      }) ?? null,
+    [statusLookupOptions],
+  );
+  const reviewRejectStatusOption = useMemo(
+    () =>
+      statusLookupOptions.find((item: any) =>
+        normalizeText(item.label).replace(/\s+/g, "").includes("reject"),
+      ) ?? null,
+    [statusLookupOptions],
+  );
   const isWorkflowStarted = workflowStarted;
   useEffect(() => {
     if (!ticketId) return;
@@ -2404,6 +2434,81 @@ const TicketView = () => {
           );
         },
       },
+    );
+  };
+
+  const handleReviewClosedAction = (
+    nextStatusOption: { id: number; label: string } | null,
+    successMessage: string,
+    comment: string,
+    onSuccess?: () => void,
+  ) => {
+    if (!nextStatusOption) {
+      message.error("Required status is not available");
+      return;
+    }
+
+    updateTicketStatus.mutate(
+      buildTicketStatusUpdatePayload(
+        ticketId,
+        resolvedRecord,
+        supportSessionPayload,
+        nextStatusOption.id,
+        nextStatusOption.label,
+        comment,
+      ) as any,
+      {
+        onSuccess: () => {
+          syncTicketStatusCache(nextStatusOption.id, nextStatusOption.label);
+          queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+          queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
+          message.success(successMessage);
+          onSuccess?.();
+          navigate("/more/review-closed-tickets");
+        },
+        onError: (error: any) => {
+          message.error(
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to update ticket status",
+          );
+        },
+      },
+    );
+  };
+
+  const openReviewCommentModal = (action: "verify" | "reject") => {
+    setPendingReviewAction(action);
+    setReviewComment("");
+    setReviewCommentOpen(true);
+  };
+
+  const closeReviewCommentModal = () => {
+    setReviewCommentOpen(false);
+    setPendingReviewAction(null);
+    setReviewComment("");
+  };
+
+  const submitReviewComment = () => {
+    const action = pendingReviewAction;
+
+    if (!action) {
+      closeReviewCommentModal();
+      return;
+    }
+
+    const nextStatusOption =
+      action === "verify" ? reviewVerifyStatusOption : reviewRejectStatusOption;
+    const successMessage =
+      action === "verify"
+        ? "Ticket verified successfully"
+        : "Ticket rejected successfully";
+
+    handleReviewClosedAction(
+      nextStatusOption,
+      successMessage,
+      reviewComment.trim(),
+      closeReviewCommentModal,
     );
   };
 
@@ -3423,6 +3528,57 @@ const TicketView = () => {
           ) : null}
         </div>
       ) : null}
+      {isReviewClosedContext ? (
+        <div className="mt-4 flex items-center justify-end gap-3 px-1">
+          <Button
+            danger
+            type="primary"
+            loading={updateTicketStatus.isPending}
+            className="h-10 rounded-xl !border-red-500 !bg-red-500 px-8 hover:!border-red-600 hover:!bg-red-600"
+            onClick={() => openReviewCommentModal("reject")}
+          >
+            Reject
+          </Button>
+          <Button
+            type="primary"
+            loading={updateTicketStatus.isPending}
+            className="h-10 rounded-xl !border-emerald-500 !bg-emerald-500 px-8 hover:!border-emerald-600 hover:!bg-emerald-600"
+            onClick={() => openReviewCommentModal("verify")}
+          >
+            Verify
+          </Button>
+        </div>
+      ) : null}
+      <Modal
+        open={reviewCommentOpen}
+        title="Add your comment"
+        centered
+        footer={null}
+        onCancel={closeReviewCommentModal}
+        width={420}
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="mb-2 text-sm text-slate-600">Comment</div>
+            <Input.TextArea
+              rows={6}
+              value={reviewComment}
+              onChange={(event) => setReviewComment(event.target.value)}
+              placeholder="Enter comment"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button onClick={closeReviewCommentModal}>Cancel</Button>
+            <Button
+              type="primary"
+              className="!border-emerald-500 !bg-emerald-500 hover:!border-emerald-600 hover:!bg-emerald-600"
+              onClick={submitReviewComment}
+            >
+              Ok
+            </Button>
+          </div>
+        </div>
+      </Modal>
       <QuickCallReportModal
         open={quickCallOpen}
         onClose={() => setQuickCallOpen(false)}
