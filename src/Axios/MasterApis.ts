@@ -260,6 +260,15 @@ export const agentApis = {
     return response.data;
   },
 
+  agentAnalysis: async (payload: AgentPayload) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Agent/AgentAnalysis',
+      payload
+    );
+
+    return response.data;
+  },
+
   taskCalender: async (payload: AgentPayload) => {
     const response = await axiosInstance.post(
       "/Api/V1/Agent/TaskCalender",

@@ -9,10 +9,16 @@ type CalendarPopupProps = {
   open: boolean;
   month: Date;
   selectedDate: Date;
+  selectedFromDate?: Date;
+  selectedToDate?: Date;
   title?: ReactNode;
+  inline?: boolean;
+  className?: string;
+  showActions?: boolean;
   onMonthChange: (nextMonth: Date) => void;
   onYearChange: (nextYear: Date) => void;
   onSelectDate: (date: Date) => void;
+  onSelectRangeDate?: (date: Date) => void;
   onApply: () => void;
   onCancel: () => void;
 };
@@ -67,10 +73,16 @@ const CalendarPopup = ({
   open,
   month,
   selectedDate,
+  selectedFromDate,
+  selectedToDate,
   title = "Filter",
+  inline = false,
+  className = "",
+  showActions = true,
   onMonthChange,
   onYearChange,
   onSelectDate,
+  onSelectRangeDate,
   onApply,
   onCancel,
 }: CalendarPopupProps) => {
@@ -81,6 +93,21 @@ const CalendarPopup = ({
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const calendarDays = buildCalendarGrid(month);
   const normalizedSelectedDate = normalizeDate(selectedDate);
+  const normalizedRangeStart = selectedFromDate ? normalizeDate(selectedFromDate) : null;
+  const normalizedRangeEnd = selectedToDate ? normalizeDate(selectedToDate) : null;
+
+  const isInRange = (day: number, currentMonth: boolean) => {
+    if (!currentMonth || !normalizedRangeStart || !normalizedRangeEnd) return false;
+
+    const candidate = new Date(month.getFullYear(), month.getMonth(), day);
+    const startTime = normalizedRangeStart.getTime();
+    const endTime = normalizedRangeEnd.getTime();
+    const candidateTime = candidate.getTime();
+    const minTime = Math.min(startTime, endTime);
+    const maxTime = Math.max(startTime, endTime);
+
+    return candidateTime >= minTime && candidateTime <= maxTime;
+  };
 
   const isSelectedDay = (day: number, currentMonth: boolean) =>
     currentMonth &&
@@ -100,7 +127,11 @@ const CalendarPopup = ({
   };
 
   return (
-    <div className="absolute right-0 top-0 z-50 mt-12 w-[340px] rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)]">
+    <div
+      className={`z-50 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] ${
+        inline ? "static w-full shadow-none" : "absolute right-0 top-0 mt-12 w-[340px]"
+      } ${className}`.trim()}
+    >
       <div className="mb-3 text-sm font-semibold text-slate-800">{title}</div>
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
@@ -161,17 +192,23 @@ const CalendarPopup = ({
             return (
               <button
                 key={`${day}-${currentMonth}-${index}`}
-                onClick={() =>
-                  currentMonth
-                    ? onSelectDate(new Date(month.getFullYear(), month.getMonth(), day))
-                    : undefined
-                }
+                onClick={() => {
+                  if (!currentMonth) return;
+                  const nextDate = new Date(month.getFullYear(), month.getMonth(), day);
+                  if (onSelectRangeDate) {
+                    onSelectRangeDate(nextDate);
+                    return;
+                  }
+                  onSelectDate(nextDate);
+                }}
                 type="button"
                 disabled={!currentMonth}
                 className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-colors
                   ${
                     selected
                       ? "bg-[#2cd5a9] font-bold text-white"
+                      : isInRange(day, currentMonth)
+                        ? "bg-teal-50 text-slate-800"
                       : currentMonth
                         ? activeToday
                           ? "border border-[#2cd5a9] text-[#2cd5a9]"
@@ -186,22 +223,24 @@ const CalendarPopup = ({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-[#2cd5a9] transition-colors hover:bg-teal-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onApply}
-          className="rounded-lg bg-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#25bfa4]"
-        >
-          Apply
-        </button>
-      </div>
+      {showActions ? (
+        <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-[#2cd5a9] transition-colors hover:bg-teal-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onApply}
+            className="rounded-lg bg-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#25bfa4]"
+          >
+            Apply
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 };

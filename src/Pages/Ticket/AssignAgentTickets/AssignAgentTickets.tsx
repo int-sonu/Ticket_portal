@@ -42,6 +42,32 @@ const formatRequestDate = (date: Date) => {
   return `${year}/${month}/${day}`;
 };
 
+const normalizeApiDate = (value: string) => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return formatRequestDate(new Date());
+
+  const parts = trimmed.split(/[/-]/).map((part) => part.trim());
+
+  if (parts.length === 3) {
+    const [first, second, third] = parts;
+
+    if (first.length === 4) {
+      return `${first}/${second.padStart(2, "0")}/${third.padStart(2, "0")}`;
+    }
+
+    if (third.length === 4) {
+      return `${third}/${second.padStart(2, "0")}/${first.padStart(2, "0")}`;
+    }
+  }
+
+  const fallback = new Date(trimmed);
+  if (!Number.isNaN(fallback.getTime())) {
+    return formatRequestDate(fallback);
+  }
+
+  return formatRequestDate(new Date());
+};
+
 const isOngoingTicket = (record: any) =>
   String(
     getFieldValue(record, [
@@ -74,12 +100,6 @@ const AssignAgentTickets = () => {
     (location.state as AssignAgentTicketsLocationState | null) ?? {};
   const returnTo = locationState.returnTo;
 
-  const agentName =
-    locationState.agentName ??
-    searchParams.get("agentName") ??
-    searchParams.get("name") ??
-    "";
-
   const agentId =
     locationState.agentId ??
     searchParams.get("agentId") ??
@@ -94,20 +114,16 @@ const AssignAgentTickets = () => {
     searchParams.get("date") ??
     "";
 
-  useEffect(() => {
-    setSearchText(agentName);
-  }, [agentName]);
-
   const payload = useMemo(
     () => ({
       ...getRequestPayload(),
       pageNumber: 1,
       pageSize: 1000,
-      dDate: taskDate ? taskDate.replaceAll("-", "/") : formatRequestDate(new Date()),
+      dDate: normalizeApiDate(taskDate || String(locationState.dDate || searchParams.get("dDate") || "")),
       agentId,
       nAgentId: agentId,
     }),
-    [agentId, taskDate]
+    [agentId, locationState.dDate, searchParams, taskDate]
   );
 
   const { data, isFetching, isError } = useAssignAgentTicketList(
@@ -119,9 +135,7 @@ const AssignAgentTickets = () => {
 
   const filteredRows = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    const agentPrefill = agentName.trim().toLowerCase();
-
-    if (!query || query === agentPrefill) return rows;
+    if (!query) return rows;
 
     return rows.filter((record: any) => {
       const fields = [
@@ -144,11 +158,7 @@ const AssignAgentTickets = () => {
           "ticketSummary",
           "summary",
         ]),
-        getFieldValue(record, [
-          "cPriority",
-          "Priority",
-          "priority",
-        ]),
+      
         getFieldValue(record, [
           "cStatusName",
           "StatusName",
@@ -173,9 +183,7 @@ const AssignAgentTickets = () => {
     safeCurrentPage * pageSize
   );
 
-  const pageTitle = agentName
-    ? `${agentName} Tickets`
-    : "Tickets";
+  const pageTitle = "Assigned Ticket";
 
   const goBack = () => {
     if (returnTo) {
@@ -195,16 +203,12 @@ const AssignAgentTickets = () => {
           (safeCurrentPage - 1) * pageSize + index + 1,
       },
       {
-        title: "Scheduled on",
+        title: "Created Date",
         width: 120,
         render: (record: any) =>
           getFieldValue(record, [
-            "dScheduleDate",
-            "scheduleDate",
-            "scheduledOn",
-            "FollowupDate",
             "dDate",
-          ]) ?? "-",
+          ]) ,
       },
       {
         title: "Ticket No.",
@@ -238,16 +242,7 @@ const AssignAgentTickets = () => {
             "summary",
           ]) ?? "-",
       },
-      {
-        title: "Priority",
-        width: 100,
-        render: (record: any) =>
-          getFieldValue(record, [
-            "cPriority",
-            "Priority",
-            "priority",
-          ]) ?? "-",
-      },
+     
       {
         title: "Status",
         width: 100,

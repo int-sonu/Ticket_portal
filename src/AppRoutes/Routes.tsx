@@ -68,6 +68,9 @@ import TravelingExpenseViewPage from "../Pages/More/TravelingExpenseViewPage";
 import TravelLogPage from "../Pages/More/TravelLogPage";
 import ReviewClosedTicketsPage from "../Pages/More/ReviewClosedTicketsPage";
 import TaskCalendarPage from "../Pages/More/TaskCalendarPage";
+import AgentAnalysisPage from "../Pages/More/AgentAnalysisPage";
+import ExpenseApprovalPage from "../Pages/More/ExpenseApprovalPage";
+import ExpenseApprovalViewPage from "../Pages/More/ExpenseApprovalViewPage";
 
 const Routes: React.FC = () => {
   return (
@@ -144,11 +147,17 @@ const Routes: React.FC = () => {
             <Route path="/more/traveling-expense/view" element={<TravelingExpenseViewPage />} />
             <Route path="/more/travel-log" element={<TravelLogPage />} />
             <Route path="/more/task-calendar" element={<TaskCalendarPage />} />
+            <Route path="/more/agent-analysis" element={<AgentAnalysisPage />} />
+            <Route path="/more/taskcalendar/view" element={<AssignAgentTickets />} />
             <Route path="/more/leave-application" element={<LeaveApplicationPage />} />
             <Route path="/more/leaveapplication" element={<LeaveApplicationPage />} />
             <Route path="/more/leaveapproval" element={<LeaveApprovalPage />} />
             <Route path="/more/leave-approval" element={<LeaveApprovalPage />} />
             <Route path="/more/leaveapproval/view" element={<LeaveApprovalViewPage />} />
+            <Route path="/more/expense-approval" element={<ExpenseApprovalPage />} />
+            <Route path="/more/expenseapproval" element={<ExpenseApprovalPage />} />
+            <Route path="/more/expense-approval/view" element={<ExpenseApprovalViewPage />} />
+            <Route path="/more/expenseapproval/view" element={<ExpenseApprovalViewPage />} />
             <Route
               path="/more/review-closed-tickets"
               element={<ReviewClosedTicketsPage />}
@@ -199,10 +208,7 @@ const Routes: React.FC = () => {
               element={<CustomerTickets />}
             />
 
-            <Route
-              path="/tickets/agenttickets"
-              element={<AssignAgentTickets />}
-            />
+            <Route path="/tickets/agenttickets" element={<AssignAgentTickets />} />
 
             <Route path="/tickets/edit/:id" element={<TicketCreate />} />
 

@@ -88,3 +88,31 @@ export const leaveApis = {
     return response.data;
   },
 };
+
+export type ApprovalPayload = Record<string, unknown>;
+
+export const approvalApis = {
+  expenseApprovalList: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ExpenseApprovalList",
+      payload,
+    );
+    return response.data;
+  },
+
+  approvalPendingList: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ApprovalPendingList",
+      payload,
+    );
+    return response.data;
+  },
+
+  expenseApprovalPeriodList: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ExpenseApprovalPeriodList",
+      payload,
+    );
+    return response.data;
+  },
+};
