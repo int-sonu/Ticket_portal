@@ -232,6 +232,15 @@ export const billingApis = {
     return response.data;
   },
 
+  getCompanyFeatures: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Configuration/GetCompanyFeatures",
+      payload,
+    );
+
+    return response.data;
+  },
+
   billExportPdf: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Billing/BillExportPdf",

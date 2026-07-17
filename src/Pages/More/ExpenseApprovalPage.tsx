@@ -27,6 +27,30 @@ const pageColumns = [
   { key: "approved", label: "Approved Expense" },
 ];
 
+const parseDateValue = (value: unknown) => {
+  const source = String(value ?? "").trim();
+  if (!source) return null;
+
+  const match = source.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (!match) return null;
+
+  const [, day, month, year] = match;
+  return `${year}/${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+};
+
+const getRowPeriod = (row: Record<string, unknown>) => {
+  const fromDate =
+    parseDateValue(getValue(row, ["dFromDate", "FromDate", "cFromDate"])) ||
+    parseDateValue(getValue(row, ["cPeriod", "Period"]))?.split(" - ")?.[0] ||
+    "";
+  const toDate =
+    parseDateValue(getValue(row, ["dToDate", "dTodate", "ToDate", "cToDate"])) ||
+    parseDateValue(getValue(row, ["cPeriod", "Period"]))?.split(" - ")?.[1] ||
+    "";
+
+  return { fromDate, toDate };
+};
+
 const ExpenseApprovalPage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -87,6 +111,14 @@ const ExpenseApprovalPage = () => {
   }, [pendingQuery.data, pendingRows.length]);
 
   const openDetails = (row: Record<string, unknown>) => {
+    const approvalId = Number(
+      getValue(row, [
+        "nApprovalId",
+        "ApprovalId",
+        "nApprovalID",
+        "ApprovalID",
+      ]),
+    ) || 0;
     const expenseApprovalId = Number(
       getValue(row, [
         "nExpenseApprovalId",
@@ -96,10 +128,16 @@ const ExpenseApprovalPage = () => {
         "id",
       ]),
     ) || 0;
+    const agentId = Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0;
+    const { fromDate, toDate } = getRowPeriod(row);
 
     navigate("/more/expense-approval/view", {
       state: {
+        approvalId,
         expenseApprovalId,
+        nAgentId: agentId,
+        fromDate,
+        toDate,
         approval: row,
       },
     });
@@ -199,6 +237,7 @@ const ExpenseApprovalPage = () => {
         <button
           type="button"
           className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-white transition-colors hover:bg-emerald-600"
+          onClick={() => navigate("/more/expenseapproval/pendingapproval")}
         >
           Pending Approvals
         </button>

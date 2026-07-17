@@ -39,8 +39,13 @@ const isApprovalRow = (record: ExpenseApprovalRecord) => {
   const hasContent =
     getValue(record, ["cAgentName", "AgentName", "cName", "Name"]) !== "" ||
     getValue(record, ["dDate", "Date", "cDate"]) !== "" ||
-    getValue(record, ["nTravelExpense", "TravelExpense", "nOtherExpense", "OtherExpense"]) !== "" ||
-    getValue(record, ["nClaimedExpense", "ClaimedExpense", "nApprovedExpense", "ApprovedExpense"]) !== "";
+    getValue(record, ["dFromDate", "FromDate", "cFromDate"]) !== "" ||
+    getValue(record, ["dTodate", "dToDate", "ToDate", "cToDate"]) !== "" ||
+    getValue(record, ["cPeriod", "Period"]) !== "" ||
+    getValue(record, ["nTravelExpense", "TravelExpense", "nTravelExpenseAmount"]) !== "" ||
+    getValue(record, ["nOtherExpense", "OtherExpense", "nOtherExpenseAmount"]) !== "" ||
+    getValue(record, ["nClaimedExpense", "ClaimedExpense", "nClaimedAmount", "nTotalExpenseAmount"]) !== "" ||
+    getValue(record, ["nApprovedExpense", "ApprovedExpense", "nApprovedAmount"]) !== "";
 
   return hasId || hasContent;
 };
@@ -67,7 +72,20 @@ export const extractRows = (response: unknown): ExpenseApprovalRecord[] => {
         "ExpenseId",
         "id",
       ]);
-      const key = id !== "" ? `id-${id}` : JSON.stringify(Object.keys(record).slice(0, 4));
+      const rowSignature = [
+        getValue(record, ["dCreatedDate", "CreatedDate", "dDate", "Date", "cDate"]),
+        getValue(record, ["cAgentName", "AgentName", "cName", "Name"]),
+        getValue(record, ["cGroupName", "GroupName"]),
+        getValue(record, ["nTotalTravelAmount", "nTravelExpenseAmount", "nTravelExpense", "TravelExpense"]),
+        getValue(record, ["nTotalOtherAmount", "nOtherExpenseAmount", "nOtherExpense", "OtherExpense"]),
+        getValue(record, ["nTotalExpenseAmount", "nTotalExpense", "TotalExpense", "nClaimedAmount", "ClaimedAmount"]),
+      ]
+        .map((value) => String(value ?? "").trim())
+        .join("|");
+      const key =
+        id !== ""
+          ? `id-${id}-${rowSignature}`
+          : `row-${rowSignature || rows.size}-${Object.keys(record).join("|")}`;
       rows.set(key, record);
     }
 
@@ -138,3 +156,21 @@ export const formatCurrency = (value: unknown) =>
     maximumFractionDigits: 2,
   }).format(number(value, 0));
 
+export const isActiveRow = (record: ExpenseApprovalRecord) => {
+  const activeValue = getValue(record, [
+    "bActive",
+    "isActive",
+    "active",
+    "cActive",
+    "Active",
+  ]);
+
+  if (activeValue === "") return true;
+
+  if (typeof activeValue === "boolean") {
+    return activeValue;
+  }
+
+  const normalized = String(activeValue).trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "y" || normalized === "yes" || normalized === "active";
+};

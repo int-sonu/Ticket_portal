@@ -361,6 +361,15 @@ export const tripModeApis = {
     return response.data;
   },
 
+  tripModeListDropdown: async (payload: TripModePayload) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/TripMode/TripModeListDropdown',
+      payload
+    );
+
+    return response.data;
+  },
+
   tripModeSave: async (payload: TripModePayload) => {
     const response = await axiosInstance.post(
       '/Api/V1/TripMode/TripModeSave',

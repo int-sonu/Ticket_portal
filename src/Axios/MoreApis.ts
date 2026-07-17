@@ -108,6 +108,22 @@ export const approvalApis = {
     return response.data;
   },
 
+  approvalPendingExpenseList: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ApprovalPendingExpenseList",
+      payload,
+    );
+    return response.data;
+  },
+
+  expenseApprovalSave: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ExpenseApprovalSave",
+      payload,
+    );
+    return response.data;
+  },
+
   expenseApprovalPeriodList: async (payload: ApprovalPayload) => {
     const response = await axiosInstance.post(
       "/Api/V1/Approval/ExpenseApprovalPeriodList",

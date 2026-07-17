@@ -70,6 +70,7 @@ import ReviewClosedTicketsPage from "../Pages/More/ReviewClosedTicketsPage";
 import TaskCalendarPage from "../Pages/More/TaskCalendarPage";
 import AgentAnalysisPage from "../Pages/More/AgentAnalysisPage";
 import ExpenseApprovalPage from "../Pages/More/ExpenseApprovalPage";
+import ExpenseApprovalPendingPage from "../Pages/More/ExpenseApprovalPendingPage";
 import ExpenseApprovalViewPage from "../Pages/More/ExpenseApprovalViewPage";
 
 const Routes: React.FC = () => {
@@ -156,8 +157,12 @@ const Routes: React.FC = () => {
             <Route path="/more/leaveapproval/view" element={<LeaveApprovalViewPage />} />
             <Route path="/more/expense-approval" element={<ExpenseApprovalPage />} />
             <Route path="/more/expenseapproval" element={<ExpenseApprovalPage />} />
+            <Route path="/more/expense-approval/pendingapproval" element={<ExpenseApprovalPendingPage />} />
+            <Route path="/more/expenseapproval/pendingapproval" element={<ExpenseApprovalPendingPage />} />
             <Route path="/more/expense-approval/view" element={<ExpenseApprovalViewPage />} />
             <Route path="/more/expenseapproval/view" element={<ExpenseApprovalViewPage />} />
+            <Route path="/more/expense-approval/periodwiseview" element={<ExpenseApprovalViewPage />} />
+            <Route path="/more/expenseapproval/periodwiseview" element={<ExpenseApprovalViewPage />} />
             <Route
               path="/more/review-closed-tickets"
               element={<ReviewClosedTicketsPage />}

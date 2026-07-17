@@ -21,6 +21,26 @@ export const useExpenseApprovalPeriodList = (payload: ApprovalPayload, enabled: 
     enabled,
   });
 
+export const useApprovalPendingExpenseList = (payload: ApprovalPayload, enabled: boolean) =>
+  useQuery({
+    queryKey: ["approval-pending-expense-list", payload],
+    queryFn: () => approvalApis.approvalPendingExpenseList(payload),
+    enabled,
+  });
+
+export const useApproveExpenseApproval = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ApprovalPayload) => approvalApis.expenseApprovalSave(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expense-approval-list"] });
+      queryClient.invalidateQueries({ queryKey: ["approval-pending-list"] });
+      queryClient.invalidateQueries({ queryKey: ["approval-pending-expense-list"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-approval-period-list"] });
+    },
+  });
+};
+
 export const useRefreshExpenseApprovalLists = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -32,4 +52,3 @@ export const useRefreshExpenseApprovalLists = () => {
     },
   });
 };
-
