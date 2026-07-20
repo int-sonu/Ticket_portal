@@ -97,8 +97,8 @@ const CustomerTicketChart = ({
   }), []);
 
   return (
-    <section className="flex min-w-0 flex-col rounded-2xl border p-4">
-      <h2 className="m-0 text-lg">Attended Tickets</h2>
+    <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+      <h2 className="m-0 text-base font-semibold text-slate-800">Attended Tickets</h2>
 
       {statusTotal > 0 ? (
         <div className="relative mx-auto h-[270px] w-[270px] py-4" role="img" aria-label={`${displayTotal} attended tickets`}>
@@ -113,15 +113,15 @@ const CustomerTicketChart = ({
         </div>
       )}
 
-      <div className="flex gap-4 border-b pb-4 text-sm text-[#2d6a8c]">
-        <span className="flex items-center gap-1 rounded bg-slate-50 p-2 text-[#19a98a]"><i className="h-3 w-3 rounded-full bg-[#19c7a0]" />Resolved : {String(resolved).padStart(2, "0")}</span>
-        <span className="flex items-center gap-1 rounded bg-slate-50 p-2 text-[#f58a0a]"><i className="h-3 w-3 rounded-full bg-[#f58a0a]" />Unresolved : {String(unresolved).padStart(2, "0")}</span>
+      <div className="flex gap-4 border-b border-slate-200 pb-5 text-sm text-[#2d6a8c]">
+        <span className="flex items-center gap-1 rounded bg-slate-50 p-2"><i className="h-3 w-3 rounded-full bg-[#19c7a0]" />Resolved&nbsp; : &nbsp;{String(resolved).padStart(2, "0")}</span>
+        <span className="flex items-center gap-1 rounded bg-slate-50 p-2"><i className="h-3 w-3 rounded-full bg-[#f58a0a]" />Unresolved&nbsp; : &nbsp;{String(unresolved).padStart(2, "0")}</span>
       </div>
 
-      <div className="flex w-full overflow-x-auto border-b py-1 text-sm">
+      <div className="attended-mode-scrollbar flex w-full overflow-x-auto overflow-y-hidden text-sm">
         {modes.map((mode, index) => (
-          <div key={mode.key} className={`flex min-w-[145px] flex-none items-center gap-3 px-4 py-3 ${index ? "border-l" : ""}`}>
-            <span className="text-[#2d6a8c]">▶</span>
+          <div key={mode.key} className={`relative flex min-w-[145px] flex-none items-center gap-3 px-4 py-4 ${index ? "border-l border-slate-200" : "after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-sky-300"}`}>
+            <span className="h-0 w-0 border-y-[6px] border-l-[9px] border-y-transparent border-l-[#2d6a8c]" aria-hidden="true" />
             <span className="text-[#2d6a8c]">{mode.name}</span>
             <strong className="ml-auto">: {mode.count}</strong>
           </div>

@@ -14,6 +14,8 @@ import {
   text,
 } from "./ExpenseApprovalUtils";
 import { useApprovalPendingList, useExpenseApprovalList } from "./ExpenseApprovalHooks";
+import { approvalApis } from "../../Axios/MoreApis";
+import { ExpenseApprovalDrawer } from "./ExpenseApprovalDrawer";
 
 const gridTemplate = "grid-cols-[42px_180px_150px_180px_1fr_1fr_1fr_1fr]";
 const pageColumns = [
@@ -56,6 +58,13 @@ const ExpenseApprovalPage = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [openingRowId, setOpeningRowId] = useState<number | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedRowData, setSelectedRowData] = useState<{
+    row: Record<string, unknown>;
+    tripModes: unknown;
+    approvalViewData: unknown;
+  } | null>(null);
 
   const payload = useMemo(() => {
     const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
@@ -110,7 +119,7 @@ const ExpenseApprovalPage = () => {
     return Math.max(listCount, directCount);
   }, [pendingQuery.data, pendingRows.length]);
 
-  const openDetails = (row: Record<string, unknown>) => {
+  const openDetails = async (row: Record<string, unknown>) => {
     const approvalId = Number(
       getValue(row, [
         "nApprovalId",
@@ -131,6 +140,46 @@ const ExpenseApprovalPage = () => {
     const agentId = Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0;
     const { fromDate, toDate } = getRowPeriod(row);
 
+    if (openingRowId === expenseApprovalId) return;
+    setOpeningRowId(expenseApprovalId);
+
+    let tripModes: unknown = null;
+    let approvalViewData: unknown = null;
+
+    try {
+      const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
+      const basePayload = { nCompanyId, cSchemaName, cDbName };
+      const viewPayload = {
+        ...basePayload,
+        nApprovalId: approvalId,
+        nExpenseApprovalId: expenseApprovalId,
+        nExpenseId: expenseApprovalId,
+        nAgentId: agentId,
+        bDateFilter: true,
+        dFromDate: fromDate || dayjs().startOf("month").format("YYYY/MM/DD"),
+        dToDate: toDate || dayjs().format("YYYY/MM/DD"),
+      };
+
+      [tripModes, approvalViewData] = await Promise.all([
+        approvalApis.tripModeListDropdown(basePayload).catch(() => null),
+        approvalApis.expenseApprovalView(viewPayload).catch(() => null),
+      ]);
+    } catch {
+      // proceed with opening drawer even if prefetch fails
+    } finally {
+      setOpeningRowId(null);
+    }
+
+    setSelectedRowData({ row, tripModes, approvalViewData });
+    setDrawerOpen(true);
+  };
+
+  const handleEdit = (row: Record<string, unknown>, tripModes: unknown, approvalViewData: unknown) => {
+    const approvalId = Number(getValue(row, ["nApprovalId", "ApprovalId", "nApprovalID", "ApprovalID"])) || 0;
+    const expenseApprovalId = Number(getValue(row, ["nExpenseApprovalId", "ExpenseApprovalId", "nExpenseId", "ExpenseId", "id"])) || 0;
+    const agentId = Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0;
+    const { fromDate, toDate } = getRowPeriod(row);
+
     navigate("/more/expense-approval/view", {
       state: {
         approvalId,
@@ -139,6 +188,8 @@ const ExpenseApprovalPage = () => {
         fromDate,
         toDate,
         approval: row,
+        tripModes,
+        approvalViewData,
       },
     });
   };
@@ -202,12 +253,15 @@ const ExpenseApprovalPage = () => {
                 text(getValue(row, ["cPeriod", "Period"]), "") ||
                 `${text(getValue(row, ["dFromDate"]), "")} - ${text(getValue(row, ["dToDate", "ToDate", "cToDate"]), "")}`;
 
+              const isOpening = openingRowId === approvalId;
+
               return (
                 <button
                   key={approvalId}
                   type="button"
-                  className={`grid min-h-[62px] w-full ${gridTemplate} items-center border-b border-slate-100 bg-white px-2 text-left text-xs transition-colors hover:bg-slate-50`}
-                  onClick={() => openDetails(row)}
+                  className={`grid min-h-[62px] w-full ${gridTemplate} items-center border-b border-slate-100 bg-white px-2 text-left text-xs transition-colors hover:bg-slate-50 ${isOpening ? "opacity-60 cursor-wait" : ""}`}
+                  onClick={() => { void openDetails(row); }}
+                  disabled={isOpening}
                 >
                   <span>{(safePage - 1) * pageSize + index + 1}</span>
                   <span>{rowDate}</span>
@@ -260,6 +314,15 @@ const ExpenseApprovalPage = () => {
           }}
         />
       ) : null}
+
+      <ExpenseApprovalDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        approvalRow={selectedRowData?.row ?? null}
+        approvalViewData={selectedRowData?.approvalViewData}
+        tripModes={selectedRowData?.tripModes}
+        onEdit={handleEdit}
+      />
     </section>
   );
 };

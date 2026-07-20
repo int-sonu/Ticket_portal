@@ -131,4 +131,72 @@ export const approvalApis = {
     );
     return response.data;
   },
+
+  expenseApprovalView: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ExpenseApprovalView",
+      payload,
+    );
+    return response.data;
+  },
+
+  tripModeListDropdown: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/TripMode/TripModeListDropdown",
+      payload,
+    );
+    return response.data;
+  },
+};
+
+export const agentApis = {
+  agentAvailability: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Agent/AgentAvailability",
+      payload,
+    );
+    return response.data;
+  },
+};
+
+export const attendanceApis = {
+  punchIn: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Attendance/PunchIn",
+      payload,
+    );
+    return response.data;
+  },
+
+  punchOut: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Attendance/PunchOut",
+      payload,
+    );
+    return response.data;
+  },
+
+  attendanceStatus: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Attendance/AttendanceStatus",
+      payload,
+    );
+    return response.data;
+  },
+
+  attendanceSummaryMonthly: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Attendance/AttendanceSummayMonthly",
+      payload,
+    );
+    return response.data;
+  },
+
+  attendanceSummaryDaily: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Attendance/AttendanceSummayDaily",
+      payload,
+    );
+    return response.data;
+  },
 };

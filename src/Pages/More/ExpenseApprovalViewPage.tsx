@@ -1,5 +1,4 @@
-import { CloseOutlined, FilterOutlined } from "@ant-design/icons";
-import { EyeOutlined, PrinterOutlined, ShareAltOutlined } from "@ant-design/icons";
+import { CloseOutlined, FilterOutlined, PlusOutlined } from "@ant-design/icons";
 import { Empty, Modal, Spin, message } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -7,7 +6,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import dayjs, { type Dayjs } from "dayjs";
 
 import { billingApis } from "../../Axios/BillingApis";
+import { approvalApis } from "../../Axios/MoreApis";
+import { getApiImageBaseUrl } from "../../Axios/config";
 import { getRequestPayload } from "../../Utils/requestPayload";
+import previewIcon from "../../assets/Bills/PreviewIcon.png";
+import pdfIcon from "../../assets/icons/pdfIcon.png";
+import shareIcon from "../../assets/icons/shareIcon.svg";
 import {
   useApproveExpenseApproval,
   useExpenseApprovalPeriodList,
@@ -34,7 +38,46 @@ type LocationState = {
   approval?: ExpenseApprovalRecord;
   fromDate?: string;
   toDate?: string;
+  tripModes?: unknown;
+  approvalViewData?: unknown;
 } | null;
+
+const ensureAbsoluteUrl = (maybePath?: string) => {
+  const path = String(maybePath ?? "").trim();
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:")) return path;
+
+  try {
+    const base = getApiImageBaseUrl().replace(/\/+$/, "");
+    const cleanPath = path.replace(/^\/+/, "");
+    return `${base}/${cleanPath}`;
+  } catch {
+    return path;
+  }
+};
+
+const getExpenseApprovalPdfUrl = (response: any) => {
+  const responseData = response?.data ?? response ?? {};
+  const candidates = [
+    responseData?.data?.pdfPath,
+    responseData?.data?.cPdfPath,
+    responseData?.data?.filePath,
+    responseData?.data?.path,
+    responseData?.data?.pdfUri,
+    responseData?.data?.pdfUrl,
+    responseData?.data?.url,
+    responseData?.pdfPath,
+    responseData?.cPdfPath,
+    responseData?.filePath,
+    responseData?.path,
+    responseData?.pdfUri,
+    responseData?.pdfUrl,
+    responseData?.url,
+  ];
+
+  const match = candidates.find((item) => typeof item === "string" && item.trim());
+  return typeof match === "string" ? match.trim() : "";
+};
 
 const parseDateValue = (value: unknown) => {
   const source = String(value ?? "").trim();
@@ -119,53 +162,6 @@ const normalizeRecord = (value: unknown): Record<string, unknown> => {
   return {};
 };
 
-const extractFeatureItems = (response: unknown): Record<string, unknown>[] => {
-  const visited = new Set<unknown>();
-  const collect = (value: unknown): Record<string, unknown>[] => {
-    if (!value || typeof value !== "object" || visited.has(value)) return [];
-    visited.add(value);
-
-    if (Array.isArray(value)) {
-      const records = value.filter((item) => item && typeof item === "object") as Record<string, unknown>[];
-      if (records.length) return records;
-      for (const item of value) {
-        const nested = collect(item);
-        if (nested.length) return nested;
-      }
-      return [];
-    }
-
-    const source = value as Record<string, unknown>;
-    for (const key of [
-      "data",
-      "Data",
-      "result",
-      "Result",
-      "items",
-      "Items",
-      "list",
-      "List",
-      "features",
-      "Features",
-      "companyFeatures",
-      "CompanyFeatures",
-    ]) {
-      const candidate = source[key];
-      if (Array.isArray(candidate)) {
-        const records = candidate.filter((item) => item && typeof item === "object") as Record<string, unknown>[];
-        if (records.length) return records;
-      }
-
-      const nested = collect(candidate);
-      if (nested.length) return nested;
-    }
-
-    return [];
-  };
-
-  return collect(response);
-};
-
 const ExpenseApprovalViewPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -217,6 +213,11 @@ const ExpenseApprovalViewPage = () => {
     state?.approval || state?.fromDate || state?.toDate || approvalId > 0,
   );
 
+  // Pre-fetched data passed from the list page on row click
+  const prefetchedTripModes = state?.tripModes ?? null;
+  const prefetchedApprovalViewData = state?.approvalViewData ?? null;
+
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftFromDate, setDraftFromDate] = useState<Dayjs>(defaultFromDate);
   const [draftToDate, setDraftToDate] = useState<Dayjs>(defaultToDate);
@@ -225,27 +226,59 @@ const ExpenseApprovalViewPage = () => {
   const [calendarMonth, setCalendarMonth] = useState(defaultToDate.startOf("month"));
   const [approvalSuccessOpen, setApprovalSuccessOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printPdfUrl, setPrintPdfUrl] = useState("");
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [openingPeriodId, setOpeningPeriodId] = useState<string | null>(null);
+  const [selectedPeriodRow, setSelectedPeriodRow] = useState<{
+    row: Record<string, unknown>;
+    tripModes: unknown;
+    approvalViewData: unknown;
+  } | null>(null);
   const approvalMutation = useApproveExpenseApproval();
   const requestPayload = getRequestPayload();
+  const companyContextPayload = useMemo(() => {
+    const approvalRecord = normalizeRecord(fallback);
+    const nCompanyId =
+      Number(
+        requestPayload.nCompanyId ??
+          getValue(approvalRecord, ["nCompanyId", "CompanyId", "companyId"]),
+      ) || 0;
+    const cSchemaName = text(
+      requestPayload.cSchemaName ??
+        getValue(approvalRecord, ["cSchemaName", "SchemaName", "companyCode", "CompanyCode"]),
+      "",
+    );
+    const cDbName = text(
+      requestPayload.cDbName ??
+        getValue(approvalRecord, ["cDbName", "DbName", "databaseName", "DatabaseName"]),
+      "",
+    );
+
+    return { nCompanyId, cSchemaName, cDbName };
+  }, [fallback, requestPayload.cDbName, requestPayload.cSchemaName, requestPayload.nCompanyId]);
+
   const previewPayload = useMemo(
     () => ({
-      nCompanyId: requestPayload.nCompanyId,
-      cSchemaName: requestPayload.cSchemaName,
-      cDbName: requestPayload.cDbName,
+      nCompanyId: companyContextPayload.nCompanyId,
+      cSchemaName: companyContextPayload.cSchemaName,
+      cDbName: companyContextPayload.cDbName,
     }),
-    [requestPayload.cDbName, requestPayload.cSchemaName, requestPayload.nCompanyId],
+    [companyContextPayload],
   );
 
-  const { data: configurationResponse, isFetching: configurationLoading } = useQuery({
-    queryKey: ["expense-approval-configuration", previewPayload],
-    queryFn: () => billingApis.getConfiguration(previewPayload),
-    enabled: previewOpen,
-  });
-
-  const { data: featureResponse, isFetching: featuresLoading } = useQuery({
-    queryKey: ["expense-approval-company-features", previewPayload],
-    queryFn: () => billingApis.getCompanyFeatures(previewPayload),
-    enabled: previewOpen,
+  const { data: companyDetailsResponse, isFetching: companyDetailsLoading } = useQuery({
+    queryKey: ["expense-approval-company-details", previewPayload],
+    queryFn: () => billingApis.companyDetails(previewPayload),
+    enabled:
+      previewOpen &&
+      Boolean(
+        previewPayload.nCompanyId &&
+          previewPayload.cSchemaName &&
+          previewPayload.cDbName,
+      ),
   });
 
   const payload = useMemo(() => {
@@ -269,21 +302,20 @@ const ExpenseApprovalViewPage = () => {
   }, [approvalId, expenseApprovalId, agentId, cAgentId, appliedFromDate, appliedToDate, requestPayload]);
 
   const detailsQuery = useExpenseApprovalPeriodList(payload, detailQueryEnabled);
-  const details = extractDetails(detailsQuery.data, fallback);
-  const configuration = normalizeRecord(
-    configurationResponse?.data?.data ?? configurationResponse?.data ?? configurationResponse ?? {},
-  );
-  const companyFeatures = extractFeatureItems(
-    featureResponse?.data?.data ?? featureResponse?.data ?? featureResponse ?? {},
+  const details = extractDetails(detailsQuery.data ?? prefetchedApprovalViewData, fallback);
+  const companyDetails = normalizeRecord(
+    companyDetailsResponse?.data?.data ?? companyDetailsResponse?.data ?? companyDetailsResponse ?? {},
   );
   const periodRows = useMemo(
     () => {
-      const topLevelRows = extractTopLevelRows(detailsQuery.data).filter(isActiveRow);
+      const source = detailsQuery.data ?? prefetchedApprovalViewData;
+      const topLevelRows = extractTopLevelRows(source).filter(isActiveRow);
       if (topLevelRows.length) return topLevelRows;
-      return extractRows(detailsQuery.data).filter(isActiveRow);
+      return extractRows(source).filter(isActiveRow);
     },
-    [detailsQuery.data],
+    [detailsQuery.data, prefetchedApprovalViewData],
   );
+
 
   const value = (keys: string[]) => getValue(details, keys) || getValue(fallback, keys);
   const agentName = text(value(["cAgentName", "AgentName", "cName", "Name"]), "Expense Approval");
@@ -300,7 +332,13 @@ const ExpenseApprovalViewPage = () => {
     `${text(value(["dFromDate", "FromDate", "cFromDate"]), "")} - ${text(value(["dToDate", "ToDate", "cToDate"]), "")}`;
 
   const summaryTotals = useMemo(() => {
-    return periodRows.reduce(
+    return periodRows.reduce<{
+      travel: number;
+      other: number;
+      claimed: number;
+      approved: number;
+      total: number;
+    }>(
       (acc, row) => {
         const travelAmount = number(
           getValue(row, [
@@ -358,7 +396,7 @@ const ExpenseApprovalViewPage = () => {
     );
   }, [periodRows]);
   const previewCompanyName = text(
-    getValue(configuration, [
+    getValue(companyDetails, [
       "cCompanyName",
       "cComapnyName",
       "companyName",
@@ -368,7 +406,7 @@ const ExpenseApprovalViewPage = () => {
     agentName,
   );
   const previewCompanyAddress = text(
-    getValue(configuration, [
+    getValue(companyDetails, [
       "cAddress",
       "address",
       "cCompanyAddress",
@@ -377,7 +415,7 @@ const ExpenseApprovalViewPage = () => {
     "",
   );
   const previewCompanyEmail = text(
-    getValue(configuration, [
+    getValue(companyDetails, [
       "cEmail",
       "email",
       "cCompanyEmail",
@@ -386,7 +424,7 @@ const ExpenseApprovalViewPage = () => {
     "",
   );
   const previewCompanyPhone = text(
-    getValue(configuration, [
+    getValue(companyDetails, [
       "cPhoneNo",
       "phoneNo",
       "cPhone",
@@ -396,38 +434,50 @@ const ExpenseApprovalViewPage = () => {
     ]),
     "",
   );
-  const previewCompanyLogo = text(
-    getValue(configuration, [
-      "cLogoUrl",
-      "logoUrl",
-      "cCompanyLogoUrl",
-      "cLogoPath",
-      "logoPath",
-      "cLogo",
-      "cCompanyLogo",
-    ]),
-    "",
-  );
-  const previewFeatureLabels = companyFeatures
-    .map((feature, index) =>
-      text(
-        getValue(feature, [
-          "cFeatureName",
-          "FeatureName",
-          "cName",
-          "Name",
-          "featureName",
-          "feature",
-        ]),
-        `Feature ${index + 1}`,
-      ),
-    )
-    .filter(Boolean);
   const handleOpenFilter = () => {
     setDraftFromDate(appliedFromDate);
     setDraftToDate(appliedToDate);
     setCalendarMonth(appliedFromDate.startOf("month"));
     setFilterOpen(true);
+  };
+
+  const handlePeriodRowClick = async (row: Record<string, unknown>, rowKey: string) => {
+    if (openingPeriodId === rowKey) return;
+    setOpeningPeriodId(rowKey);
+
+    let tripModes: unknown = null;
+    let approvalViewData: unknown = null;
+
+    try {
+      const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
+      const basePayload = { nCompanyId, cSchemaName, cDbName };
+      const periodId = Number(
+        getValue(row, ["nExpensePeriodId", "ExpensePeriodId", "nExpenseApprovalPeriodId", "ExpenseApprovalPeriodId", "id"]) || 0,
+      );
+      const viewPayload = {
+        ...basePayload,
+        nApprovalId: approvalId,
+        nExpenseApprovalId: expenseApprovalId,
+        nExpenseId: expenseApprovalId,
+        nAgentId: agentId,
+        nExpensePeriodId: periodId,
+        nExpenseApprovalPeriodId: periodId,
+        bDateFilter: true,
+        dFromDate: appliedFromDate.format("YYYY/MM/DD"),
+        dToDate: appliedToDate.format("YYYY/MM/DD"),
+      };
+
+      [tripModes, approvalViewData] = await Promise.all([
+        approvalApis.tripModeListDropdown(basePayload).catch(() => null),
+        approvalApis.expenseApprovalView(viewPayload).catch(() => null),
+      ]);
+    } catch {
+      // open with available row data if APIs fail
+    } finally {
+      setOpeningPeriodId(null);
+    }
+
+    setSelectedPeriodRow({ row, tripModes, approvalViewData });
   };
 
   const handleApplyFilter = () => {
@@ -436,6 +486,51 @@ const ExpenseApprovalViewPage = () => {
     setAppliedFromDate(nextFrom);
     setAppliedToDate(nextTo);
     setFilterOpen(false);
+  };
+
+  const handlePrintExpense = async () => {
+    if (isPrinting) return;
+
+    const companyId = Number(companyContextPayload.nCompanyId ?? 0) || 0;
+    const schemaName = String(companyContextPayload.cSchemaName ?? "").trim();
+    const dbName = String(companyContextPayload.cDbName ?? "").trim();
+
+    if (!companyId || !schemaName || !dbName || !expenseApprovalId) {
+      message.error("Unable to prepare expense print preview.");
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      const exportResponse = await billingApis.expenseApprovalExportPdf({
+        ...requestPayload,
+        nCompanyId: companyId,
+        cSchemaName: schemaName,
+        cDbName: dbName,
+        nExpenseApprovalId: expenseApprovalId,
+        nApprovalId: approvalId,
+        nExpenseId: expenseApprovalId,
+        nAgentId: agentId,
+        cAgentId,
+        dFromDate: appliedFromDate.format("YYYY/MM/DD"),
+        dToDate: appliedToDate.format("YYYY/MM/DD"),
+        bDateFilter: true,
+      });
+
+      const pdfUrl = getExpenseApprovalPdfUrl(exportResponse);
+      if (!pdfUrl) {
+        message.error("Unable to generate expense PDF link.");
+        return;
+      }
+
+      setPrintPdfUrl(ensureAbsoluteUrl(pdfUrl));
+      setPrintModalOpen(true);
+    } catch (error) {
+      console.error("Failed to export expense approval PDF", error);
+      message.error("Failed to generate expense print preview.");
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   return (
@@ -513,9 +608,7 @@ const ExpenseApprovalViewPage = () => {
               <div className="min-h-0">
                 <div className="grid grid-cols-[42px_150px_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-slate-200 bg-white px-2 py-3 text-xs font-medium text-slate-700">
                   <span className="whitespace-pre-line leading-tight">
-                    S
-                    <br />
-                    rl
+                    Srl
                   </span>
                   <span>Date</span>
                   <span>Starting Location</span>
@@ -528,44 +621,58 @@ const ExpenseApprovalViewPage = () => {
 
                 <div className="max-h-[calc(100vh-378px)] overflow-y-auto overflow-x-hidden scrollbar-thumb-gray scrollbar-track-slate-100 scrollbar-thin">
                   {periodRows.map((row, index) => {
-                    const travelAmount = getValue(row, [
+                    const travelAmount = number(getValue(row, [
                       "nTotalTravelAmount",
                       "nTravelExpenseAmount",
                       "nTravelExpense",
                       "TravelExpense",
-                    ]);
-                    const otherAmount = getValue(row, [
+                    ]));
+                    const otherAmount = number(getValue(row, [
                       "nTotalOtherAmount",
                       "nOtherExpenseAmount",
                       "nOtherExpense",
                       "OtherExpense",
-                    ]);
-                    const claimedAmount = getValue(row, [
+                    ]));
+                    const claimedAmount = number(getValue(row, [
                       "nTotalExpenseAmount",
                       "nClaimedAmount",
                       "ClaimedAmount",
                       "nClaimedExpense",
                       "ClaimedExpense",
-                    ]);
-                    const approvedAmount = getValue(row, [
+                    ]));
+                    const approvedAmount = number(getValue(row, [
                       "nApprovedExpense",
                       "ApprovedExpense",
                       "nApprovedAmount",
-                    ]) || travelAmount + otherAmount;
+                    ])) || travelAmount + otherAmount;
+
+                    const rowKey = String(
+                      getValue(row, [
+                        "nExpensePeriodId",
+                        "ExpensePeriodId",
+                        "id",
+                        "nExpenseApprovalPeriodId",
+                      ]) || index,
+                    );
+                    const isOpening = openingPeriodId === rowKey;
 
                     return (
-                      <div
-                        key={String(
-                          getValue(row, [
-                            "nExpensePeriodId",
-                            "ExpensePeriodId",
-                            "id",
-                          "nExpenseApprovalPeriodId",
-                        ]) || index,
-                        )}
-                        className="grid min-h-[62px] grid-cols-[42px_150px_1fr_1fr_1fr_1fr_1fr_1fr] items-center border-b border-slate-100 bg-white px-2 text-xs"
+                      <button
+                        key={rowKey}
+                        type="button"
+                        disabled={isOpening}
+                        onClick={() => { void handlePeriodRowClick(row, rowKey); }}
+                        className={`grid min-h-[62px] w-full grid-cols-[42px_150px_1fr_1fr_1fr_1fr_1fr_1fr] items-center border-b border-slate-100 bg-white px-2 text-left text-xs transition-colors hover:bg-sky-50 ${
+                          isOpening ? "cursor-wait opacity-60" : "cursor-pointer"
+                        }`}
                       >
-                        <span>{index + 1}</span>
+                        <span className="flex items-center gap-1">
+                          {isOpening ? (
+                            <Spin size="small" />
+                          ) : (
+                            <span>{index + 1}</span>
+                          )}
+                        </span>
                         <span>{formatDateTime(getValue(row, ["dCreatedDate", "dApprovalDate", "Date", "dDate", "cDate"]))}</span>
                         <span>{text(getValue(row, ["cStartingLocation", "StartingLocation", "cFromLocation", "FromLocation"]), "-")}</span>
                         <span>{text(getValue(row, ["cEndingLocation", "EndingLocation", "cToLocation", "ToLocation"]), "-")}</span>
@@ -573,7 +680,7 @@ const ExpenseApprovalViewPage = () => {
                         <span className="text-right">{formatCurrency(otherAmount)}</span>
                         <span className="text-right">{formatCurrency(claimedAmount)}</span>
                         <span className="text-right">{formatCurrency(approvedAmount)}</span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -609,25 +716,28 @@ const ExpenseApprovalViewPage = () => {
               type="button"
               onClick={() => setPreviewOpen(true)}
               aria-label="Preview expense"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              className="flex h-9 w-9 items-center justify-center hover:bg-slate-50"
             >
-              <EyeOutlined className="text-[16px]" />
+              <img src={previewIcon} alt="" className="h-9 w-9 rounded-md border border-black/25" />
             </button>
             <button
               type="button"
-              onClick={() => message.info("Share preview is not wired yet")}
+              onClick={() => setShareModalOpen(true)}
               aria-label="Share expense"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              className="flex h-9 w-9 items-center justify-center hover:bg-slate-50"
             >
-              <ShareAltOutlined className="text-[16px]" />
+              <img src={shareIcon} alt="" className="h-9 w-9 rounded-md border border-black/25" />
             </button>
             <button
               type="button"
-              onClick={() => message.info("Print preview is not wired yet")}
+              onClick={() => {
+                void handlePrintExpense();
+              }}
               aria-label="Print expense"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              className="flex h-9 w-9 items-center justify-center hover:bg-slate-50"
+              disabled={isPrinting}
             >
-              <PrinterOutlined className="text-[16px]" />
+              <img src={pdfIcon} alt="" className="h-9 w-9 rounded-md border border-black/25" />
             </button>
           </div>
 
@@ -641,9 +751,9 @@ const ExpenseApprovalViewPage = () => {
                   nAgentId: agentId,
                   cAgentId,
                   nStatus: 1,
-                  nCompanyId: requestPayload.nCompanyId,
-                  cSchemaName: requestPayload.cSchemaName,
-                  cDbName: requestPayload.cDbName,
+                  nCompanyId: companyContextPayload.nCompanyId,
+                  cSchemaName: companyContextPayload.cSchemaName,
+                  cDbName: companyContextPayload.cDbName,
                   dFromDate: appliedFromDate.format("YYYY/MM/DD"),
                   dToDate: appliedToDate.format("YYYY/MM/DD"),
                   bDateFilter: true,
@@ -709,53 +819,34 @@ const ExpenseApprovalViewPage = () => {
           body: { padding: "16px 18px 18px" },
         }}
       >
-        {configurationLoading || featuresLoading ? (
+        {companyDetailsLoading ? (
           <div className="flex h-80 items-center justify-center">
             <Spin />
           </div>
         ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <div className="text-[18px] font-medium text-slate-900">Expense</div>
             <div className="flex items-center gap-4 text-slate-700">
               <button
                 type="button"
                 className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
                 aria-label="Share expense preview"
-                onClick={() => message.info("Share preview is not wired yet")}
+                onClick={() => setShareModalOpen(true)}
               >
-                <ShareAltOutlined className="text-[16px]" />
-              </button>
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
-                aria-label="Close expense preview"
-                onClick={() => setPreviewOpen(false)}
-              >
-                <CloseOutlined className="text-[16px]" />
+                <img src={shareIcon} alt="" className="h-6 w-6" />
               </button>
             </div>
           </div>
 
           <div className="rounded-md border border-sky-100 bg-sky-50/60 px-4 py-4">
-            <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
-              {previewCompanyLogo ? (
-                <div className="flex justify-center md:justify-start">
-                  <img
-                    src={previewCompanyLogo}
-                    alt={previewCompanyName}
-                    className="h-14 w-auto max-w-[220px] object-contain"
-                  />
-                </div>
-              ) : null}
-              <div className="text-center md:text-left">
-                <div className="text-[15px] font-semibold text-slate-900">{previewCompanyName}</div>
-                <div className="mt-1 text-[12px] text-slate-700">{previewCompanyAddress || " "}</div>
-                <div className="mt-1 text-[12px] text-slate-700">
-                  {previewCompanyEmail ? `Email: ${previewCompanyEmail}` : ""}
-                  {previewCompanyEmail && previewCompanyPhone ? " | " : ""}
-                  {previewCompanyPhone ? `Phone: ${previewCompanyPhone}` : ""}
-                </div>
+            <div className="text-center">
+              <div className="text-[15px] font-semibold text-slate-900">{previewCompanyName}</div>
+              <div className="mt-1 text-[12px] text-slate-700">{previewCompanyAddress || " "}</div>
+              <div className="mt-1 text-[12px] text-slate-700">
+                {previewCompanyEmail ? `Email: ${previewCompanyEmail}` : ""}
+                {previewCompanyEmail && previewCompanyPhone ? " | " : ""}
+                {previewCompanyPhone ? `Phone: ${previewCompanyPhone}` : ""}
               </div>
             </div>
           </div>
@@ -768,19 +859,6 @@ const ExpenseApprovalViewPage = () => {
               <span className="font-medium text-slate-800">Period :</span> {summaryPeriod}
             </div>
           </div>
-
-          {previewFeatureLabels.length ? (
-            <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-              {previewFeatureLabels.map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-sky-200 bg-white px-3 py-1"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          ) : null}
 
           <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
             <div className="grid grid-cols-[42px_110px_1fr_1fr_110px_110px_110px_110px] border-b border-slate-200 bg-sky-100 text-[12px] font-medium text-slate-700">
@@ -797,30 +875,30 @@ const ExpenseApprovalViewPage = () => {
             <div className="max-h-[320px] overflow-y-auto">
               {periodRows.length ? (
                 periodRows.map((row, index) => {
-                  const travelAmount = getValue(row, [
+                  const travelAmount = number(getValue(row, [
                     "nTotalTravelAmount",
                     "nTravelExpenseAmount",
                     "nTravelExpense",
                     "TravelExpense",
-                  ]);
-                  const otherAmount = getValue(row, [
+                  ]));
+                  const otherAmount = number(getValue(row, [
                     "nTotalOtherAmount",
                     "nOtherExpenseAmount",
                     "nOtherExpense",
                     "OtherExpense",
-                  ]);
-                  const claimedAmount = getValue(row, [
+                  ]));
+                  const claimedAmount = number(getValue(row, [
                     "nTotalExpenseAmount",
                     "nClaimedAmount",
                     "ClaimedAmount",
                     "nClaimedExpense",
                     "ClaimedExpense",
-                  ]);
-                  const approvedAmount = getValue(row, [
+                  ]));
+                  const approvedAmount = number(getValue(row, [
                     "nApprovedExpense",
                     "ApprovedExpense",
                     "nApprovedAmount",
-                  ]) || travelAmount + otherAmount;
+                  ])) || travelAmount + otherAmount;
 
                   return (
                     <div
@@ -868,6 +946,106 @@ const ExpenseApprovalViewPage = () => {
           </div>
         </div>
         )}
+      </Modal>
+
+      <Modal
+        open={printModalOpen}
+        onCancel={() => {
+          setPrintModalOpen(false);
+          setPrintPdfUrl("");
+        }}
+        footer={null}
+        centered
+        width={1100}
+        destroyOnClose
+        title={null}
+        closeIcon={<CloseOutlined className="text-xl text-black" />}
+        styles={{
+          body: { padding: 0 },
+        }}
+      >
+        <div className="flex h-[90vh] flex-col overflow-hidden rounded-lg bg-white">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div className="text-[18px] font-semibold text-slate-900">Expense Print Preview</div>
+          </div>
+
+            <div className="flex-1 bg-slate-100 p-3">
+              {printPdfUrl ? (
+                <iframe
+                  title="Expense Print Preview"
+                  src={printPdfUrl}
+                className="h-full w-full rounded-md border border-slate-200 bg-white"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                Loading PDF preview...
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={shareModalOpen}
+        onCancel={() => {
+          setShareModalOpen(false);
+          setShareEmail("");
+        }}
+        footer={null}
+        centered
+        width={520}
+        destroyOnClose
+        title={<span className="text-[18px] font-medium text-slate-900">Share Expense Report</span>}
+        closeIcon={<CloseOutlined className="text-xl text-black" />}
+        styles={{
+          body: { padding: "18px 20px 20px" },
+        }}
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-sky-50 px-5 py-6 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-xl bg-gradient-to-b from-sky-300 to-sky-500 text-white shadow-sm">
+              <span className="text-2xl font-semibold">Mail</span>
+            </div>
+            <div className="mt-3 text-[14px] font-medium text-slate-700">Mail</div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-[14px] text-slate-700">Mail</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                value={shareEmail}
+                onChange={(event) => setShareEmail(event.target.value)}
+                placeholder="Enter email address"
+                className="h-10 flex-1 rounded-md border border-slate-200 px-3 text-[14px] outline-none transition-colors focus:border-sky-400"
+              />
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-md bg-black text-white transition-colors hover:bg-slate-800"
+                aria-label="Add email"
+                onClick={() => {
+                  if (!shareEmail.trim()) return;
+                  message.info("Email added");
+                }}
+              >
+                <PlusOutlined className="text-[16px]" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="rounded-md bg-black px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-slate-800"
+              onClick={() => {
+                message.success("Share dialog opened");
+                setShareModalOpen(false);
+              }}
+            >
+              Ok
+            </button>
+          </div>
+        </div>
       </Modal>
 
       <Modal
@@ -922,6 +1100,7 @@ const ExpenseApprovalViewPage = () => {
         </div>
       </Modal>
     </section>
+
   );
 };
 

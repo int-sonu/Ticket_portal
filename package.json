@@ -17,13 +17,16 @@
     "antd": "^6.4.3",
     "axios": "^1.16.1",
     "chart.js": "^4.5.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.2.6",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
     "react-toastify": "^11.1.0",
     "tailwindcss": "^4.3.0",
-    "vite-plugin-node-polyfills": "^0.28.0"
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

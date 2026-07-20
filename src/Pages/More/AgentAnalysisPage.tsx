@@ -9,6 +9,7 @@ import { extractList } from "../Master/Common/SimpleMasterUtils";
 import filterIcon from "../../assets/icons/searchFilterIcon.svg";
 import FilterList from "./FilterList";
 import noDataIcon from "../../assets/images/noDataGif.gif";
+import AgentActivityGraph from "./AgentActivityGraph";
 
 type RowLike = Record<string, any>;
 
@@ -223,6 +224,19 @@ const AgentAnalysisPage = () => {
     [filteredAgents],
   );
 
+  const graphData = useMemo(
+    () =>
+      filteredAgents.map((agent) => ({
+        name: agent.name,
+        group: agent.groupName,
+        CR: Number(agent.raw?.nCallReport ?? agent.raw?.CallReport ?? agent.raw?.callReport ?? 0) || 0,
+        CT: Number(agent.raw?.nCreatedTickets ?? agent.raw?.CreatedTickets ?? agent.raw?.createdTickets ?? agent.tickets) || 0,
+        closed: Number(agent.raw?.nClosedTicket ?? agent.raw?.ClosedTicket ?? agent.raw?.closedTickets ?? 0) || 0,
+        ongoing: Number(agent.raw?.nOngoingTicket ?? agent.raw?.OngoingTicket ?? agent.raw?.ongoingTickets ?? 0) || 0,
+      })),
+    [filteredAgents],
+  );
+
   useEffect(() => {
     setSelectedFilter((current) => ({
       ...current,
@@ -374,53 +388,59 @@ const AgentAnalysisPage = () => {
           </button>
         </div>
       </div>
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm p-3">
         <Spin spinning={isAnalysisLoading || isAnalysisFetching || isGroupLoading || isGroupFetching} className="flex min-h-0 flex-1">
-          <div className="flex min-h-0 flex-1 flex-col ">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             {filteredAgents.length ? (
-<div className="h-[calc(100vh-330px)] w-[calc(100vw-300px)] px-2 py-2">             
-     {filteredAgents.map((agent, index) => {
-                  const percent = Math.max(2, Math.min(100, Math.round(((Number(agent.tickets) || 0) / maxCount) * 100)));
-                  const avatarColor = avatarColors[index % avatarColors.length];
+              <>
+                <AgentActivityGraph data={graphData} />
+                <div className="h-[calc(100vh-330px)] w-full overflow-y-auto px-2 py-2">
+                  {filteredAgents.map((agent, index) => {
+                    const percent = Math.max(
+                      2,
+                      Math.min(100, Math.round(((Number(agent.tickets) || 0) / maxCount) * 100)),
+                    );
+                    const avatarColor = avatarColors[index % avatarColors.length];
 
-                  return (
-                    <div
-                      key={agent.id}
-                      className="border-b border-slate-100 px-2 py-3 last:border-b-0"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                            style={{ backgroundColor: avatarColor }}
-                          >
-                            {agent.name.slice(0, 2).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium leading-5 text-slate-900">
-                              {agent.name}{" "}
-                              <span className="text-[13px] font-normal text-slate-500">
-                                ({agent.groupName || agent.role})
-                              </span>
+                    return (
+                      <div
+                        key={agent.id}
+                        className="border-b border-slate-100 px-2 py-3 last:border-b-0"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <span
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+                              style={{ backgroundColor: avatarColor }}
+                            >
+                              {agent.name.slice(0, 2).toUpperCase()}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium leading-5 text-slate-900">
+                                {agent.name}{" "}
+                                <span className="text-[13px] font-normal text-slate-500">
+                                  ({agent.groupName || agent.role})
+                                </span>
+                              </div>
                             </div>
                           </div>
+                          <div className="shrink-0 whitespace-nowrap pt-0.5 text-sm font-medium text-slate-700">
+                            {agent.tickets} Tickets
+                          </div>
                         </div>
-                        <div className="shrink-0 whitespace-nowrap pt-0.5 text-sm font-medium text-slate-700">
-                          {agent.tickets} Tickets
+                        <div className="mt-2 h-2 overflow-hidden rounded-full border border-sky-200 bg-white">
+                          <div
+                            className="h-full rounded-full bg-cyan-400"
+                            style={{ width: `${percent}%` }}
+                          />
                         </div>
                       </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full border border-sky-200 bg-white">
-                        <div
-                          className="h-full rounded-full bg-cyan-400"
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
-              <div className="flex min-h-[420px] flex-1 items-center justify-center ml-130">
+              <div className="flex min-h-[420px] flex-1 items-center justify-center">
                 <img src={noDataIcon} alt="" className="h-60 w-60" />
               </div>
             )}

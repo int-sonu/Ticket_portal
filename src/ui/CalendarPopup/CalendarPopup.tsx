@@ -166,7 +166,7 @@ const CalendarPopup = ({
   return (
     <div
       className={`z-50 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] ${
-        inline ? "static w-full shadow-none" : "absolute top-0 mt-12 w-[340px]"
+        inline ? "static w-full shadow-none" : "absolute right-0 top-0 mt-12 w-[340px]"
       } ${className}`.trim()}
     >
       {showTitle ? <div className="mb-3 text-sm font-semibold text-slate-800">{title}</div> : null}

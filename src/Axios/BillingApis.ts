@@ -250,6 +250,15 @@ export const billingApis = {
     return response.data;
   },
 
+  expenseApprovalExportPdf: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Approval/ExpenseApprovalExportPdf",
+      payload,
+    );
+
+    return response.data;
+  },
+
   sendBillMail: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Billing/SendBillMail",

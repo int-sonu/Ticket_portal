@@ -1,5 +1,4 @@
 import { Button, Empty, Spin } from "antd";
-import { DownOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -10,6 +9,7 @@ import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import AgentSelectorModal from "./AgentSelectorModal";
+import profileSwitch from "../../assets/icons/profile-switch.svg";
 
 type TaskRow = Record<string, any>;
 type AgentOption = { label: string; value: string; role: string; isSelf?: boolean };
@@ -245,7 +245,9 @@ const TaskCalendarPage = () => {
                 <span className="text-xs text-slate-500">{selectedAgent.role}</span>
               </span>
             </span>
-            <DownOutlined className="text-[10px] text-slate-500" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-sky-500">
+              <img src={profileSwitch} alt="" className="h-4 w-4 brightness-0 invert" />
+            </span>
           </Button>
         </div>
       </div>

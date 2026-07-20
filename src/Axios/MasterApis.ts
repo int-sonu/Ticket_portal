@@ -172,12 +172,9 @@ export interface BrandPayload {
 export interface TicketSourcePayload {
   [key: string]: any;
 }
-
 export interface VendorPayload {
   [key: string]: any;
 }
-
-
 
 // ============================
 // AGENT APIS
@@ -229,6 +226,15 @@ export const agentApis = {
     return response.data;
   },
 
+  workSummary: async (payload: any) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Agent/WorkSummary',
+      payload
+    );
+
+    return response.data;
+  },
+
   agentUpdate: async (payload: AgentPayload) => {
     const response = await sendWithMethodFallback(
       'put',
@@ -239,7 +245,6 @@ export const agentApis = {
 
     return response.data;
   },
-
   agentDelete: async (payload: AgentPayload) => {
     const response = await sendWithMethodFallback(
       'delete',

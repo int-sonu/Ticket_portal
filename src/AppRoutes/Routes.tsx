@@ -72,6 +72,10 @@ import AgentAnalysisPage from "../Pages/More/AgentAnalysisPage";
 import ExpenseApprovalPage from "../Pages/More/ExpenseApprovalPage";
 import ExpenseApprovalPendingPage from "../Pages/More/ExpenseApprovalPendingPage";
 import ExpenseApprovalViewPage from "../Pages/More/ExpenseApprovalViewPage";
+import AgentAvailabilityPage from "../Pages/More/AgentAvailabilityPage";
+import WorkSummaryPage from "../Pages/More/WorkSummaryPage";
+import PunchInOutPage from "../Pages/More/PunchInOutPage";
+import ReportsPage from "../Pages/Reports/ReportsPage";
 
 const Routes: React.FC = () => {
   return (
@@ -105,6 +109,7 @@ const Routes: React.FC = () => {
             />
             
             <Route path="/callreports/view" element={<CallReportViewPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
 
             {/* Master Module */}
 
@@ -150,6 +155,11 @@ const Routes: React.FC = () => {
             <Route path="/more/task-calendar" element={<TaskCalendarPage />} />
             <Route path="/more/agent-analysis" element={<AgentAnalysisPage />} />
             <Route path="/more/taskcalendar/view" element={<AssignAgentTickets />} />
+            <Route path="/more/agent-availability" element={<AgentAvailabilityPage />} />
+            <Route path="/more/work-summary" element={<WorkSummaryPage />} />
+            <Route path="/more/worksummary" element={<WorkSummaryPage />} />
+            <Route path="/more/punch-io" element={<PunchInOutPage />} />
+            <Route path="/more/punchinout" element={<PunchInOutPage />} />
             <Route path="/more/leave-application" element={<LeaveApplicationPage />} />
             <Route path="/more/leaveapplication" element={<LeaveApplicationPage />} />
             <Route path="/more/leaveapproval" element={<LeaveApprovalPage />} />

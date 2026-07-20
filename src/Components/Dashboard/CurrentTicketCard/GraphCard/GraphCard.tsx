@@ -1,3 +1,5 @@
+import type { FC } from 'react';
+
 interface Props {
   type: string;
   number: number;
@@ -23,7 +25,7 @@ const WaveDecoration = () => (
   </svg>
 );
 
-const GraphCard: React.FC<Props> = ({
+const GraphCard: FC<Props> = ({
   amount,
   number,
   type,

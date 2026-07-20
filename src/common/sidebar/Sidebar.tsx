@@ -141,26 +141,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
 
   return (
     <aside
-      className={`fixed top-[38px] left-0 h-[calc(100vh-38px)] bg-[#1e5b86] text-white flex flex-col transition-all duration-300 z-40 shadow-xl ${
+      className={`fixed top-[38px] left-0 z-40 flex h-[calc(100vh-38px)] flex-col bg-[#1f5f8a] text-white shadow-xl transition-all duration-300 ${
         isSidebarOpen ? 'w-64' : 'w-20'
       }`}
     >
-      <nav className="flex-1 overflow-y-auto py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <ul className="space-y-1" ref={containerRef}>
+      <nav className="flex-1 overflow-y-auto py-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <ul className="space-y-0.5" ref={containerRef}>
           {/* Dashboard (Top Item - rendered manually to keep it highlight-friendly) */}
           <li>
             <NavLink
               to="/dashboard"
               className={({ isActive }) =>
-                `flex items-center px-4 py-3 cursor-pointer hover:bg-[#1a4a6e] transition-colors ${
+                `flex items-center px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#184f74] ${
                   isActive
-                    ? 'bg-[#1a4a6e] border-l-4 border-cyan-400'
+                    ? 'border-l-4 border-cyan-400 bg-[#184f74]'
                     : 'border-l-4 border-transparent'
                 }`
               }
               title="Dashboard"
             >
-              <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                 <img
                   src={dashbaordIcon}
                   alt="Dashboard"
@@ -168,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                 />
               </span>
               {isSidebarOpen && (
-                <span className="ml-4 truncate font-medium">Dashboard</span>
+                <span className="ml-4 truncate text-[13px] font-medium">Dashboard</span>
               )}
             </NavLink>
           </li>
@@ -183,15 +183,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                 <li key={item.name} className="relative">
                   <button
                     onClick={() => setOpenMenu(isOpen ? null : item.name)}
-                    className={`w-full flex items-center px-4 py-3 cursor-pointer hover:bg-[#1a4a6e] transition-colors border-l-4 ${
+                    className={`flex w-full items-center px-4 py-2.5 cursor-pointer border-l-4 transition-colors hover:bg-[#184f74] ${
                       isOpen
-                        ? 'bg-[#1a4a6e] border-l-4 border-cyan-400'
+                        ? 'border-cyan-400 bg-[#184f74]'
                         : 'border-l-4 border-transparent'
                     }`}
                     title={item.name}
                     type="button"
                   >
-                    <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                       <img
                         src={item.icon}
                         alt={item.name}
@@ -199,7 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                       />
                     </span>
                     {isSidebarOpen && (
-                      <div className="ml-4 flex-1 flex items-center justify-between min-w-0">
+                      <div className="ml-4 flex min-w-0 flex-1 items-center justify-between">
                         <span className="truncate text-[13px] font-medium">{item.name}</span>
                         <svg
                           className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${
@@ -263,15 +263,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                 <NavLink
                   to={item.path!}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-3 cursor-pointer hover:bg-[#1a4a6e] transition-colors border-l-4 ${
+                    `flex items-center px-4 py-2.5 cursor-pointer border-l-4 transition-colors hover:bg-[#184f74] ${
                       isActive
-                        ? 'bg-[#1a4a6e] border-l-4 border-cyan-400'
+                        ? 'border-cyan-400 bg-[#184f74]'
                         : 'border-l-4 border-transparent'
                     }`
                   }
                   title={item.name}
                 >
-                  <span className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                     <img
                       src={item.icon}
                       alt={item.name}
@@ -279,7 +279,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                     />
                   </span>
                   {isSidebarOpen && (
-                    <span className="ml-4 truncate font-medium">{item.name}</span>
+                    <span className="ml-4 truncate text-[13px] font-medium">{item.name}</span>
                   )}
                 </NavLink>
               </li>

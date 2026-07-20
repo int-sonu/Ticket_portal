@@ -1,4 +1,4 @@
-import React from 'react';
+import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface DashboardCollectionSummaryProps {
@@ -6,8 +6,8 @@ interface DashboardCollectionSummaryProps {
   className?: string;
 }
 
-const DashboardCollectionSummary: React.FC<DashboardCollectionSummaryProps> = ({
-  amount = '₹ 0.00',
+const DashboardCollectionSummary: FC<DashboardCollectionSummaryProps> = ({
+  amount = 'Rs. 0.00',
   className = '',
 }) => {
   const navigate = useNavigate();

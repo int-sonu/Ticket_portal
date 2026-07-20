@@ -1,3 +1,4 @@
+import type { FC } from 'react';
 import SideStatCard from '../CurrentTicketCard/SideStatCard';
 import ongoingImg from '../CurrentTicketCard/assets/ongoing-ticket.png';
 import overdueImg from '../CurrentTicketCard/assets/overdue-ticket.png';
@@ -9,7 +10,7 @@ interface DashboardRightSidebarProps {
   sideStats: SidePanelStats;
 }
 
-const DashboardRightSidebar: React.FC<DashboardRightSidebarProps> = ({
+const DashboardRightSidebar: FC<DashboardRightSidebarProps> = ({
   sideStats,
 }) => {
   return (

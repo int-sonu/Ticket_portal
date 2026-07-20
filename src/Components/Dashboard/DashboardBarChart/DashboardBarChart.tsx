@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { FC } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -108,10 +109,15 @@ const badgePlugin: Plugin<'bar'> = {
   },
 };
 
-const DashboardBarChart: React.FC<DashboardBarChartProps> = ({
+const DashboardBarChart: FC<DashboardBarChartProps> = ({
   agents = defaultAgents,
   className = '',
 }) => {
+  const maxDataValue = Math.max(
+    4,
+    ...agents.flatMap((agent) => [Number(agent.callReport) || 0, Number(agent.createdTicket) || 0]),
+  );
+
   const chartData = useMemo(
     () => ({
       labels: agents.map((a) => a.name),
@@ -181,7 +187,7 @@ const DashboardBarChart: React.FC<DashboardBarChartProps> = ({
         },
         y: {
           min: 0,
-          max: 4,
+          suggestedMax: maxDataValue,
           grid: { display: false },
           border: { display: false },
           ticks: {
@@ -192,7 +198,7 @@ const DashboardBarChart: React.FC<DashboardBarChartProps> = ({
         },
       },
     }),
-    [],
+    [maxDataValue],
   );
 
   return (

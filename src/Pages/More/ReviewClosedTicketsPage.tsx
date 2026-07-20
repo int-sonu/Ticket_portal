@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import { Input, Spin } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
+import { agentApis } from "../../Axios/MasterApis";
+import { reportApis } from "../../Axios/ReportsApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import AntTable from "../../ui/Table/AntTable";
-import { useClosedTicketReviewList } from "../../Hooks/Ticket/useTicketQueries";
 
 const normalizeText = (value: any) =>
   String(value ?? "")
@@ -64,11 +66,53 @@ const ReviewClosedTicketsPage = () => {
       pageNumber: 1,
       pageSize: 10,
       cSearch: search.trim(),
+      cFromDate: sessionPayload?.cFromDate ?? sessionPayload?.dFromDate,
+      cToDate: sessionPayload?.cToDate ?? sessionPayload?.dToDate,
+      dFromDate: sessionPayload?.dFromDate ?? sessionPayload?.cFromDate,
+      dToDate: sessionPayload?.dToDate ?? sessionPayload?.cToDate,
+      cCreatedBy: String(
+        sessionPayload?.nCreatedBy ??
+          sessionPayload?.nAgentId ??
+          sessionPayload?.id ??
+          0,
+      ),
+      cCustomerId: String(sessionPayload?.nCustomerId ?? sessionPayload?.customerId ?? 0),
+      cAssignAgentId: String(
+        sessionPayload?.nAssignAgentId ??
+          sessionPayload?.nAgentId ??
+          sessionPayload?.id ??
+          0,
+      ),
+      nCreatedBy:
+        Number(
+          sessionPayload?.nCreatedBy ??
+            sessionPayload?.nAgentId ??
+            sessionPayload?.id ??
+            0,
+        ) || 0,
+      nCustomerId: Number(sessionPayload?.nCustomerId ?? sessionPayload?.customerId ?? 0) || 0,
+      nAssignAgentId:
+        Number(
+          sessionPayload?.nAssignAgentId ??
+            sessionPayload?.nAgentId ??
+            sessionPayload?.id ??
+            0,
+        ) || 0,
     }),
     [sessionPayload, search],
   );
 
-  const query = useClosedTicketReviewList(payload, Boolean(sessionPayload?.nCompanyId));
+  const agentListQuery = useQuery({
+    queryKey: ["ticket-review-agent-list", sessionPayload],
+    queryFn: () => agentApis.agentListAll(sessionPayload),
+    enabled: Boolean(sessionPayload?.nCompanyId),
+  });
+
+  const query = useQuery({
+    queryKey: ["ticket-list-report", payload],
+    queryFn: () => reportApis.ticketListReport(payload),
+    enabled: Boolean(sessionPayload?.nCompanyId),
+  });
   const rows = useMemo(() => extractList(query.data), [query.data]);
 
   const filteredRows = useMemo(() => {
@@ -120,17 +164,22 @@ const ReviewClosedTicketsPage = () => {
           Review Closed Tickets
         </h1>
 
-        <Input
-          className="w-[300px]"
-          allowClear
-          prefix={<SearchOutlined className="text-slate-400" />}
-          placeholder="Search"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setCurrentPage(1);
-          }}
-        />
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
+            Agents loaded: {extractList(agentListQuery.data).length}
+          </span>
+          <Input
+            className="w-[300px]"
+            allowClear
+            prefix={<SearchOutlined className="text-slate-400" />}
+            placeholder="Search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-hidden">
