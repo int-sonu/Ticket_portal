@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { DatePicker, Form } from "antd";
+import { Form } from "antd";
 import dayjs from "dayjs";
 
 import SimpleMasterList from "../Common/SimpleMasterList";
+import MasterDateField from "../Common/MasterDateField";
 
 import type { SimpleMasterRow } from "../Common/SimpleMasterUtils";
 
@@ -112,10 +113,10 @@ const renderFinancialYearExtraFields = () => (
     </p>
     <div className="grid grid-cols-2 gap-3">
       <Form.Item name="fromDate" label="From Date">
-        <DatePicker className="w-full" format="DD/MM/YYYY" />
+        <MasterDateField />
       </Form.Item>
       <Form.Item name="toDate" label="To Date">
-        <DatePicker className="w-full" format="DD/MM/YYYY" />
+        <MasterDateField />
       </Form.Item>
     </div>
   </div>
@@ -192,6 +193,12 @@ const FinancialYear = () => {
 
       buildPayload:
         buildFinancialYearPayload,
+
+      addButtonClassName:
+        "h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600 ",
+
+        showAddButtonIcon: false,
+
       buildFormValues:
         buildFinancialYearFormValues,
       renderExtraFields:

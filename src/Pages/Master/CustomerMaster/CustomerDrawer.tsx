@@ -2,7 +2,6 @@ import {
   AutoComplete,
   Button,
   Checkbox,
-  DatePicker,
   Form,
   Input,
   message,
@@ -18,8 +17,10 @@ import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useMemo, useEffect, useRef, useState } from "react";
 
 import type { MouseEvent } from "react";
+import dayjs, { type Dayjs } from "dayjs";
 
 import { assetMasterApis } from "../../../Axios/MasterApis";
+import MasterDateField from "../Common/MasterDateField";
 
 import {
   extractList,
@@ -90,6 +91,31 @@ const extractAssetList = (response: any) => {
   );
 };
 
+const toBooleanValue = (value: unknown, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "y"].includes(normalized)) return true;
+    if (["false", "0", "no", "n", ""].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+const toDateValue = (value: unknown): Dayjs | undefined => {
+  if (!value) return undefined;
+  if (dayjs.isDayjs(value)) return value.isValid() ? value : undefined;
+
+  const text = String(value).trim();
+  const dateMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  const normalized = dateMatch
+    ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
+    : text;
+  const parsed = dayjs(normalized);
+
+  return parsed.isValid() ? parsed : undefined;
+};
+
 const normalizeAssetForDisplay = (asset: any) => ({
   ...asset,
   name: asset?.name ?? asset?.cAssetName ?? "",
@@ -148,6 +174,23 @@ const normalizeAssetForDisplay = (asset: any) => ({
     "",
   serialNo: asset?.serialNo ?? asset?.cSerialNo ?? "",
   description: asset?.description ?? asset?.cAssetDescription ?? "",
+  amc: toBooleanValue(
+    asset?.amc ?? asset?.bAMC ?? asset?.bAmc ?? asset?.bUnderAmc ?? asset?.bIsAMC,
+  ),
+  warranty: toBooleanValue(
+    asset?.warranty ??
+      asset?.bWarranty ??
+      asset?.bUnderWarranty ??
+      asset?.bIsWarranty,
+  ),
+  expiryDate: toDateValue(
+    asset?.expiryDate ??
+      asset?.dExpiryDate ??
+      asset?.dtExpiryDate ??
+      asset?.dAssetExpiryDate ??
+      asset?.dAMCExpiryDate ??
+      asset?.dWarrantyExpiryDate,
+  ),
 });
 
 const getAssetCompareKey = (asset: any) => {
@@ -1126,7 +1169,7 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
   };
 
   const handleAssetEdit = (index: number) => {
-    const asset = assetList[index];
+    const asset = normalizeAssetForDisplay(assetList[index]);
     const nextAssetValues = {
       ...asset,
       name: asset.name || asset.cAssetName || "",
@@ -1137,9 +1180,9 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
       brandLabel: resolveBrandLabel(asset),
       serialNo: asset.serialNo || asset.cSerialNo || "",
       description: asset.description || asset.cAssetDescription || "",
-      amc: asset.amc ?? asset.bUnderAmc ?? asset.bAMC ?? false,
-      warranty: asset.warranty ?? asset.bUnderWarranty ?? asset.bWarranty ?? false,
-      expiryDate: asset.expiryDate || undefined,
+      amc: asset.amc,
+      warranty: asset.warranty,
+      expiryDate: asset.expiryDate,
     };
 
     setAssetSearch(asset.name || asset.cAssetName || "");
@@ -1292,7 +1335,7 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
                     label="Expiry Date"
                     className="!mb-2 "
                   >
-                    <DatePicker className="w-full" format="DD/MM/YYYY" />
+                    <MasterDateField />
                   </Form.Item>
                 </div>
 
@@ -1667,9 +1710,7 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
                         </Checkbox>
 
                         <Form.Item label="Expiry Date" className="!mb-0">
-                          <DatePicker
-                            className="w-full"
-                            format="DD/MM/YYYY"
+                          <MasterDateField
                             disabled={assetViewMode}
                             value={assetValues.expiryDate}
                             onChange={(value) =>

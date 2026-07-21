@@ -16,6 +16,21 @@ export type SessionPayload = {
   nModifiedBy?: number;
 };
 
+export const toBooleanValue = (value: unknown, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n', ''].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+export const isMasterRecordActive = (record: any) =>
+  toBooleanValue(record?.bActive, true) &&
+  !toBooleanValue(record?.bCancelled ?? record?.bCancel ?? record?.bDeleted, false);
+
 export const getSessionPayload = (): SessionPayload => {
   try {
     const session = JSON.parse(sessionStorage.getItem('userSession') || '{}');

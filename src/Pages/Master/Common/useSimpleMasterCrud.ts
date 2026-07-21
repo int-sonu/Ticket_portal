@@ -21,6 +21,7 @@ type UseSimpleMasterCrudParams = {
     response: any,
     selectedRow: SimpleMasterRow | null
   ) => void;
+  formatSaveError?: (message: string, error: unknown) => string;
 };
 
 export const useSimpleMasterCrud = ({
@@ -36,7 +37,13 @@ export const useSimpleMasterCrud = ({
   closeDrawer,
   onDeleted,
   onSaved,
+  formatSaveError,
 }: UseSimpleMasterCrudParams) => {
+  const getSaveErrorMessage = (error: unknown, fallback: string) => {
+    const apiMessage = getApiMessage(error, fallback);
+    return formatSaveError?.(apiMessage, error) ?? apiMessage;
+  };
+
   const handleDelete = (event: React.MouseEvent, record: SimpleMasterRow) => {
     event.stopPropagation();
     Modal.confirm({
@@ -83,7 +90,7 @@ export const useSimpleMasterCrud = ({
     mutation({ ...getSessionPayload(), ...buildPayload(trimmedValues, selectedRow) }, {
       onSuccess: (response) => {
         if (!isApiSuccess(response)) {
-          message.error(getApiMessage(response, `Failed to save ${entityName.toLowerCase()}`));
+          message.error(getSaveErrorMessage(response, `Failed to save ${entityName.toLowerCase()}`));
           return;
         }
 
@@ -91,7 +98,7 @@ export const useSimpleMasterCrud = ({
         onSaved?.(trimmedValues, response, selectedRow);
         closeDrawer();
       },
-      onError: (error) => message.error(getApiMessage(error, `Failed to save ${entityName.toLowerCase()}`)),
+      onError: (error) => message.error(getSaveErrorMessage(error, `Failed to save ${entityName.toLowerCase()}`)),
     });
   };
 

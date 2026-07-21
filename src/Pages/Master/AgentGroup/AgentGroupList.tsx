@@ -133,6 +133,13 @@ const AgentGroupList = () => {
 
       buildPayload:
         buildGroupPayload,
+
+      addButtonClassName:
+        'h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600',
+
+      showAddButtonIcon:
+        false,
+
       // ENABLE SHORT NAME
 
       hasShortName:

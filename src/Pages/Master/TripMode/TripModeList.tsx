@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import SimpleMasterList from '../Common/SimpleMasterList';
 import type { SimpleMasterRow } from '../Common/SimpleMasterUtils';
+import { isMasterRecordActive } from '../Common/SimpleMasterUtils';
 import {
   useDeleteTripMode,
   useGetTripModes,
@@ -14,7 +15,7 @@ const mapTripModeRow = (tripMode: any, index: number): SimpleMasterRow => ({
   srl: index + 1,
   name: tripMode?.cTripModeNmae ?? tripMode?.cTripModeName ?? tripMode?.cModeName ?? 'N/A',
   shortName: tripMode?.cModeShName ?? tripMode?.cShName ?? '',
-  active: tripMode?.bActive !== false && tripMode?.bCancelled !== true,
+  active: isMasterRecordActive(tripMode),
   raw: tripMode,
 });
 
@@ -25,6 +26,14 @@ const buildTripModePayload = (values: any, selectedRow: SimpleMasterRow | null) 
   cShName: values.shortName,
   bActive: values.active ?? true,
 });
+
+const formatTripModeSaveError = (serverMessage: string) => {
+  if (/23505|duplicate key|tm_tripmode_cmodename_key/i.test(serverMessage)) {
+    return 'Trip Mode name already exists. Please enter a different name.';
+  }
+
+  return serverMessage;
+};
 
 const TripModeList = () => {
   const { mutate: saveTripMode, isPending: isSaving } = useSaveTripMode();
@@ -44,6 +53,9 @@ const TripModeList = () => {
     isSaving: isSaving || isUpdating,
     mapRow: mapTripModeRow,
     buildPayload: buildTripModePayload,
+    formatSaveError: formatTripModeSaveError,
+    addButtonClassName: 'h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600',
+    showAddButtonIcon: false,
   }), [deleteTripMode, isSaving, isUpdating, saveTripMode, updateTripMode]);
 
   return <SimpleMasterList {...listProps} />;

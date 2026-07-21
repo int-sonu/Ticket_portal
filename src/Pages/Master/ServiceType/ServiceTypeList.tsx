@@ -5,6 +5,7 @@ import SimpleMasterList from "../Common/SimpleMasterList";
 import type {
   SimpleMasterRow,
 } from "../Common/SimpleMasterUtils";
+import { isMasterRecordActive } from "../Common/SimpleMasterUtils";
 
 import {
   useDeleteServiceType,
@@ -40,9 +41,7 @@ const mapServiceTypeRow = (
     item?.cServiceTypeShName ??
     "",
 
-  active:
-    item?.bActive !== false &&
-    item?.bCancelled !== true,
+  active: isMasterRecordActive(item),
 
   raw: item,
 });
@@ -125,6 +124,11 @@ const ServiceTypeList = () => {
 
       isSaving:
         isSaving || isUpdating,
+
+         addButtonClassName:
+        "h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600 ",
+
+        showAddButtonIcon: false,
 
       mapRow:
         mapServiceTypeRow,

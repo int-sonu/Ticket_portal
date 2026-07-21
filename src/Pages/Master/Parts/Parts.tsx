@@ -8,6 +8,7 @@ import type {
 
 import {
   getSessionPayload,
+  isMasterRecordActive,
 } from "../Common/SimpleMasterUtils";
 
 import {
@@ -283,9 +284,7 @@ const mapPartsRow = (
 
 
 
-  active:
-    item?.bActive !== false &&
-    item?.bCancelled !== true,
+  active: isMasterRecordActive(item),
 
   raw: item,
 });
@@ -440,6 +439,11 @@ const Parts = () => {
 
 
 
+
+
+
+
+
   const {
     mutate: updateParts,
 
@@ -548,6 +552,11 @@ const Parts = () => {
 
       loadRowDetails,
 
+
+       addButtonClassName:
+        "h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600 ",
+
+        showAddButtonIcon: false,
 
 
       // CUSTOM DRAWER

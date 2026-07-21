@@ -34,8 +34,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
   const containerRef = useRef<HTMLUListElement>(null);
 
   const masterSubItems = [
-    { name: 'Agent', path: '/masters/agent' },
       { name: 'Agent Group', path: '/masters/agent-group' },
+    { name: 'Agent', path: '/masters/agent' },
+    
     { name: 'Trip Mode', path: '/masters/trip-mode' },
     { name: 'Follow Up Mode', path: '/masters/follow-up-mode' },
     { name: 'Financial Year', path: '/masters/financial-year' },

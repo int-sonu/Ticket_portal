@@ -5,6 +5,7 @@ import SimpleMasterList from "../Common/SimpleMasterList";
 import type {
   SimpleMasterRow,
 } from "../Common/SimpleMasterUtils";
+import { isMasterRecordActive } from "../Common/SimpleMasterUtils";
 
 import {
   useDeleteVendor,
@@ -44,9 +45,7 @@ const mapVendorRow = (
     item?.cShName ??
     "",
 
-  active:
-    item?.bActive !== false &&
-    item?.bCancelled !== true,
+  active: isMasterRecordActive(item),
 
   raw: item,
 });

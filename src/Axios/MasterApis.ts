@@ -655,6 +655,17 @@ export const statusApis = {
 // ============================
 
 export const partsApis = {
+  partsDropDown: async (
+    payload: PartsPayload
+  ) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Part/PartsDropDown',
+      payload
+    );
+
+    return response.data;
+  },
+
   partsList: async (
     payload: PartsPayload
   ) => {

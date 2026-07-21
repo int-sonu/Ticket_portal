@@ -16,22 +16,120 @@ interface ProfileInfo {
   email: string;
 }
 
+const safeParse = (value: string | null) => {
+  try {
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+};
+
+const firstText = (...values: unknown[]) => {
+  const value = values.find(
+    (item) => item !== null && item !== undefined && String(item).trim(),
+  );
+
+  return value === undefined ? '' : String(value).trim();
+};
+
+const normalizeBase = (url?: string) => (url || '').replace(/\/+$/, '');
+const stripLead = (path?: string) => (path || '').replace(/^\/+/, '');
+const joinUrl = (base: string, path: string) =>
+  `${normalizeBase(base)}/${stripLead(path)}`;
+
+const ensureAbsoluteUrl = (maybePath?: string) => {
+  const path = maybePath || '';
+  if (/^https?:\/\//i.test(path)) return path;
+
+  try {
+    return path ? joinUrl(getApiImageBaseUrl(), path) : '';
+  } catch {
+    return '';
+  }
+};
+
+const getHeaderSessionData = () => {
+  const session = safeParse(sessionStorage.getItem('userSession'));
+  const credentials = safeParse(localStorage.getItem('userCredentials'));
+  const sessionData = session?.data ?? session ?? {};
+  const credentialData = credentials?.data ?? credentials ?? {};
+  const rootUser = Object.keys(sessionData).length ? sessionData : credentialData;
+  const userCandidates = [
+    rootUser?.userDetails,
+    rootUser?.agentDetails,
+    rootUser?.user,
+    rootUser?.profile,
+    rootUser,
+  ].flatMap((candidate) =>
+    Array.isArray(candidate) ? candidate : [candidate],
+  );
+  const user =
+    userCandidates.find((candidate) =>
+      firstText(
+        candidate?.cName,
+        candidate?.cAgentName,
+        candidate?.cUserName,
+        candidate?.cFullName,
+        candidate?.Name,
+        candidate?.name,
+        candidate?.UserName,
+        candidate?.userName,
+        candidate?.username,
+      ),
+    ) ?? rootUser;
+  const companyDetails =
+    user?.companyDetails ??
+    rootUser?.companyDetails ??
+    credentialData?.companyDetails ??
+    {};
+  const userName = firstText(
+    user?.cName,
+    user?.cAgentName,
+    user?.cUserName,
+    user?.cFullName,
+    user?.Name,
+    user?.name,
+    user?.UserName,
+    user?.userName,
+    user?.username,
+    credentialData?.cName,
+    credentialData?.cAgentName,
+  );
+  const profileData: ProfileInfo = {
+    name: userName,
+    shortName: firstText(user?.cShortName, user?.shortName),
+    userType: firstText(user?.cUserType, user?.userType, user?.cType),
+    mobile: firstText(
+      user?.cMobile,
+      user?.cMobileNo,
+      user?.cPhone,
+      user?.mobile,
+    ),
+    email: firstText(user?.cEmail, user?.email),
+  };
+
+  return {
+    userName,
+    companyName: firstText(
+      companyDetails?.cCompanyName,
+      companyDetails?.cComapnyName,
+      companyDetails?.companyName,
+      user?.cCompanyName,
+    ),
+    logoUrl: ensureAbsoluteUrl(
+      companyDetails?.cLogoUrl || companyDetails?.logoUrl,
+    ),
+    profileData,
+  };
+};
+
 const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
-  const [userName, setUserName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const { userName, companyName, logoUrl, profileData } =
+    getHeaderSessionData();
 
   // Profile Popup states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [profileData, setProfileData] = useState<ProfileInfo>({
-    name: 'Testing Team',
-    shortName: 'Te206',
-    userType: 'Admin',
-    mobile: '1234567890',
-    email: 'ebin.indium@gmail.com',
-  });
-
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -39,56 +137,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const popupRef = useRef<HTMLDivElement>(null);
-
-  // Helpers to build safe absolute URLs
-  const normalizeBase = (url?: string) => (url || '').replace(/\/+$/, '');
-  const stripLead = (p?: string) => (p || '').replace(/^\/+/, '');
-  const joinUrl = (base: string, path: string) =>
-    `${normalizeBase(base)}/${stripLead(path)}`;
-
-  // If the stored path is already absolute (http/https), just use it.
-  const ensureAbsoluteUrl = (maybePath?: string) => {
-    const path = maybePath || '';
-    if (/^https?:\/\//i.test(path)) return path;
-    try {
-      const imgBase = getApiImageBaseUrl();
-      return path ? joinUrl(imgBase, path) : '';
-    } catch {
-      return '';
-    }
-  };
-
-  useEffect(() => {
-    const raw = localStorage.getItem('userCredentials');
-    if (!raw) return;
-
-    try {
-      const user = JSON.parse(raw);
-      const fetchedName = user?.data?.cName || user?.cName || '';
-      setUserName(fetchedName);
-      setCompanyName(
-        user?.data?.companyDetails?.cComapnyName ||
-          user?.companyDetails?.cComapnyName ||
-          ''
-      );
-
-      setProfileData({
-        name: fetchedName || 'Testing Team',
-        shortName: user?.data?.cShortName || user?.cShortName || 'Te206',
-        userType: user?.data?.cUserType || user?.cUserType || 'Admin',
-        mobile: user?.data?.cMobile || user?.cMobile || '1234567890',
-        email: user?.data?.cEmail || user?.cEmail || 'ebin.indium@gmail.com',
-      });
-
-      const storedLogoRel =
-        user?.data?.companyDetails?.cLogoUrl || user?.companyDetails?.cLogoUrl;
-
-      const absLogo = ensureAbsoluteUrl(storedLogoRel);
-      setLogoUrl(absLogo || CompanyLogo);
-    } catch {
-      /* Keep defaults */
-    }
-  }, []);
 
   // Close profile popup when clicking outside
   useEffect(() => {
@@ -105,7 +153,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
     };
   }, [isProfileOpen]);
 
-  const userInitials = (userName?.trim()?.slice(0, 2) || 'TE').toUpperCase();
+  const userInitials = (userName?.trim()?.slice(0, 2) || 'US').toUpperCase();
 
   const handlePasswordSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,10 +247,12 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                     {userInitials}
                   </div>
                   <span className="font-bold text-slate-800 text-[16px]">
-                    {profileData.name}
+                    {profileData.name || 'User'}
                   </span>
                   <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    ( {profileData.userType === 'Admin' ? 'Service' : profileData.userType} )
+                    {profileData.userType
+                      ? `( ${profileData.userType === 'Admin' ? 'Service' : profileData.userType} )`
+                      : ''}
                   </span>
                 </div>
 
@@ -226,7 +276,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                       Name
                     </span>
                     <span className="text-xs font-semibold text-slate-600 truncate">
-                      {profileData.name}
+                      {profileData.name || '-'}
                     </span>
                   </div>
 
@@ -248,7 +298,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                       Short Name
                     </span>
                     <span className="text-xs font-semibold text-slate-600 truncate">
-                      {profileData.shortName}
+                      {profileData.shortName || '-'}
                     </span>
                   </div>
 
@@ -273,7 +323,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                       User Type
                     </span>
                     <span className="text-xs font-semibold text-slate-600 truncate">
-                      {profileData.userType}
+                      {profileData.userType || '-'}
                     </span>
                   </div>
 
@@ -295,7 +345,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                       Mobile
                     </span>
                     <span className="text-xs font-semibold text-slate-600 truncate">
-                      {profileData.mobile}
+                      {profileData.mobile || '-'}
                     </span>
                   </div>
 
@@ -317,7 +367,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                       Email
                     </span>
                     <span className="text-xs font-semibold text-slate-600 truncate">
-                      {profileData.email}
+                      {profileData.email || '-'}
                     </span>
                   </div>
                 </div>

@@ -217,7 +217,7 @@ export const mapAgentRow = (agent: any, index: number): AgentRow => {
     isSupportAgent: !getValueByKeys(agent, ['bNonSuportingUser', 'bNonSupportingUser']),
     active:
       !isFalseValue(getValueByKeys(agent, ['bActive'])) &&
-      !isFalseValue(getValueByKeys(agent, ['bCancelled', 'bCancel'])),
+      !isCancelledAgent(agent),
   };
 };
 

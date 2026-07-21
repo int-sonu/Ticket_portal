@@ -73,6 +73,31 @@ const mapCustomerRow = (
   raw: item,
 });
 
+const toBooleanValue = (value: unknown, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "y"].includes(normalized)) return true;
+    if (["false", "0", "no", "n", ""].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+const toDateValue = (value: unknown) => {
+  if (!value) return undefined;
+  if (dayjs.isDayjs(value)) return value.isValid() ? value : undefined;
+
+  const text = String(value).trim();
+  const dateMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  const normalized = dateMatch
+    ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
+    : text;
+  const parsed = dayjs(normalized);
+
+  return parsed.isValid() ? parsed : undefined;
+};
+
 const parseAssetArray = (candidate: any): any[] | null => {
   if (Array.isArray(candidate)) return candidate;
 
@@ -311,21 +336,29 @@ const getCustomerAssets = (raw: any) => {
       asset?.Description ??
       "",
     amc:
-      asset?.amc ??
-      asset?.bAMC ??
-      asset?.bUnderAmc ??
-      false,
+      toBooleanValue(
+        asset?.amc ??
+          asset?.bAMC ??
+          asset?.bAmc ??
+          asset?.bUnderAmc ??
+          asset?.bIsAMC,
+      ),
     warranty:
-      asset?.warranty ??
-      asset?.bWarranty ??
-      asset?.bUnderWarranty ??
-      false,
+      toBooleanValue(
+        asset?.warranty ??
+          asset?.bWarranty ??
+          asset?.bUnderWarranty ??
+          asset?.bIsWarranty,
+      ),
     expiryDate:
-      asset?.expiryDate
-        ? dayjs(asset.expiryDate)
-        : asset?.dExpiryDate
-          ? dayjs(asset.dExpiryDate)
-          : undefined,
+      toDateValue(
+        asset?.expiryDate ??
+          asset?.dExpiryDate ??
+          asset?.dtExpiryDate ??
+          asset?.dAssetExpiryDate ??
+          asset?.dAMCExpiryDate ??
+          asset?.dWarrantyExpiryDate,
+      ),
   }));
 };
 
@@ -551,19 +584,27 @@ const buildCustomerFormValues = (row?: SimpleMasterRow | null) => ({
     row?.raw?.cAddress ?? "",
 
   amc:
-    row?.raw?.bUnderAmc ??
-    row?.raw?.bAMC ??
-    false,
+    toBooleanValue(
+      row?.raw?.bUnderAmc ??
+        row?.raw?.bAMC ??
+        row?.raw?.bAmc ??
+        row?.raw?.bIsAMC,
+    ),
 
   warranty:
-    row?.raw?.bUnderWarranty ??
-    row?.raw?.bWarranty ??
-    false,
+    toBooleanValue(
+      row?.raw?.bUnderWarranty ??
+        row?.raw?.bWarranty ??
+        row?.raw?.bIsWarranty,
+    ),
 
   expiryDate:
-    row?.raw?.dExpiryDate
-      ? dayjs(row.raw.dExpiryDate)
-      : null,
+    toDateValue(
+      row?.raw?.dExpiryDate ??
+        row?.raw?.dtExpiryDate ??
+        row?.raw?.dAMCExpiryDate ??
+        row?.raw?.dWarrantyExpiryDate,
+    ) ?? null,
 
   assets:
     row ? getAssetsForCustomerRecord(row.raw, row) : [],
@@ -957,6 +998,12 @@ const Customer = () => {
 
       isSaving:
         isSaving || isUpdating,
+          addButtonClassName:
+        "h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600 ",
+
+        showAddButtonIcon: false,
+
+
 
       mapRow:
         mapCustomerRow,

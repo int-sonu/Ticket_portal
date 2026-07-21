@@ -383,6 +383,31 @@ const pickRecord = (response: any) => {
   const dataObj = response?.Data ?? response?.data ?? response;
 
   if (dataObj && typeof dataObj === "object" && !Array.isArray(dataObj)) {
+    const recordCandidates = [
+      dataObj.TicketDetails,
+      dataObj.ticketDetails,
+      dataObj.TicketDetail,
+      dataObj.ticketDetail,
+      dataObj.TicketView,
+      dataObj.ticketView,
+      dataObj.Result,
+      dataObj.result,
+      dataObj.Data,
+      dataObj.data,
+    ];
+
+    for (const candidate of recordCandidates) {
+      if (Array.isArray(candidate) && candidate.length) return candidate[0];
+      if (candidate && typeof candidate === "object") {
+        const nestedRows = extractList(candidate);
+        if (nestedRows.length) return nestedRows[0];
+        return candidate;
+      }
+    }
+
+    const wrappedRows = extractList(dataObj);
+    if (wrappedRows.length) return wrappedRows[0];
+
     // Handle both TicketSummary (object) and ticketSummary (array)
     const summaryObj =
       dataObj.TicketSummary ??
@@ -743,25 +768,47 @@ const buildFollowupDetailRows = (record: any) => {
 };
 
 const getCurrentUserName = () => {
-  try {
-    const raw = localStorage.getItem("userCredentials");
+  for (const [storage, key] of [
+    [sessionStorage, "userSession"],
+    [localStorage, "userCredentials"],
+  ] as const) {
+    try {
+      const parsed = JSON.parse(storage.getItem(key) ?? "{}");
+      const candidates = [
+        parsed?.data?.userDetails,
+        parsed?.userDetails,
+        parsed?.data?.agentDetails,
+        parsed?.agentDetails,
+        parsed?.data?.user,
+        parsed?.user,
+        parsed?.data,
+        parsed,
+      ].flatMap((candidate) =>
+        Array.isArray(candidate) ? candidate : [candidate],
+      );
 
-    if (!raw) return "";
+      for (const user of candidates) {
+        const name = formatDisplayValue(
+          user?.cName ??
+            user?.cAgentName ??
+            user?.cUserName ??
+            user?.cFullName ??
+            user?.Name ??
+            user?.name ??
+            user?.UserName ??
+            user?.userName ??
+            user?.username ??
+            "",
+        ).trim();
 
-    const user = JSON.parse(raw);
-
-    return formatDisplayValue(
-      user?.data?.cName ??
-        user?.cName ??
-        user?.data?.name ??
-        user?.name ??
-        user?.data?.userName ??
-        user?.userName ??
-        "",
-    );
-  } catch {
-    return "";
+        if (name) return name;
+      }
+    } catch {
+      // Ignore malformed legacy session values and try the next source.
+    }
   }
+
+  return "";
 };
 
 const buildTicketStatusUpdatePayload = (
@@ -3489,11 +3536,13 @@ const TicketView = () => {
             </Button>
           </div>
           {showWorkflowStartPanel ? (
-            <div className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[2px] bg-[#6f7d84] px-3 py-2 text-white lg:max-w-[360px]">
-              <div className="text-[11px] leading-4">
-                Hi {currentUserName || "User"}, Please click the Start button to
-                proceed with this ticket.
-              </div>
+            <div className="flex min-h-[60px] w-full items-center justify-between gap-3 rounded-[2px]   bg-[#6f7d84] px-3 py-2 text-white lg:max-w-[520px]">
+              <p className="text-[14px] font-normal leading-5 text-white">
+                <span className="font-semibold">
+                  Hi {currentUserName || "User"},
+                </span>{" "}
+                Please click the Start button to proceed with this ticket.
+              </p>
               <div className="flex shrink-0 items-center gap-2">
                 {isWorkflowStarted ? (
                   <>

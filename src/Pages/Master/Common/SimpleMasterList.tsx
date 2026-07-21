@@ -175,6 +175,12 @@ type SimpleMasterListProps = {
   ) => boolean;
 
   restrictedMessage?: string;
+
+  formatSaveError?: (message: string, error: unknown) => string;
+
+  addButtonClassName?: string;
+
+  showAddButtonIcon?: boolean;
 };
 
 const SimpleMasterList = ({
@@ -238,7 +244,13 @@ const SimpleMasterList = ({
   disableToggle,
 
   restrictedMessage,
+  formatSaveError,
+  addButtonClassName = "h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600 ",
+  showAddButtonIcon = false,
 }: SimpleMasterListProps) => {
+
+
+
 
   const [currentPage, setCurrentPage] =
     useState(1);
@@ -464,6 +476,7 @@ const SimpleMasterList = ({
     buildFormValues,
     buildDeletePayload,
     closeDrawer,
+    formatSaveError,
 
     onDeleted: (record) =>
       setDeletedRowIds(
@@ -712,7 +725,7 @@ const SimpleMasterList = ({
 
       key: 'srl',
 
-      width: 60,
+      width: 52,
     },
 
 
@@ -755,7 +768,7 @@ const SimpleMasterList = ({
 
       key: 'active',
 
-      width: 90,
+      width: 72,
 
       render: (
         active: boolean,
@@ -807,7 +820,7 @@ const SimpleMasterList = ({
 
       key: 'edit',
 
-      width: 80,
+      width: 56,
 
       render: (
         _: unknown,
@@ -855,7 +868,7 @@ const SimpleMasterList = ({
 
       key: 'delete',
 
-      width: 90,
+      width: 64,
 
       render: (
         _: unknown,
@@ -975,13 +988,13 @@ const SimpleMasterList = ({
   };
 
   return (
-    <div className="h-full min-h-0 bg-white p-6 flex flex-col">
+    <div className="flex h-full min-h-0 flex-col bg-white p-4 text-sm">
 
       {/* HEADER */}
 
-      <div className="flex items-start justify-between gap-4 mb-4 shrink-0">
+      <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
 
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="text-lg font-semibold text-slate-900">
           {title}
         </h1>
 
@@ -999,15 +1012,15 @@ const SimpleMasterList = ({
                 event.target.value
               )
             }
-            className="w-72"
+            className="!h-8 w-64"
           />
 
 
 
           <Button
             type="primary"
-            icon={<PlusOutlined />}
-            className="h-9 bg-emerald-500 border-emerald-500 px-5 font-medium hover:!bg-emerald-600"
+            icon={showAddButtonIcon ? <PlusOutlined /> : undefined}
+            className={addButtonClassName}
             onClick={() =>
               openDrawer(
                 undefined,
@@ -1030,6 +1043,7 @@ const SimpleMasterList = ({
       <div className="flex-1 min-h-0 overflow-hidden">
 
         <AntTable
+          size="small"
           className={tableClassName}
           columns={columns}
           dataSource={tableDataSource}

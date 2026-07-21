@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { Button, Empty, Form, Input, Switch, message } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
 import AntTable from '../../../ui/Table/AntTable';
 import { useDeleteAgent, useGetAgentDetails, useGetAgentDropdown, useGetAgents, useGetReportToAgents, useSaveAgent, useUpdateAgent } from './Hooks';
 import AgentMasterDrawer from './AgentMasterDrawer';
@@ -9,6 +9,7 @@ import { useAgentCrud } from './useAgentCrud';
 import { useGetGroupDropdown } from '../AgentGroup/Hooks';
 import {
   buildAgentFormValues,
+  buildAgentPayload,
   extractFirstRecord,
   extractAgentList,
   extractGenericList,
@@ -16,6 +17,8 @@ import {
   filterAgents,
   getSessionPayload,
   getTotalCount,
+  getApiMessage,
+  isApiSuccess,
   isCancelledAgent,
   makeOption,
   makeUserTypeOption,
@@ -33,6 +36,7 @@ const AgentMasterList: React.FC = () => {
   const [viewMode, setViewMode] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentRow | null>(null);
   const [deletedAgentIds, setDeletedAgentIds] = useState<Array<string | number>>([]);
+  const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
   const [form] = Form.useForm();
   const activeValue = Form.useWatch('active', form);
 
@@ -59,10 +63,14 @@ const AgentMasterList: React.FC = () => {
       extractAgentList(agentsData)
         .filter((agent) => !isCancelledAgent(agent))
         .map(mapAgentRow)
+        .map((agent) => ({
+          ...agent,
+          active: activeOverrides[String(agent.id)] ?? agent.active,
+        }))
         .filter((agent) => !deletedAgentIds.includes(agent.id)),
       searchTerm,
     ),
-    [agentsData, deletedAgentIds, searchTerm],
+    [activeOverrides, agentsData, deletedAgentIds, searchTerm],
   );
 
   const allAgentRows = useMemo(
@@ -153,6 +161,40 @@ const AgentMasterList: React.FC = () => {
     setPageSize(size);
   };
 
+  const handleAgentActiveChange = (checked: boolean, record: AgentRow) => {
+    const overrideKey = String(record.id);
+    const previousActive = record.active;
+
+    setActiveOverrides((current) => ({ ...current, [overrideKey]: checked }));
+    updateAgent(
+      buildAgentPayload(
+        { ...buildAgentFormValues(record), active: checked },
+        record,
+      ),
+      {
+        onSuccess: (response) => {
+          if (isApiSuccess(response)) {
+            message.success(`Agent marked as ${checked ? 'active' : 'inactive'}`);
+            return;
+          }
+
+          setActiveOverrides((current) => ({
+            ...current,
+            [overrideKey]: previousActive,
+          }));
+          message.error(getApiMessage(response, 'Failed to update agent status'));
+        },
+        onError: (error) => {
+          setActiveOverrides((current) => ({
+            ...current,
+            [overrideKey]: previousActive,
+          }));
+          message.error(getApiMessage(error, 'Failed to update agent status'));
+        },
+      },
+    );
+  };
+
   const handleAgentSave = (values: any) => {
     const duplicateShortName = allAgentRows.find((agent) =>
       normalizeCompareText(agent.id) !== normalizeCompareText(selectedAgent?.id) &&
@@ -191,7 +233,7 @@ const AgentMasterList: React.FC = () => {
   };
 
   const columns = [
-    { title: 'Srl', dataIndex: 'srl', key: 'srl', width: 60 },
+    { title: 'Srl', dataIndex: 'srl', key: 'srl', width: 52 },
     { title: 'Agent Name', dataIndex: 'name', key: 'name' },
     { title: 'Short Name', dataIndex: 'shortName', key: 'shortName' },
     { title: 'User Type', dataIndex: 'userType', key: 'userType' },
@@ -200,21 +242,24 @@ const AgentMasterList: React.FC = () => {
       title: 'Active',
       dataIndex: 'active',
       key: 'active',
-      width: 90,
-      render: () => (
+      width: 72,
+      render: (active: boolean, record: AgentRow) => (
         <Switch
           className="agent-green-switch"
-          checked
-          disabled
+          checked={active}
           size="small"
           onClick={(_, event) => event.stopPropagation()}
+          onChange={(checked, event) => {
+            event.stopPropagation();
+            handleAgentActiveChange(checked, record);
+          }}
         />
       ),
     },
     {
       title: 'Edit',
       key: 'edit',
-      width: 80,
+      width: 56,
       render: (_: unknown, record: AgentRow) => (
         <Button type="text" icon={<EditOutlined />} onClick={(event) => {
           event.stopPropagation();
@@ -225,7 +270,7 @@ const AgentMasterList: React.FC = () => {
     {
       title: 'Delete',
       key: 'delete',
-      width: 90,
+      width: 64,
       render: (_: unknown, record: AgentRow) => (
         <Button type="text" danger icon={<DeleteOutlined />} onClick={(event) => handleDelete(event, record)} />
       ),
@@ -233,12 +278,12 @@ const AgentMasterList: React.FC = () => {
   ];
 
   return (
-    <div className="h-full min-h-0 bg-white p-6 flex flex-col">
-      <div className="flex items-start justify-between gap-4 mb-4 shrink-0">
-        <h1 className="text-xl font-semibold text-slate-900">Agent Master</h1>
+    <div className="flex h-full min-h-0 flex-col bg-white p-4 text-sm">
+      <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
+        <h1 className="text-lg font-semibold text-slate-900">Agent Master</h1>
         <div className="flex items-center gap-2">
-          <Input allowClear prefix={<SearchOutlined className="text-slate-400" />} placeholder="Search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="w-72" />
-          <Button type="primary" icon={<PlusOutlined />} className="h-9 bg-emerald-500 border-emerald-500 px-5 font-medium hover:!bg-emerald-600" onClick={() => openDrawer(undefined, false)}>
+          <Input allowClear prefix={<SearchOutlined className="text-slate-400" />} placeholder="Search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="!h-8 w-64" />
+          <Button type="primary" className="h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600" onClick={() => openDrawer(undefined, false)}>
             Add New
           </Button>
         </div>
