@@ -400,6 +400,39 @@ export const ticketApis = {
     return response.data;
   },
 
+  callReportAttachmentUpload: async (
+    payload: FormData,
+    nFollowUpId: number,
+    nWorksheetId: number,
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/CallReport/CallReportAttachmentUpload",
+      payload,
+      {
+        params: { nFollowUpId, nWorksheetId },
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+    return response.data;
+  },
+
+  callReportVoiceUpload: async (
+    payload: FormData,
+    nCompanyId: number,
+    nFollowUpId: number,
+    nWorksheetId: number,
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/CallReport/CallreportVoiceUpload",
+      payload,
+      {
+        params: { nCompanyId, nFollowUpId, nWorksheetId },
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+    return response.data;
+  },
+
   callReportUpdateNoNeedBill: async (
     payload: TicketPayload
   ) => {
@@ -542,6 +575,17 @@ export const ticketApis = {
         "/Api/V1/Estimate/SendEstimateMail",
         payload
       );
+
+    return response.data;
+  },
+
+  sendMail: async (
+    payload: TicketPayload
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Utility/SendMail",
+      payload
+    );
 
     return response.data;
   },

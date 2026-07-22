@@ -33,7 +33,7 @@ export const unbilledCallReportApis = {
   customerWiseUnbilledCallReportList: async (payload: Record<string, any>) => {
     try {
       const response = await axiosInstance.post(
-        "http://postgresqlticketapi.ortezerp.in/Api/V1/CallReport/CustomerWiseUnBilledCallreportList",
+        "/Api/V1/CallReport/CustomerWiseUnBilledCallreportList",
         payload,
       );
 

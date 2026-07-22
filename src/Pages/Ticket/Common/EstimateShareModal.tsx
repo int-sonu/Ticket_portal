@@ -89,18 +89,15 @@ const EstimateShareModal: React.FC<EstimateShareModalProps> = ({
 
     try {
       await ticketApis.sendEstimateMail({
-        ...sessionPayload,
-        Subject: 'Estimate PDF',
-        ToEmail: finalEmails.join(','),
-        AttachmentUrl: pdfUrl,
-        cMailType: 'detailed',
-        MailType: 'detailed',
+        nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
+        nAgentId: Number(sessionPayload.nAgentId ?? sessionPayload.id ?? 0),
+        cSchemaName: sessionPayload.cSchemaName ?? '',
+        cDbName: sessionPayload.cDbName ?? '',
+        toEmail: finalEmails.join(','),
+        subject: 'Estimate PDF',
+        body: 'Please find the estimate attached.',
+        attachmentUrl: pdfUrl,
         cType: 'detailed',
-        Type: 'detailed',
-        cSendType: 'detailed',
-        SendType: 'detailed',
-        cInfoType: 'Detailed Information',
-        InfoType: 'Detailed Information',
       });
 
       message.success('Estimate sent successfully');

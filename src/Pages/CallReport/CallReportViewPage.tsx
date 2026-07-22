@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { billingApis } from "../../Axios/BillingApis";
+import { unbilledCallReportApis } from "../../Axios/UnbilledCallReportAllApis";
 import { customerApis } from "../../Axios/MasterApis";
 import { ticketApis } from "../../Axios/TicketsApi";
 import { getRequestPayload } from "../../Utils/requestPayload";
@@ -228,12 +229,14 @@ const pickTicketViewRecord = (response: any) => {
 
 type CallReportViewPageProps = {
   embedded?: boolean;
+  historyMode?: boolean;
   overrideState?: Record<string, any>;
   onClose?: () => void;
 };
 
 const CallReportViewPage = ({
   embedded = false,
+  historyMode = false,
   overrideState,
   onClose,
 }: CallReportViewPageProps) => {
@@ -261,7 +264,12 @@ const CallReportViewPage = ({
   const [activeTab, setActiveTab] = useState<"callreport" | "details" | "history" | "bill">(
     "callreport",
   );
-  const tabs = isUnbilledContext
+  const tabs = historyMode
+    ? ([
+        ["callreport", "Call Report"],
+        ["bill", "Bills"],
+      ] as const)
+    : isUnbilledContext
     ? ([
         ["callreport", "Call Report"],
         ["details", "Ticket Details"],
@@ -294,7 +302,14 @@ const CallReportViewPage = ({
       nCompanyId: Number(sessionPayload.nCompanyId ?? state.nCompanyId ?? 0),
       cSchemaName: sessionPayload.cSchemaName ?? state.cSchemaName ?? "",
       cDbName: sessionPayload.cDbName ?? state.cDbName ?? "",
-      nTicketId: Number(state.selectedRow?.nTicketId ?? state.ticketNo ?? 0),
+      nTicketId: Number(
+        state.selectedRow?.nTicketId ??
+          state.selectedRow?.TicketId ??
+          state.nTicketId ??
+          state.TicketId ??
+          state.ticketNo ??
+          0,
+      ),
       nFollowupId: callReportId,
       nFollowUpId: callReportId,
       nCallReportId: callReportId,
@@ -360,6 +375,45 @@ const CallReportViewPage = ({
       !!String(requestPayload.cDbName ?? "").trim(),
   });
 
+  const customerWisePayload = useMemo(
+    () => ({
+      nCompanyId: Number(requestPayload.nCompanyId ?? 0),
+      nCustomerId: Number(customerViewPayload.nCustomerId ?? 0),
+      cSchemaName: requestPayload.cSchemaName ?? "",
+      cDbName: requestPayload.cDbName ?? "",
+    }),
+    [customerViewPayload.nCustomerId, requestPayload],
+  );
+  const { data: customerWiseCallReportResponse } = useQuery({
+    queryKey: ["customer-wise-unbilled-callreports", customerWisePayload],
+    queryFn: () =>
+      unbilledCallReportApis.customerWiseUnbilledCallReportList(customerWisePayload),
+    enabled:
+      historyMode &&
+      !!customerWisePayload.nCompanyId &&
+      !!customerWisePayload.nCustomerId &&
+      !!String(customerWisePayload.cSchemaName).trim() &&
+      !!String(customerWisePayload.cDbName).trim(),
+  });
+  const customerWiseCallReports = useMemo(
+    () => extractList(customerWiseCallReportResponse),
+    [customerWiseCallReportResponse],
+  );
+  const matchingCustomerCallReport = useMemo(
+    () =>
+      customerWiseCallReports.find((item: Record<string, any>) =>
+        Number(
+          getFieldValue(item, [
+            "nCallReportId",
+            "CallReportId",
+            "nFollowupId",
+            "nFollowUpId",
+          ]),
+        ) === callReportId,
+      ) ?? {},
+    [callReportId, customerWiseCallReports],
+  );
+
   const viewData = data?.data?.data ?? data?.data ?? data ?? {};
   const customerOptions = useMemo(
     () =>
@@ -399,6 +453,8 @@ const CallReportViewPage = ({
       state.selectedRow?.TicketId ??
       ticketSummary.nTicketId ??
       ticketSummary.TicketId ??
+      state.nTicketId ??
+      state.TicketId ??
       state.ticketNo ??
       0,
   );
@@ -523,6 +579,8 @@ const CallReportViewPage = ({
       billSummary.billId ??
       viewData.nBillId ??
       viewData.BillId ??
+      matchingCustomerCallReport.nBillId ??
+      matchingCustomerCallReport.BillId ??
       state.nBillId ??
       state.billId ??
       0,
@@ -751,6 +809,14 @@ const CallReportViewPage = ({
   const billPartList = useMemo(
     () => extractList(billPartListResponse?.data ?? billPartListResponse ?? []),
     [billPartListResponse],
+  );
+  const billViewWithParts = useMemo(
+    () => ({
+      ...(billViewResponse && typeof billViewResponse === "object" ? billViewResponse : {}),
+      partDetails: billPartList,
+      PartDetails: billPartList,
+    }),
+    [billPartList, billViewResponse],
   );
   const ticketViewAssignedTo =
     pickAssignedAgentNames(ticketViewRecord).join(", ") ||
@@ -1115,7 +1181,7 @@ const CallReportViewPage = ({
   return (
     <div
       className={`flex w-full flex-col ${
-        embedded ? "h-[calc(100vh_-_20px)] min-h-0 overflow-hidden" : "bg-white px-4 py-2"
+        embedded ? "h-full min-h-0 overflow-hidden" : "bg-white px-4 py-2"
       }`}
     >
       <div className="flex flex-col rounded-2xl border border-slate-200 bg-white">
@@ -1360,7 +1426,7 @@ const CallReportViewPage = ({
               {activeTab === "bill" ? (
                 <BillReadonlyView
                   viewData={viewData}
-                  billViewData={billViewResponse}
+                  billViewData={billViewWithParts}
                   loading={isBillViewLoading || isBillPartListLoading}
                   fallbackState={{
                     customerName,

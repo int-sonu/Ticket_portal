@@ -28,6 +28,18 @@ declare global {
   }
 }
 
+const formatEstimateDate = (value: Date) => {
+  const day = String(value.getDate()).padStart(2, '0');
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const year = value.getFullYear();
+  const hours = value.getHours();
+  const displayHour = String(hours % 12 || 12).padStart(2, '0');
+  const minutes = String(value.getMinutes()).padStart(2, '0');
+  const meridiem = hours >= 12 ? 'PM' : 'AM';
+
+  return `${day}/${month}/${year} ${displayHour}:${minutes} ${meridiem}`;
+};
+
 const EstimateModal: React.FC<EstimateModalProps> = ({
   open,
   onClose,
@@ -1129,11 +1141,11 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-white">
       {/* Header row: Title + Date + Close */}
-      <div className="flex items-center justify-between px-6 py-3">
-        <h2 className="m-0 text-[18px] font-bold text-[#0f172a]">Estimate</h2>
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <h2 className="m-0 text-[18px] font-normal text-black">Estimate</h2>
         <div className="flex items-center gap-3">
-          <span className="text-[13px] text-[#64748b]">{new Date().toLocaleString()}</span>
-          <Button type="text" size="small" icon={<CloseOutlined className="text-base text-slate-500" />} onClick={onClose} />
+          <span className="text-[13px] text-black">{formatEstimateDate(new Date())}</span>
+          <Button type="text" size="small" icon={<CloseOutlined className="text-lg text-black" />} onClick={onClose} />
         </div>
       </div>
 
@@ -1141,7 +1153,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       <div className="border-b border-slate-200" />
 
       {/* Estimate No + Customer Name row */}
-      <div className="flex items-center gap-10 px-6 py-3 text-[13px] text-[#3b82f6]">
+      <div className="flex items-center gap-5 px-3 py-2 text-[13px] text-[#3b82f6]">
         <div>
           <span className="text-[#64748b]">Estimate No : </span>
           <span className="font-medium text-[#3b82f6]">{estimateNo}</span>

@@ -19,7 +19,7 @@ import QuickCallReportModal from "../Common/QuickCallReportModal";
 import EstimateModal from "../Common/EstimateModal";
 import TicketPageShell from "../Common/TicketPageShell";
 import TicketOverviewSection from "./TicketOverviewSection";
-import CallReportHistoryModal from "../../CallReport/CallReportHistoryModal";
+import CallReportViewPage from "../../CallReport/CallReportViewPage";
 import shareIcon from "../../../assets/icons/shareIcon.svg";
 import closeblack from "../../../assets/icons/close-black.svg";
 import EstimateIcon from "../../../assets/icons/EstimateIcon.svg";
@@ -3640,9 +3640,11 @@ const TicketView = () => {
       />
       {historyCallReportState ? (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
-          <div className="h-[72vh] w-full max-w-[920px] ml-75 overflow-hidden rounded-2xl shadow-2xl">
-            <CallReportHistoryModal
-              record={historyCallReportState.selectedRow ?? historyCallReportState}
+          <div className="h-[78vh] w-full max-w-[1000px] overflow-hidden rounded-xl bg-white shadow-2xl">
+            <CallReportViewPage
+              embedded
+              historyMode
+              overrideState={historyCallReportState}
               onClose={() => setHistoryCallReportState(null)}
             />
           </div>

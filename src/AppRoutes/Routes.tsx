@@ -76,6 +76,11 @@ import AgentAvailabilityPage from "../Pages/More/AgentAvailabilityPage";
 import WorkSummaryPage from "../Pages/More/WorkSummaryPage";
 import PunchInOutPage from "../Pages/More/PunchInOutPage";
 import ReportsPage from "../Pages/Reports/ReportsPage";
+import FeaturesPage from "../Pages/Settings/FeaturesPage";
+import SupervisorAgentComp from "../Components/Settings/SupervisorAgentComp/SupervisorAgentComp";
+import NotificationSettingsPage from "../Pages/Settings/NotificationSettingsPage";
+import CompanyDetailsPage from "../Pages/Settings/CompanyDetailsPage";
+import ConfigurationsPage from "../Pages/Settings/ConfigurationsPage";
 
 const Routes: React.FC = () => {
   return (
@@ -282,6 +287,11 @@ const Routes: React.FC = () => {
             <Route path="/item-repair/assign" element={<AssignedItemRepairPage />} />
             <Route path="/item-repair/assigned" element={<AssignedItemRepairPage />} />
             <Route path="/item-repair/pending" element={<PendingItemRepairPage />} />
+            <Route path="/settings/features" element={<FeaturesPage />} />
+            <Route path="/settings/supervisoragentlinking" element={<SupervisorAgentComp />} />
+            <Route path="/settings/notificationsettings" element={<NotificationSettingsPage />} />
+            <Route path="/settings/companydetails" element={<CompanyDetailsPage />} />
+            <Route path="/settings/configurations" element={<ConfigurationsPage />} />
           </Route>
 
           <Route path="/estimate-invoice" element={<EstimatePdfViewer />} />

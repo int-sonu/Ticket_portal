@@ -67,34 +67,21 @@ const ShareInfoModal = ({
         return;
       }
 
-      if (!attachmentUrl) {
-        message.error("Attachment URL is missing");
-        return;
-      }
-
       setIsSubmitting(true);
 
-      await ticketApis.sendEstimateMail({
-        ...sessionPayload,
-        nTicketId: ticketId,
-        TicketId: ticketId,
-        Subject: `${selectedType === "summary" ? "Summary information" : "Detailed Information"} - Ticket No : ${ticketNo || ticketId}`,
-        ToEmail: customerEmail,
-        AttachmentUrl: attachmentUrl,
-        cMailType: selectedType,
-        MailType: selectedType,
+      const infoLabel =
+        selectedType === "summary" ? "Summary information" : "Detailed Information";
+
+      await ticketApis.sendMail({
+        nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
+        nAgentId: Number(sessionPayload.nAgentId ?? sessionPayload.id ?? 0),
+        cSchemaName: sessionPayload.cSchemaName ?? "",
+        cDbName: sessionPayload.cDbName ?? "",
+        toEmail: customerEmail,
+        subject: `${infoLabel} - Ticket No : ${ticketNo || ticketId}`,
+        body: `${infoLabel} for Ticket No : ${ticketNo || ticketId}`,
+        attachmentUrl,
         cType: selectedType,
-        Type: selectedType,
-        cSendType: selectedType,
-        SendType: selectedType,
-        cInfoType:
-          selectedType === "summary"
-            ? "Summary information"
-            : "Detailed Information",
-        InfoType:
-          selectedType === "summary"
-            ? "Summary information"
-            : "Detailed Information",
       });
 
       message.success(

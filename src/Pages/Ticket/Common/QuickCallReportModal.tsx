@@ -1,5 +1,5 @@
 import { AudioOutlined, UploadOutlined } from "@ant-design/icons";
-import { Checkbox, Form, Input, Modal, Radio, Select, message } from "antd";
+import { Checkbox, Form, Image, Input, Modal, Radio, Select, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import FollowupDateTimePicker from "./FollowupDateTimePicker";
 import RightSideDrawer from "../../../ui/Drawer/RightSideDrawer";
 import type { FormInstance } from "antd";
+import { ticketApis } from "../../../Axios/TicketsApi";
 
 const { TextArea } = Input;
 
@@ -133,7 +134,9 @@ const QuickCallReportModal = ({
   const { quickCallReportSave } = useTicketMutations();
   const { mutateAsync: checkAmcExpiry } = useCheckAmcExpiry();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedFilesCount, setSelectedFilesCount] = useState(0);
+  const voiceInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
+  const [selectedVoiceFiles, setSelectedVoiceFiles] = useState<File[]>([]);
   const [closeAction, setCloseAction] = useState<string>("");
 
   const resolvedTicketId = Number(
@@ -168,6 +171,15 @@ const QuickCallReportModal = ({
       }))
       .filter((file: any) => String(file.url ?? "").trim());
   }, [ticketValuesProp]);
+  const selectedImagePreviews = useMemo(
+    () => selectedImageFiles.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [selectedImageFiles],
+  );
+
+  useEffect(
+    () => () => selectedImagePreviews.forEach((preview) => URL.revokeObjectURL(preview.url)),
+    [selectedImagePreviews],
+  );
 
   const statusPayload = useMemo(
     () => ({
@@ -347,17 +359,29 @@ const QuickCallReportModal = ({
       ticketValues?.EngagementMode,
       ticketValues?.engagementMode,
     );
+    const currentEngagementModeId = getNumberValue(
+      ticketValues?.cCallMode,
+      ticketValues?.nCallMode,
+      ticketValues?.nCallModeId,
+      ticketValues?.nCallReportModeId,
+      ticketValues?.nCallreportModeId,
+      ticketValues?.CallModeId,
+    );
     const matchedEngagementMode = engagementOptions.find((item) => {
       const normalizedItem = normalizeStatusLabel(item.label);
       const normalizedValue = normalizeStatusLabel(currentEngagementMode);
-      return normalizedItem === normalizedValue;
+      return (
+        (currentEngagementModeId > 0 && Number(item.id) === currentEngagementModeId) ||
+        normalizedItem === normalizedValue ||
+        normalizeStatusLabel(item.shortName) === normalizedValue
+      );
     });
 
     form.setFieldsValue({
       EngagementMode:
-        matchedEngagementMode?.value ??
-        currentEngagementMode ??
-        engagementOptions[0]?.value ??
+        matchedEngagementMode?.value ||
+        currentEngagementMode ||
+        engagementOptions[0]?.value ||
         "Mail",
       ContactPersonName: getTextValue(
         ticketValues?.ContactPerson,
@@ -402,7 +426,8 @@ const QuickCallReportModal = ({
           false,
       ),
     });
-    setSelectedFilesCount(0);
+    setSelectedImageFiles([]);
+    setSelectedVoiceFiles([]);
     setCloseAction("");
   }, [
     engagementOptions,
@@ -656,6 +681,48 @@ const QuickCallReportModal = ({
         savedResponse?.WorksheetId ??
         0,
       ) || 0;
+      const savedWorksheetId = Number(
+        savedResponse?.data?.nWorksheetId ??
+        savedResponse?.data?.nworksheetid ??
+        savedResponse?.data?.WorksheetId ??
+        savedResponse?.nWorksheetId ??
+        savedResponse?.nworksheetid ??
+        savedResponse?.WorksheetId ??
+        0,
+      ) || 0;
+
+      try {
+        if (selectedImageFiles.length > 0) {
+          const imagePayload = new FormData();
+          selectedImageFiles.forEach((file) => imagePayload.append("files", file, file.name));
+          imagePayload.append("nCompanyId", String(sessionPayload.nCompanyId ?? 0));
+          imagePayload.append("cSchemaName", String(sessionPayload.cSchemaName ?? ""));
+          imagePayload.append("cDbName", String(sessionPayload.cDbName ?? sessionPayload.dbName ?? ""));
+          await ticketApis.callReportAttachmentUpload(
+            imagePayload,
+            savedFollowupId,
+            savedWorksheetId,
+          );
+        }
+
+        if (selectedVoiceFiles.length > 0) {
+          const voicePayload = new FormData();
+          selectedVoiceFiles.forEach((file) => voicePayload.append("files", file, file.name));
+          voicePayload.append("cSchemaName", String(sessionPayload.cSchemaName ?? ""));
+          voicePayload.append("cDbName", String(sessionPayload.cDbName ?? sessionPayload.dbName ?? ""));
+          await ticketApis.callReportVoiceUpload(
+            voicePayload,
+            Number(sessionPayload.nCompanyId ?? 0),
+            savedFollowupId,
+            savedWorksheetId,
+          );
+        }
+      } catch (uploadError: any) {
+        message.warning(
+          uploadError?.response?.data?.message ||
+            "Call report saved, but one or more attachments could not be uploaded.",
+        );
+      }
 
       onSaved?.({
         statusId: savedStatusId,
@@ -825,12 +892,12 @@ const QuickCallReportModal = ({
                 >
                   <UploadOutlined />
                   Upload Files
-                  {selectedFilesCount > 0 ? ` (${selectedFilesCount})` : ""}
+                  {selectedImageFiles.length > 0 ? ` (${selectedImageFiles.length})` : ""}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => message.info("Voice note is not configured yet")}
+                  onClick={() => voiceInputRef.current?.click()}
                   className="inline-flex items-center gap-1.5 text-xs font-medium"
                 >
                   <AudioOutlined />
@@ -842,15 +909,37 @@ const QuickCallReportModal = ({
                 ref={uploadInputRef}
                 type="file"
                 multiple
+                accept="image/*"
                 className="hidden"
+                style={{ display: "none" }}
                 onChange={(event) => {
-                  setSelectedFilesCount(event.target.files?.length ?? 0);
+                  setSelectedImageFiles((current) => [
+                    ...current,
+                    ...Array.from(event.target.files ?? []),
+                  ]);
+                  event.target.value = "";
                 }}
               />
 
-              {attachmentFiles.length > 0 ? (
+              <input
+                ref={voiceInputRef}
+                type="file"
+                multiple
+                accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm"
+                className="hidden"
+                style={{ display: "none" }}
+                onChange={(event) => {
+                  setSelectedVoiceFiles((current) => [
+                    ...current,
+                    ...Array.from(event.target.files ?? []),
+                  ]);
+                  event.target.value = "";
+                }}
+              />
+
+              {attachmentFiles.length > 0 || selectedImagePreviews.length > 0 ? (
                 <div className="pb-2 pt-1">
-                  <div className="mb-2 text-sm font-medium text-slate-700">Files</div>
+                  <div className="mb-2 text-sm font-medium text-slate-700">Images</div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -858,20 +947,24 @@ const QuickCallReportModal = ({
                     >
                       &#8249;
                     </button>
+                    <Image.PreviewGroup>
                     <div className="flex flex-1 items-center gap-2 overflow-hidden">
-                      {attachmentFiles.slice(0, 4).map((file: any) => (
+                      {[...attachmentFiles, ...selectedImagePreviews.map((preview, index) => ({ id: `new-${index}`, name: preview.file.name, url: preview.url }))].slice(0, 4).map((file: any) => (
                         <div
                           key={file.id}
                           className="h-16 w-16 shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100"
                         >
-                          <img
+                          <Image
                             src={file.url}
                             alt={file.name}
-                            className="h-full w-full object-cover"
+                            width={64}
+                            height={64}
+                            className="object-cover"
                           />
                         </div>
                       ))}
                     </div>
+                    </Image.PreviewGroup>
                     <button
                       type="button"
                       className="flex h-6 w-6 items-center justify-center text-lg leading-none text-slate-400"
@@ -879,6 +972,17 @@ const QuickCallReportModal = ({
                       &#8250;
                     </button>
                   </div>
+                </div>
+              ) : null}
+
+              {selectedVoiceFiles.length > 0 ? (
+                <div className="space-y-1 pb-2 text-xs text-slate-600">
+                  {selectedVoiceFiles.map((file) => (
+                    <div key={`${file.name}-${file.lastModified}`} className="flex items-center gap-2">
+                      <AudioOutlined className="text-sky-600" />
+                      <span className="truncate">{file.name}</span>
+                    </div>
+                  ))}
                 </div>
               ) : null}
             </div>
