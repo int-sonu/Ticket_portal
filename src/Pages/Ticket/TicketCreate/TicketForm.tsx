@@ -53,7 +53,7 @@ import {
   extractList,
   getSessionPayload,
 } from "../../Master/Common/SimpleMasterUtils";
-import QuickCallReportModal from "../Common/QuickCallReportModal";
+import QuickCallReportSimpleModal from "../Common/QuickCallReportSimpleModal";
 import { useGetServiceTypeDropdown } from "../../Master/ServiceType/Hooks";
 import { useGetTicketSourceDropdown } from "../../Master/TicketSource/Hooks";
 import CustomerPickerModal from "./CustomerPickerModal";
@@ -922,6 +922,7 @@ const TicketForm = ({
   const {
     createTicket,
     updateTicket,
+    followupSave,
   } = useTicketMutations();
   const { uploadTicketAttachment } =
     useTicketAttachments();
@@ -2106,7 +2107,49 @@ const TicketForm = ({
       payload.nCreatedBy = Number(sessionPayload.nModifiedBy ?? 0) || 0;
     }
 
-    const mutation = isEdit ? updateTicket : createTicket;
+    const followupPayload = followupSourceTicket
+      ? {
+          nTicketId:
+            Number(
+              followupSourceTicket?.nTicketId ??
+                initialValues?.nTicketId ??
+                initialValues?.TicketId ??
+                0
+            ) || 0,
+          nTicketNo:
+            Number(
+              followupSourceTicket?.nTicketNo ??
+                followupSourceTicket?.TicketNo ??
+                initialValues?.nTicketNo ??
+                initialValues?.TicketNo ??
+                0
+            ) || 0,
+          nCustomerId: payload.nCustomerId,
+          nTicketStatus: payload.nTicketStatus,
+          nSourceId: payload.nSourceId,
+          nServiceType: payload.nServiceType,
+          cContactPerson: payload.cContactPerson,
+          cContactNumber: payload.cContactNumber,
+          cEmail: payload.cEmail,
+          cDescription: payload.cDescription,
+          cAssignedId: payload.cAssignedId,
+          nAssetId: payload.nAssetId,
+          nPriority: payload.nPriority,
+          nGroupId: normalizedGroupId,
+          bOnSite: payload.bOnSite,
+          dFollowupDate: payload.dFollowupDate,
+          nModifiedBy: Number(sessionPayload.nModifiedBy ?? 0) || 0,
+          nCompanyId: payload.nCompanyId,
+          cSchemaName: payload.cSchemaName,
+          cDbName: payload.cDbName,
+        }
+      : null;
+    const mutation = followupSourceTicket
+      ? followupSave
+      : isEdit
+        ? updateTicket
+        : createTicket;
+    const savePayload = followupPayload ?? payload;
     const flowMessageKey = "ticket-create-flow";
 
     try {
@@ -2116,8 +2159,10 @@ const TicketForm = ({
         duration: 0,
       });
 
-      const savedTicketResponse = await mutation.mutateAsync(payload as any);
-      const savedTicketId = getTicketIdFromResponse(savedTicketResponse);
+      const savedTicketResponse = await mutation.mutateAsync(savePayload as any);
+      const savedTicketId =
+        getTicketIdFromResponse(savedTicketResponse) ||
+        Number(followupPayload?.nTicketId ?? 0);
       console.log("[TicketCreate] save response", {
         savedTicketResponse,
         savedTicketId,
@@ -2317,6 +2362,17 @@ const TicketForm = ({
       });
 
       window.setTimeout(() => {
+        if (followupSourceTicket && savedTicketId) {
+          navigate(`/tickets/view/${savedTicketId}`, {
+            state: {
+              selectedRow: savedTicketRecord,
+              isFrom: "followup",
+              activeTab: "details",
+            },
+          });
+          return;
+        }
+
         if (!isEdit && savedTicketId) {
           navigate("/tickets", {
             state: {
@@ -2522,6 +2578,11 @@ const TicketForm = ({
       AssetId: undefined,
       AssetName: "",
     });
+    const customerName = getFirstValue(customer, [
+      "cCustomerName",
+      "CustomerName",
+      "name",
+    ]);
     setAssetSearch("");
     setAssetDropdownOpen(false);
     setRepairAssets([]);
@@ -2532,6 +2593,10 @@ const TicketForm = ({
       files: [],
       editingIndex: null,
     });
+
+    if (!followupSourceTicket) {
+      void openCustomerTickets(value, customerName);
+    }
   };
 
   const openCustomerTickets = async (
@@ -2605,11 +2670,13 @@ const TicketForm = ({
           Source: initialValues?.Source ?? defaultSource,
           Priority: "Low",
           CustomerId: initialValues?.CustomerId,
-          FollowupDate:
-            initialValues?.FollowupDate ??
-            initialValues?.dFollowupDate ??
-            undefined,
           ...initialValues,
+          FollowupDate:
+            followupSourceTicket
+              ? dayjs()
+              : initialValues?.FollowupDate ??
+                initialValues?.dFollowupDate ??
+                dayjs(),
           OnsiteRequired: initialValues?.OnsiteRequired ?? false,
         }}
         className="ticket-create-form"
@@ -2954,7 +3021,7 @@ const TicketForm = ({
           </section>
 
           <section className="ticket-create-right flex min-h-0 flex-col overflow-visible bg-white px-4 pb-2 lg:h-full">
-            <div className="flex flex-row items-start gap-2">
+            <div className="ticket-followup-row flex flex-row items-start gap-2">
               <Form.Item
                 label="Follow up Date & Time"
                 name="FollowupDate"
@@ -3311,15 +3378,21 @@ const TicketForm = ({
       </Form>
 
       {showQuickCall && (
-        <QuickCallReportModal
+        <QuickCallReportSimpleModal
           open={quickCallOpen}
           onClose={() => setQuickCallOpen(false)}
-          ticketId={Number(ticketId ?? 0)}
           ticketForm={form}
-          ticketValues={form.getFieldsValue(true)}
           selectedCustomerName={selectedCustomerName}
           sessionPayload={sessionPayload}
-          assignedAgentDetails={extractList(assignAgentData)}
+          onSaved={(response) => {
+            navigate("/tickets", {
+              state: {
+                savedTicketResponse: response,
+                isFrom: "created",
+                activeTab: "ONGOING",
+              },
+            });
+          }}
         />
       )}
 
@@ -3509,6 +3582,7 @@ const TicketForm = ({
         open={customerPickerOpen}
         customers={customers}
         selectedCustomerId={selectedCustomerId}
+        title="Select Customer"
         onCancel={() => setCustomerPickerOpen(false)}
         onSelect={(value) => handleCustomerSelect(value)}
       />

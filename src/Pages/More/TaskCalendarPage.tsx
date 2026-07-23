@@ -10,6 +10,8 @@ import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import AgentSelectorModal from "./AgentSelectorModal";
 import profileSwitch from "../../assets/icons/profile-switch.svg";
+import ticketsAssignedIcon from "../../assets/TaskCalendar/TicketsAssignedIcon.svg";
+import siteVisitIcon from "../../assets/icons/TicketHomeicon.svg";
 
 type TaskRow = Record<string, any>;
 type AgentOption = { label: string; value: string; role: string; isSelf?: boolean };
@@ -263,21 +265,79 @@ const TaskCalendarPage = () => {
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
                 {pagedRows.map((row, index) => {
                   const dateValue = formatDate(getValue(row, ["dDate", "Date", "cDate", "TaskDate"])) || selectedDate.format("DD/MM/YYYY");
-                  const taskText =
-                    text(getValue(row, ["cTask", "Task", "cDescription", "Description"])) ||
-                    "No Ticket Assigned";
+                  const assignedTicketCount =
+                    Number(getValue(row, ["nAssignTicketCount", "nAssignedTicketCount"])) || 0;
+                  const siteVisitCount =
+                    Number(getValue(row, ["nSiteVisitCount", "nSiteVisits"])) || 0;
+                  const leaveDetails =
+                    getValue(row, ["leaveDetails", "LeaveDetails"]) || null;
+                  const leaveText =
+                    leaveDetails && typeof leaveDetails === "object"
+                      ? text(
+                          getValue(leaveDetails, [
+                            "cLeaveType",
+                            "LeaveType",
+                            "cLeaveTypeName",
+                          ]),
+                        )
+                      : "";
+                  const legacyTaskText = text(
+                    getValue(row, ["cTask", "Task", "cDescription", "Description"]),
+                  );
+                  const hasTask =
+                    assignedTicketCount > 0 ||
+                    siteVisitCount > 0 ||
+                    !!leaveText ||
+                    !!legacyTaskText;
                   return (
                     <button
                       key={String(getValue(row, ["nTaskCalendarId", "TaskCalendarId", "id"]) || index)}
                       type="button"
                       className="grid w-full grid-cols-[140px_minmax(0,1fr)] border-b border-slate-50 px-4 py-4 text-left text-[13px] text-slate-700 hover:bg-slate-50"
-                      onClick={() => openAssignedTickets(row)}
+                      onClick={() => {
+                        if (assignedTicketCount > 0 || legacyTaskText) {
+                          openAssignedTickets(row);
+                        }
+                      }}
                     >
                       <div className="flex flex-col">
                         <span>{dateValue}</span>
-                        <span className="text-xs text-slate-500">{getWeekdayLabel(getValue(row, ["cDayName", "DayName", "Day"]), selectedDate)}</span>
+                        <span className="text-xs text-slate-500">
+                          {text(
+                            getValue(row, [
+                              "cDayOfWeek",
+                              "cDayName",
+                              "DayName",
+                              "Day",
+                            ]),
+                            getWeekdayLabel(dateValue, selectedDate),
+                          )}
+                        </span>
                       </div>
-                      <div className="min-w-0 break-words font-medium text-lime-500">{taskText}</div>
+                      {hasTask ? (
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+                          {assignedTicketCount > 0 ? (
+                            <span className="inline-flex items-center gap-2 text-slate-700">
+                              <img src={ticketsAssignedIcon} alt="Assigned tickets" className="h-4 w-5" />
+                              <span>{assignedTicketCount}</span>
+                            </span>
+                          ) : null}
+                          {siteVisitCount > 0 ? (
+                            <span className="inline-flex items-center gap-2 text-slate-700">
+                              <img src={siteVisitIcon} alt="Site visits" className="h-4 w-4" />
+                              <span>{siteVisitCount}</span>
+                            </span>
+                          ) : null}
+                          {leaveText ? (
+                            <span className="font-medium text-red-500">{leaveText}</span>
+                          ) : null}
+                          {!assignedTicketCount && !siteVisitCount && !leaveText && legacyTaskText ? (
+                            <span className="font-medium text-lime-500">{legacyTaskText}</span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="font-medium text-lime-500">No Ticket Assigned</div>
+                      )}
                     </button>
                   );
                 })}

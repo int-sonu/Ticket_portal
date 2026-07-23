@@ -15,7 +15,6 @@ import { getRequestPayload } from "../../../Utils/requestPayload";
 import tabIcon from "../../../assets/icons/tabIcon.svg";
 import tabIconActive from "../../../assets/icons/tabIconActive.svg";
 import searchFilterIcon from "../../../assets/icons/searchFilterIcon.svg";
-import DateFilterIconPopover from "../../../ui/CalendarPopup/DateFilterIconPopover";
 import AntTable from "../../../ui/Table/AntTable";
 import QuickCallReportModal from "../Common/QuickCallReportModal";
 import TicketModulePagination from "../Common/TicketModulePagination";
@@ -39,21 +38,22 @@ const formatApiDate = (date: Date) => {
   return `${year}/${month}/${day}`;
 };
 
-const formatCalendarDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+const PRIORITY_FILTERS = ["Very Low", "Low", "Medium", "High", "Very High"];
+const PRIORITY_BY_ID: Record<string, string> = {
+  "0": "very low",
+  "1": "low",
+  "2": "medium",
+  "3": "high",
+  "4": "very high",
 };
-
-const normalizeDate = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-const parseCalendarDate = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
+const STAGE_FILTERS = [
+  "All Tickets",
+  "On Hold",
+  "Transferred",
+  "On Site",
+  "Shared",
+  "Pending",
+];
 
 const getRows = (response: any) => {
   if (Array.isArray(response)) {
@@ -366,13 +366,12 @@ const TicketList = () => {
       : "ONGOING"
   );
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filterDate, setFilterDate] = useState<string | null>(null);
-  const [draftFilterDate, setDraftFilterDate] = useState(() =>
-    formatCalendarDate(new Date())
-  );
-  const [draftCalendarMonth, setDraftCalendarMonth] = useState(() =>
-    normalizeDate(new Date())
-  );
+  const [priorityFilters, setPriorityFilters] =
+    useState<string[]>(PRIORITY_FILTERS);
+  const [stageFilters, setStageFilters] = useState<string[]>([]);
+  const [draftPriorityFilters, setDraftPriorityFilters] =
+    useState<string[]>(PRIORITY_FILTERS);
+  const [draftStageFilters, setDraftStageFilters] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchText, setSearchText] = useState("");
@@ -458,7 +457,7 @@ const TicketList = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterDate, pageSize, searchText]);
+  }, [activeTab, priorityFilters, stageFilters, pageSize, searchText]);
 
   const getTableData = () => {
     switch (activeTab) {
@@ -581,21 +580,60 @@ const TicketList = () => {
         .toLowerCase()
         .includes(query);
 
-    const createdDate = parseTicketDate(
-      getFieldValue(record, [
-        "CreatedDate",
-        "CreatedDateTime",
-        "CreatedOn",
-        "dCreatedDate",
-        "dCreatedOn",
-        "cDate",
-      ])
-    );
-    const dateMatches =
-      !filterDate ||
-      (createdDate ? formatCalendarDate(createdDate) === filterDate : false);
+    const rawPriority = String(priorityValue ?? "")
+      .trim()
+      .toLowerCase();
+    const normalizedPriority = PRIORITY_BY_ID[rawPriority] ?? rawPriority;
+    const priorityMatches =
+      priorityFilters.length === PRIORITY_FILTERS.length ||
+      priorityFilters.some(
+        (item) => item.toLowerCase() === normalizedPriority,
+      );
 
-    return searchMatches && dateMatches;
+    const normalizedStage = String(statusText ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+    const flagEnabled = (keys: string[]) => {
+      const value = getFieldValue(record, keys);
+      return (
+        value === true ||
+        value === 1 ||
+        ["true", "1", "yes", "y"].includes(
+          String(value ?? "").trim().toLowerCase(),
+        )
+      );
+    };
+    const stageMatches =
+      stageFilters.length === 0 ||
+      stageFilters.some((stage) => {
+        switch (stage) {
+          case "On Hold":
+            return normalizedStage.includes("hold");
+          case "Transferred":
+            return (
+              normalizedStage.includes("transfer") ||
+              flagEnabled(["bTransferred", "IsTransferred", "Transferred"])
+            );
+          case "On Site":
+            return (
+              normalizedStage.includes("on site") ||
+              normalizedStage.includes("onsite") ||
+              flagEnabled(["bOnSite", "bOnsite", "OnsiteRequired"])
+            );
+          case "Shared":
+            return (
+              normalizedStage.includes("shared") ||
+              flagEnabled(["bShared", "IsShared", "Shared"])
+            );
+          case "Pending":
+            return normalizedStage.includes("pending");
+          default:
+            return true;
+        }
+      });
+
+    return searchMatches && priorityMatches && stageMatches;
   }).sort((a: any, b: any) => getTicketIdValue(b) - getTicketIdValue(a));
 
   const totalRows = filteredRows.length;
@@ -612,23 +650,20 @@ const TicketList = () => {
     setFilterOpen(open);
 
     if (open) {
-      const initialDate = filterDate ? parseCalendarDate(filterDate) : new Date();
-      const normalizedInitialDate = normalizeDate(initialDate);
-      setDraftCalendarMonth(normalizedInitialDate);
-      setDraftFilterDate(formatCalendarDate(normalizedInitialDate));
+      setDraftPriorityFilters(priorityFilters);
+      setDraftStageFilters(stageFilters);
     }
   };
 
   const handleResetFilters = () => {
-    const initialDate = filterDate ? parseCalendarDate(filterDate) : new Date();
-    const normalizedInitialDate = normalizeDate(initialDate);
-    setDraftCalendarMonth(normalizedInitialDate);
-    setDraftFilterDate(formatCalendarDate(normalizedInitialDate));
+    setDraftPriorityFilters(priorityFilters);
+    setDraftStageFilters(stageFilters);
     setFilterOpen(false);
   };
 
   const handleApplyFilters = () => {
-    setFilterDate(draftFilterDate);
+    setPriorityFilters(draftPriorityFilters);
+    setStageFilters(draftStageFilters);
     setCurrentPage(1);
     setFilterOpen(false);
   };
@@ -894,24 +929,117 @@ const TicketList = () => {
               }}
             />
 
-            <div ref={filterPanelRef}>
-              <DateFilterIconPopover
-                open={filterOpen}
-                iconSrc={searchFilterIcon}
-                ariaLabel="Filter tickets"
-                onOpenToggle={() => handleOpenChange(!filterOpen)}
-                month={draftCalendarMonth}
-                selectedDate={parseCalendarDate(draftFilterDate)}
-                onMonthChange={setDraftCalendarMonth}
-                onYearChange={setDraftCalendarMonth}
-                onSelectDate={(date) => {
-                  const normalizedDate = normalizeDate(date);
-                  setDraftCalendarMonth(normalizedDate);
-                  setDraftFilterDate(formatCalendarDate(normalizedDate));
-                }}
-                onApply={handleApplyFilters}
-                onCancel={handleResetFilters}
-              />
+            <div ref={filterPanelRef} className="relative">
+              <button
+                type="button"
+                aria-label="Filter tickets"
+                onClick={() => handleOpenChange(!filterOpen)}
+                className={`flex h-8 w-9 items-center justify-center rounded-md border ${
+                  filterOpen || stageFilters.length > 0 ||
+                  priorityFilters.length !== PRIORITY_FILTERS.length
+                    ? "border-sky-500 bg-sky-50"
+                    : "border-slate-300 bg-white"
+                }`}
+              >
+                <img src={searchFilterIcon} alt="" className="h-4 w-4" />
+              </button>
+
+              {filterOpen ? (
+                <div className="absolute right-0 top-10 z-[1000] w-[375px] max-w-[calc(100vw-32px)] rounded-xl bg-white p-5 shadow-[0_12px_38px_rgba(15,23,42,0.18)]">
+                  <div className="text-sm font-medium text-slate-800">
+                    Priority Level
+                  </div>
+                  <div className="relative mt-5 grid grid-cols-5">
+                    <div className="absolute left-[10%] right-[10%] top-2.5 h-1 bg-sky-200" />
+                    {PRIORITY_FILTERS.map((priority) => {
+                      const selected = draftPriorityFilters.includes(priority);
+                      return (
+                        <button
+                          key={priority}
+                          type="button"
+                          onClick={() =>
+                            setDraftPriorityFilters((current) => {
+                              if (current.length === PRIORITY_FILTERS.length) {
+                                return [priority];
+                              }
+
+                              if (!current.includes(priority)) {
+                                return [...current, priority];
+                              }
+
+                              const remaining = current.filter(
+                                (item) => item !== priority,
+                              );
+                              return remaining.length
+                                ? remaining
+                                : PRIORITY_FILTERS;
+                            })
+                          }
+                          className="relative z-10 flex flex-col items-center gap-2 text-[11px] text-slate-600"
+                        >
+                          <span
+                            className={`h-5 w-5 rounded-full border-2 ${
+                              selected
+                                ? "border-sky-300 bg-sky-300"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          />
+                          <span className="whitespace-nowrap">{priority}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="my-6 border-t border-slate-200" />
+
+                  <div className="text-sm font-medium text-slate-800">
+                    Ticket Stages
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {STAGE_FILTERS.map((stage) => {
+                      const selected =
+                        stage === "All Tickets"
+                          ? draftStageFilters.length === 0
+                          : draftStageFilters.includes(stage);
+                      return (
+                        <button
+                          key={stage}
+                          type="button"
+                          onClick={() => {
+                            if (stage === "All Tickets") {
+                              setDraftStageFilters([]);
+                              return;
+                            }
+                            setDraftStageFilters((current) =>
+                              current.includes(stage)
+                                ? current.filter((item) => item !== stage)
+                                : [...current, stage],
+                            );
+                          }}
+                          className={`rounded-full border px-4 py-1.5 text-xs ${
+                            selected
+                              ? "border-sky-500 bg-sky-50 text-sky-700"
+                              : "border-slate-400 bg-white text-slate-700"
+                          }`}
+                        >
+                          {stage}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-12 flex justify-end gap-3">
+                    <Button onClick={handleResetFilters}>Cancel</Button>
+                    <Button
+                      type="primary"
+                      onClick={handleApplyFilters}
+                      className="!border-emerald-500 !bg-emerald-500"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
          <Button

@@ -1,4 +1,4 @@
-import { Button, Input, message } from "antd";
+import { message } from "antd";
 import { CloseOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -6,7 +6,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ticketApis } from "../../../Axios/TicketsApi";
 
 const CALL_REPORT_VIEW_STORAGE_KEY = "ticket_portal_callreport_view_state";
-const BILL_PREVIEW_STORAGE_KEY = "ticket_portal_bill_preview_state";
 
 const normalizeSingleRecord = (value: any) => {
   if (Array.isArray(value)) {
@@ -32,11 +31,8 @@ type ShareCallReportState = {
   contactNumber?: string;
   email?: string;
   ticketNo?: string | number;
-  billNo?: string | number;
   summary?: string;
   description?: string;
-  amount?: number;
-  billDate?: string;
 };
 
 const ShareCallReportView = () => {
@@ -103,128 +99,31 @@ const ShareCallReportView = () => {
     viewData.callreportSummary ?? viewData.data?.callreportSummary,
   );
   const ticketSummary = normalizeSingleRecord(viewData.ticketSummary ?? viewData.data?.ticketSummary);
-  const billSummary = normalizeSingleRecord(viewData.billSummary ?? viewData.data?.billSummary);
   const worksheetDetails = normalizeSingleRecord(
     viewData.worsheetDetails ?? viewData.data?.worsheetDetails,
   );
 
   const companyName =
-    ticketSummary.cViewSummary ||
     state.companyName ||
-    "New Company Pvt ltd edit";
+    ticketSummary.cCompanyName ||
+    viewData.cCompanyName ||
+    "Testing Company";
   const customerName =
-    ticketSummary.cCustomerName || state.customerName || "Assetcus";
+    ticketSummary.cCustomerName || state.customerName || "-";
   const contactPerson =
-    worksheetDetails.cContactPerson || state.contactPerson || "jeslin marian";
+    worksheetDetails.cContactPerson || state.contactPerson || "-";
   const contactNumber =
-    worksheetDetails.cContactNumber || state.contactNumber || "7356496403";
+    worksheetDetails.cContactNumber || state.contactNumber || "-";
   const email =
-    worksheetDetails.cEmail || state.email || "jeslin.ortezinfotech@gmail.com";
-  const ticketNo =
-    ticketSummary.nTicketId ||
-    ticketSummary.nTicketNo ||
-    state.ticketNo ||
-    130;
-  const billNo = billSummary.nBillNo || state.billNo || 54;
-  const summary = callreportSummary.cCallSummary || state.summary || "abc";
-  const description = worksheetDetails.cComment || state.description || "abc";
-  const amount = billSummary.nTotalAmount ?? state.amount ?? 222;
-  const billDate = billSummary.dBillDate || state.billDate || "27/06/2026 15:20 PM";
-
-  const handleGenerateBill = () => {
-    const resolvedCallReportSummary = callreportSummary;
-    const resolvedFollowupId =
-      Number(
-        resolvedCallReportSummary.nFollowupId ??
-          resolvedCallReportSummary.nFollowUpId ??
-          resolvedCallReportSummary.nWorksheetId ??
-          resolvedCallReportSummary.WorksheetId ??
-          viewData.nFollowupId ??
-          viewData.nfollowupid ??
-          viewData.nFollowUpId ??
-          viewData.nWorksheetId ??
-          viewData.nworksheetid ??
-          viewData.WorksheetId ??
-          viewData.data?.callreportSummary?.nFollowupId ??
-          viewData.data?.callreportSummary?.nFollowUpId ??
-          viewData.data?.callreportSummary?.nWorksheetId ??
-          viewData.data?.callreportSummary?.WorksheetId ??
-          requestPayload.nFollowupId ??
-          0,
-      ) || 0;
-
-    try {
-      sessionStorage.removeItem(BILL_PREVIEW_STORAGE_KEY);
-      sessionStorage.setItem(
-        CALL_REPORT_VIEW_STORAGE_KEY,
-        JSON.stringify(viewData),
-      );
-      sessionStorage.setItem(
-        BILL_PREVIEW_STORAGE_KEY,
-        JSON.stringify({
-          companyName,
-          billNo,
-          customerName,
-          customerId: ticketSummary.nCustomerId,
-          ticketNo: ticketSummary.nTicketId || ticketNo,
-          nFollowupId: resolvedFollowupId,
-          nFollowUpId: resolvedFollowupId,
-          nWorksheetId: resolvedFollowupId,
-          WorksheetId: resolvedFollowupId,
-          nCompanyId: requestPayload.nCompanyId,
-          contactPerson,
-          contactNumber,
-          email,
-          summary,
-          partList: worksheetDetails.partDetails ?? [],
-          sessionPayload: {
-            nCompanyId: requestPayload.nCompanyId,
-            cSchemaName: requestPayload.cSchemaName,
-            cDbName: requestPayload.cDbName,
-            nFollowupId: resolvedFollowupId,
-            nFollowUpId: resolvedFollowupId,
-            nTicketId: ticketSummary.nTicketId || ticketNo,
-            nCustomerId: ticketSummary.nCustomerId,
-            nAssetId: 0,
-          },
-          callreportData: viewData,
-        }),
-      );
-    } catch {
-      // Best effort only.
-    }
-
-    navigate("/billsandreceipts/bills/add", {
-      state: {
-        companyName,
-        billNo,
-        customerName,
-        customerId: ticketSummary.nCustomerId,
-        ticketNo: ticketSummary.nTicketId || ticketNo,
-        nFollowupId: resolvedFollowupId,
-        nFollowUpId: resolvedFollowupId,
-        nWorksheetId: resolvedFollowupId,
-        WorksheetId: resolvedFollowupId,
-        nCompanyId: requestPayload.nCompanyId,
-        contactPerson,
-        contactNumber,
-        email,
-        summary,
-        partList: worksheetDetails.partDetails ?? [],
-        sessionPayload: {
-          nCompanyId: requestPayload.nCompanyId,
-          cSchemaName: requestPayload.cSchemaName,
-          cDbName: requestPayload.cDbName,
-          nFollowupId: resolvedFollowupId,
-          nFollowUpId: resolvedFollowupId,
-          nTicketId: ticketSummary.nTicketId || ticketNo,
-          nCustomerId: ticketSummary.nCustomerId,
-          nAssetId: 0,
-        },
-        callreportData: viewData,
-      },
-    });
-  };
+    worksheetDetails.cEmail || state.email || "-";
+  const callReportId =
+    callreportSummary.nCallReportId ||
+    callreportSummary.nFollowupId ||
+    callreportSummary.nFollowUpId ||
+    requestPayload.nFollowupId ||
+    "-";
+  const summary = callreportSummary.cCallSummary || state.summary || "-";
+  const description = worksheetDetails.cComment || state.description || "-";
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -278,7 +177,7 @@ const ShareCallReportView = () => {
               <div className="text-[18px] font-medium text-slate-900">Call Report Details</div>
               <div className="mt-3 space-y-1 text-[13px] text-slate-700">
                 <div>
-                  <span className="text-sky-700">Call Report Id :</span> {ticketNo}
+                  <span className="text-sky-700">Call Report Id :</span> {callReportId}
                 </div>
                 <div>
                   <span className="text-slate-500">Summary :</span> {summary}
@@ -289,6 +188,7 @@ const ShareCallReportView = () => {
               </div>
             </div>
 
+            {/*
             <div className="mt-10">
               <div className="text-[18px] font-medium text-slate-900">Bill Details</div>
               <div className="mt-3 grid gap-2 text-[13px] text-slate-700">
@@ -324,6 +224,7 @@ const ShareCallReportView = () => {
                 </div>
               </div>
             </div>
+            */}
           </div>
         </div>
       </div>

@@ -702,10 +702,21 @@ const BillPreviewPage: React.FC = () => {
     const editBillRecord = normalizeSingleRecord(
       editBillViewData?.data?.data ?? editBillViewData?.data ?? editBillViewData ?? {},
     );
+    const editSummary = normalizeSingleRecord(
+      editBillRecord.billSummary ??
+        editBillRecord.BillSummary ??
+        editBillRecord,
+    );
+    const editPayDetails = Array.isArray(editSummary.payDtls)
+      ? editSummary.payDtls
+      : Array.isArray(editSummary.PayDtls)
+        ? editSummary.PayDtls
+        : [];
     const editPayMode =
       String(
-        getFirstValue(editBillRecord, [
+        getFirstValue(editPayDetails[0] ?? editSummary, [
           "cPaymodeName",
+          "cPaymode",
           "cPayMode",
           "PayMode",
           "PayModeName",
@@ -770,7 +781,7 @@ const BillPreviewPage: React.FC = () => {
     );
 
     const validRows = rows.filter((row) => row.partId !== null && row.qty > 0 && row.rate > 0);
-    if (!validRows.length) {
+    if (!isEditMode && !validRows.length) {
       message.warning("Please select a part description and enter a valid quantity and rate first.");
       return;
     }
@@ -887,8 +898,33 @@ const BillPreviewPage: React.FC = () => {
 
     setSavingBill(true);
     try {
-      const response = await billingApis.billSave(payload);
-      message.success(response?.message || "Bill save successful.");
+      const response = isEditMode
+        ? await billingApis.billUpdate({
+            nBillId:
+              editingBillId ||
+              Number(billData.billId ?? billData.nBillId ?? 0) ||
+              0,
+            nCreatedBy: createdBy,
+            nCompanyId:
+              companyId || Number(sessionPayload?.nCompanyId ?? 0) || 0,
+            cSchemaName:
+              billData.sessionPayload?.cSchemaName ??
+              sessionPayload?.cSchemaName ??
+              "",
+            cDbName:
+              billData.sessionPayload?.cDbName ??
+              sessionPayload?.cDbName ??
+              "",
+            payDtls,
+            chequeDtls: [],
+            customerCreditDtls: [],
+            transationDtls: [],
+          })
+        : await billingApis.billSave(payload);
+      message.success(
+        response?.message ||
+          (isEditMode ? "Bill updated successfully." : "Bill save successful."),
+      );
 
       const callReportState = {
         ...latestCallReport,
@@ -1351,6 +1387,7 @@ const BillPreviewPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
+      {!isEditMode ? (
       <div className="flex items-center justify-between bg-[#dcebf5] px-2 py-1 text-[11px] text-slate-600">
         <div>Created by : {createdByLabel}</div>
         <div className="flex items-center gap-2">
@@ -1364,6 +1401,7 @@ const BillPreviewPage: React.FC = () => {
           />
         </div>
       </div>
+      ) : null}
 
       <div className="mx-2 mt-2 rounded border border-sky-100 bg-[#eef6fd] text-[11px] text-slate-700">
         <div className="grid grid-cols-1 gap-0 md:grid-cols-[1fr_1fr_1fr]">

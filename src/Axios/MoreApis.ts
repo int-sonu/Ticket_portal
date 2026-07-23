@@ -83,6 +83,7 @@ export const leaveApis = {
       payload,
       {
         params: { nCompanyId, nLeaveId },
+        headers: { "Content-Type": "multipart/form-data" },
       },
     );
     return response.data;

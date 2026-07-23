@@ -155,20 +155,19 @@ const PunchInOutPage = () => {
     return () => window.clearInterval(timer);
   }, []);
 
-  const payload = useMemo(() => {
-    const date = dayjs();
-    return {
-      ...basePayload,
-      nAgentId: basePayload.nAgentId ?? basePayload.id,
-      dDate: date.format("YYYY-MM-DD"),
-      dFromDate: date.startOf("month").format("YYYY-MM-DD"),
-      dToDate: date.endOf("month").format("YYYY-MM-DD"),
-      nMonth: date.month() + 1,
-      nYear: date.year(),
-    };
-  }, [basePayload]);
-
-  const enabled = Boolean(payload.nCompanyId && payload.cDbName && payload.cSchemaName);
+  const enabled = Boolean(
+    basePayload.nCompanyId && basePayload.cDbName && basePayload.cSchemaName,
+  );
+  const attendanceStatusPayload = useMemo(() => ({
+    nAgentId: Number(basePayload.nAgentId ?? basePayload.id) || 0,
+    nCompanyId: Number(basePayload.nCompanyId) || 0,
+    cSchemaName: basePayload.cSchemaName,
+    cDbName: basePayload.cDbName,
+  }), [basePayload]);
+  const attendanceDailyPayload = useMemo(() => ({
+    ...attendanceStatusPayload,
+    dDate: dayjs().format("YYYY-MM-DD"),
+  }), [attendanceStatusPayload]);
   const agentPayload = useMemo(() => ({
     nCompanyId: basePayload.nCompanyId,
     cDbName: basePayload.cDbName,
@@ -180,24 +179,23 @@ const PunchInOutPage = () => {
     enabled: enabled && agentModalOpen,
   });
   const statusQuery = useQuery({
-    queryKey: ["attendance-status", payload],
-    queryFn: () => attendanceApis.attendanceStatus(payload),
+    queryKey: ["attendance-status", attendanceStatusPayload],
+    queryFn: () => attendanceApis.attendanceStatus(attendanceStatusPayload),
     enabled,
   });
   const dailyQuery = useQuery({
-    queryKey: ["attendance-summary-daily", payload],
-    queryFn: () => attendanceApis.attendanceSummaryDaily(payload),
+    queryKey: ["attendance-summary-daily", attendanceDailyPayload],
+    queryFn: () => attendanceApis.attendanceSummaryDaily(attendanceDailyPayload),
     enabled,
   });
   const monthlyPayload = useMemo(() => ({
-    ...payload,
+    nCompanyId: attendanceStatusPayload.nCompanyId,
     nAgentId: Number(summaryAgent.value) || summaryAgent.value,
-    cAgentId: summaryAgent.value,
-    dFromDate: summaryMonth.startOf("month").format("YYYY-MM-DD"),
-    dToDate: summaryMonth.endOf("month").format("YYYY-MM-DD"),
     nMonth: summaryMonth.month() + 1,
     nYear: summaryMonth.year(),
-  }), [payload, summaryAgent.value, summaryMonth]);
+    cSchemaName: attendanceStatusPayload.cSchemaName,
+    cDbName: attendanceStatusPayload.cDbName,
+  }), [attendanceStatusPayload, summaryAgent.value, summaryMonth]);
   const monthlyQuery = useQuery({
     queryKey: ["attendance-summary-monthly", monthlyPayload],
     queryFn: () => attendanceApis.attendanceSummaryMonthly(monthlyPayload),
@@ -222,7 +220,7 @@ const PunchInOutPage = () => {
         role,
         isSelf: false,
       };
-    }).filter((agent) => agent.label);
+    }).filter((agent: SharedAgentOption) => agent.label);
   }, [agentQuery.data]);
   const selfOption = useMemo<SharedAgentOption>(() => ({
     label: currentUser.name,
@@ -265,12 +263,25 @@ const PunchInOutPage = () => {
   const effectiveWorkingSeconds = Math.max(durationSeconds(workingHours), durationSeconds(dailyWorking), calculatedWorkingSeconds);
   const displayedWorkingHours = formatDuration(effectiveWorkingSeconds);
   const dailyDate = getValue(daily, ["dDate", "cDate", "AttendanceDate", "date"]);
+  const punchinId = Number(
+    getValue(status, ["nPunchinId", "nPunchInId", "PunchinId", "PunchInId", "id"], 0),
+  ) || 0;
+  const punchActionPayload = {
+    nAgentId: Number(basePayload.nAgentId ?? basePayload.id) || 0,
+    nCompanyId: Number(basePayload.nCompanyId) || 0,
+    cLocation: "",
+    cLattitude: "",
+    cLongitude: "",
+    cComment: "",
+    cSchemaName: basePayload.cSchemaName,
+    cDbName: basePayload.cDbName,
+  };
   const loading = statusQuery.isLoading || dailyQuery.isLoading;
   const refreshing = statusQuery.isFetching || dailyQuery.isFetching || monthlyQuery.isFetching;
   const punchMutation = useMutation({
     mutationFn: () => isPunchedIn
-      ? attendanceApis.punchOut(payload)
-      : attendanceApis.punchIn(payload),
+      ? attendanceApis.punchOut({ ...punchActionPayload, nPunchinId: punchinId })
+      : attendanceApis.punchIn(punchActionPayload),
     onSuccess: async () => {
       await Promise.all([
         statusQuery.refetch(),

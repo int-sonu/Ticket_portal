@@ -10,6 +10,8 @@ import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
 import CustomerPickerModal from "../Ticket/TicketCreate/CustomerPickerModal";
+import DateFilterIconPopover from "../../ui/CalendarPopup/DateFilterIconPopover";
+import filterIcon from "../../assets/icons/filterdetails.svg";
 
 type ReceiptRow = Record<string, any>;
 
@@ -173,6 +175,9 @@ const ReceiptsListPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isAddReceiptModalOpen, setIsAddReceiptModalOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [draftDate, setDraftDate] = useState(new Date());
+  const [receiptDateFilter, setReceiptDateFilter] = useState<Date | null>(null);
   const { data: customerDropdownData } = useGetCustomerDropDown({
     ...payload,
     pageNumber: 1,
@@ -192,14 +197,24 @@ const ReceiptsListPage = () => {
 
   const displayedRows = useMemo(() => {
     const searchTerm = normalizeText(search);
-    return sourceRows.filter((row) => !searchTerm || getSearchText(row).includes(searchTerm));
-  }, [search, sourceRows]);
+    return sourceRows.filter((row) => {
+      const matchesSearch = !searchTerm || getSearchText(row).includes(searchTerm);
+      if (!matchesSearch || !receiptDateFilter) return matchesSearch;
+      const rowDate = parseDateValue(
+        getFieldValue(row, ["dReceiptDate", "ReceiptDate", "Date"]),
+      );
+      return !!rowDate &&
+        rowDate.getFullYear() === receiptDateFilter.getFullYear() &&
+        rowDate.getMonth() === receiptDateFilter.getMonth() &&
+        rowDate.getDate() === receiptDateFilter.getDate();
+    });
+  }, [receiptDateFilter, search, sourceRows]);
 
   const totalRows = displayedRows.length;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [receiptDateFilter, search]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(totalRows / pageSize));
@@ -271,6 +286,35 @@ const ReceiptsListPage = () => {
               className="w-[340px]"
               style={{ height: 34 }}
             />
+            <DateFilterIconPopover
+              open={calendarOpen}
+              iconSrc={filterIcon}
+              ariaLabel="Filter receipts by date"
+              title="Filter"
+              month={draftDate}
+              selectedDate={draftDate}
+              onOpenToggle={() => {
+                setDraftDate(receiptDateFilter ?? new Date());
+                setCalendarOpen((current) => !current);
+              }}
+              onMonthChange={setDraftDate}
+              onYearChange={setDraftDate}
+              onSelectDate={setDraftDate}
+              onApply={() => {
+                setReceiptDateFilter(draftDate);
+                setCalendarOpen(false);
+              }}
+              onCancel={() => setCalendarOpen(false)}
+            />
+            {receiptDateFilter ? (
+              <button
+                type="button"
+                onClick={() => setReceiptDateFilter(null)}
+                className="text-xs font-medium text-sky-600 hover:text-sky-700"
+              >
+                Clear
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setIsAddReceiptModalOpen(true)}

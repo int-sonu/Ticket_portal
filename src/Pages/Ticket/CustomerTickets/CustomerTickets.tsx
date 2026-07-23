@@ -1,9 +1,11 @@
-import { Avatar, Button, Empty, Input, Space, Typography } from "antd";
+import { Avatar, Button, Empty, Input, Typography } from "antd";
 import { CloseOutlined, SearchOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import dayjs from "dayjs";
 
 import { useCustomerWiseActiveTicketList } from "../../../Hooks/Ticket/useTicketQueries";
+import { ticketApis } from "../../../Axios/TicketsApi";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import AntTable from "../../../ui/Table/AntTable";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
@@ -92,6 +94,32 @@ const getTicketIdValue = (record: any) =>
       "nTicketNo",
     ]) || 0,
   );
+
+const pickTicketViewRecord = (response: any) => {
+  const data = response?.Data ?? response?.data ?? response;
+  if (!data || typeof data !== "object") return {};
+
+  const candidates = [
+    data.TicketDetails,
+    data.ticketDetails,
+    data.TicketDetail,
+    data.ticketDetail,
+    data.TicketView,
+    data.ticketView,
+    data.TicketSummary,
+    data.ticketSummary,
+    data.Data,
+    data.data,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length) return candidate[0];
+    if (candidate && typeof candidate === "object") return candidate;
+  }
+
+  const rows = extractList(data);
+  return rows[0] ?? data;
+};
 
 const CustomerTickets = () => {
   const navigate = useNavigate();
@@ -231,10 +259,27 @@ const CustomerTickets = () => {
 
   const goBackWithDraft = () => {
     if (returnTo) {
+      const restoredDraft = {
+        ...(locationState.draftValues ?? {}),
+      };
+      const rawFollowupDate =
+        restoredDraft.FollowupDate ?? restoredDraft.dFollowupDate;
+      const restoredFollowupDate =
+        rawFollowupDate && typeof rawFollowupDate.format === "function"
+          ? rawFollowupDate.format("YYYY-MM-DD HH:mm:ss")
+          : rawFollowupDate?.$d
+            ? dayjs(rawFollowupDate.$d).format("YYYY-MM-DD HH:mm:ss")
+            : rawFollowupDate;
+
+      restoredDraft.FollowupDate = restoredFollowupDate;
+      restoredDraft.dFollowupDate = restoredFollowupDate;
+      delete restoredDraft.imageFiles;
+      delete restoredDraft.files;
+
       navigate(returnTo, {
         state: {
-          ...(location.state as Record<string, any> | null),
-          draftValues: locationState.draftValues,
+          draftValues: restoredDraft,
+          returnedFromCustomerTickets: true,
         },
         replace: true,
       });
@@ -257,75 +302,114 @@ const CustomerTickets = () => {
     });
   };
 
-  const openFollowUpForm = (record: any) => {
+  const openFollowUpForm = async (record: any) => {
     const ticketId = getTicketIdValue(record);
 
     if (!ticketId) return;
 
+    let sourceRecord = record;
+
+    try {
+      const ticketViewResponse = await ticketApis.ticketView({
+        ...basePayload,
+        nTicketId: ticketId,
+      });
+      sourceRecord = {
+        ...record,
+        ...pickTicketViewRecord(ticketViewResponse),
+      };
+    } catch {
+      // The list row still contains enough data to open the follow-up form.
+    }
+
     const customerIdValue =
-      getFieldValue(record, ["nCustomerId", "CustomerId", "customerId"]) ||
+      getFieldValue(sourceRecord, ["nCustomerId", "CustomerId", "customerId"]) ||
       customerId;
     const customerNameValue =
-      getFieldValue(record, ["CustomerName", "cCustomerName", "Customer"]) ||
+      getFieldValue(sourceRecord, ["CustomerName", "cCustomerName", "Customer"]) ||
       resolvedCustomerName;
-    const contactPersonValue = getFieldValue(record, [
+    const contactPersonValue = getFieldValue(sourceRecord, [
       "ContactPerson",
       "cContactPerson",
     ]);
-    const contactNoValue = getFieldValue(record, [
+    const contactNoValue = getFieldValue(sourceRecord, [
       "ContactNo",
       "cContactNumber",
       "ContactNumber",
     ]);
-    const emailValue = getFieldValue(record, ["Email", "cEmail"]);
+    const emailValue = getFieldValue(sourceRecord, ["Email", "cEmail"]);
     const summaryValue =
-      getFieldValue(record, [
+      getFieldValue(sourceRecord, [
         "TicketSummary",
         "cTicketSummary",
         "cSummary",
         "cDescription",
       ]) || "";
     const descriptionValue =
-      getFieldValue(record, [
+      getFieldValue(sourceRecord, [
         "Description",
         "cDescription",
         "TicketDescription",
       ]) || summaryValue;
-    const priorityValue = getFieldValue(record, [
+    const priorityValue = getFieldValue(sourceRecord, [
       "Priority",
       "PriorityName",
       "cPriority",
       "cPriorityName",
     ]);
-    const groupValue = getFieldValue(record, ["nGroupId", "GroupId", "Group"]);
-    const serviceTypeValue = getFieldValue(record, [
+    const groupValue = getFieldValue(sourceRecord, ["nGroupId", "GroupId", "Group"]);
+    const serviceTypeValue = getFieldValue(sourceRecord, [
       "nServiceType",
       "ServiceType",
       "ServiceTypeId",
       "nServiceTypeId",
     ]);
-    const sourceValue = getFieldValue(record, [
+    const sourceValue = getFieldValue(sourceRecord, [
       "nSourceId",
       "Source",
       "SourceId",
       "TicketSourceId",
     ]);
-    const assetIdValue = getFieldValue(record, [
+    const assetIdValue = getFieldValue(sourceRecord, [
       "nAssetId",
       "AssetId",
       "assetId",
     ]);
-    const assetNameValue = getFieldValue(record, [
+    const assetNameValue = getFieldValue(sourceRecord, [
       "AssetName",
       "cAssetName",
       "assetName",
     ]);
+    const assignedValue = getFieldValue(sourceRecord, [
+      "AssignToAgent",
+      "nAgentId",
+      "AgentId",
+      "nAssignedAgentId",
+    ]);
+    const assignedList = getFieldValue(sourceRecord, [
+      "cAssignedId",
+      "AssignedAgents",
+      "assignedAgents",
+    ]);
+    const assignedAgentId =
+      assignedValue ||
+      (Array.isArray(assignedList)
+        ? getFieldValue(assignedList[0], [
+            "nAgentId",
+            "AgentId",
+            "id",
+          ])
+        : "");
 
     navigate("/tickets/create", {
       state: {
-        selectedRow: record,
+        selectedRow: sourceRecord,
         followupSourceTicket: {
           nTicketId: ticketId,
+          nTicketNo: getFieldValue(sourceRecord, [
+            "nTicketNo",
+            "TicketNo",
+          ]),
           cViewSummary: summaryValue || "Follow up ticket",
           summary: summaryValue,
           description: descriptionValue,
@@ -340,10 +424,12 @@ const CustomerTickets = () => {
           Description: descriptionValue,
           Priority: priorityValue || "Low",
           Group: groupValue,
+          AssignToAgent: assignedAgentId || undefined,
           ServiceType: serviceTypeValue,
           Source: sourceValue,
           AssetId: assetIdValue,
           AssetName: assetNameValue,
+          FollowupDate: dayjs(),
         },
         isFrom: "followup",
       },
@@ -489,12 +575,13 @@ const CustomerTickets = () => {
 
   return (
     <div
+      className="customer-tickets-page px-2 sm:px-4"
       style={{
         display: "flex",
         flexDirection: "column",
         gap: 12,
-        height: "calc(100vh - 96px)",
-        minHeight: "calc(100vh - 96px)",
+        height: "calc(100dvh - 96px)",
+        minHeight: 0,
       }}
     >
       <div
@@ -539,15 +626,15 @@ const CustomerTickets = () => {
                 : `${resolvedCustomerName} Tickets`}
             </Typography.Title>
 
-            <Space size={8} wrap>
+            <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
               <Input
                 prefix={<SearchOutlined style={{ color: "#6b7280" }} />}
                 placeholder="Search"
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}
                 allowClear
+                className="min-w-0 flex-1 sm:!w-[280px] sm:flex-none"
                 style={{
-                  width: 280,
                   height: 30,
                   borderRadius: 8,
                 }}
@@ -570,7 +657,7 @@ const CustomerTickets = () => {
                   height: 32,
                 }}
               />
-            </Space>
+            </div>
           </div>
 
           {isPreviousTicketsRoute ? (
@@ -607,10 +694,9 @@ const CustomerTickets = () => {
             </div>
           ) : null}
 
-          <div>
+          <div className="min-h-0 flex-1 overflow-hidden">
             <AntTable
               elevated={false}
-              height={300}
               className="ticket-list-table"
               rowKey={(record) =>
                 getFieldValue(record, [
@@ -625,9 +711,8 @@ const CustomerTickets = () => {
               dataSource={pagedRows}
               loading={isFetching}
               size="small"
-              disableHorizontalScroll
               tableLayout="fixed"
-              scroll={{ y: "calc(100vh - 270px)" }}
+              scroll={{ x: 976, y: "calc(100dvh - 310px)" }}
               onRow={(record) => ({
                 onClick: () =>
                   isCustomerTicketsRoute
@@ -647,7 +732,7 @@ const CustomerTickets = () => {
           </div>
 
           {!shouldHideSkipButton ? (
-            <div className="flex justify-end -pt-50 z-10">
+            <div className="z-10 flex shrink-0 justify-end">
               <Button
                 type="primary"
                 style={{
@@ -665,7 +750,7 @@ const CustomerTickets = () => {
         </div>
       </div>
 
-      <div className="w-full -mt-20 -mb-15">
+      <div className="w-full shrink-0">
         <TicketModulePagination
           elevated={false}
           current={safeCurrentPage}

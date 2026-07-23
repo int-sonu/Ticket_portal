@@ -114,8 +114,6 @@ const getCarouselCount = (row: RowLike) => {
   return normalizeCount(getValue(row, ["nCount", "count"]));
 };
 
-const avatarColors = ["#B9A8FF", "#FF9DB2", "#8FC8FF", "#8CC4F7", "#FFD98C", "#97E3C2"];
-
 const AgentAnalysisPage = () => {
   const payload = useMemo(() => getRequestPayload() as Record<string, any>, []);
   const currentAgentId = String(payload.nAgentId ?? payload.id ?? "");
@@ -218,11 +216,6 @@ const AgentAnalysisPage = () => {
       .filter((agent) => Number(agent.tickets) > 0)
       .sort((left, right) => Number(right.tickets) - Number(left.tickets));
   }, [agents, search, selectedFilter.group]);
-
-  const maxCount = useMemo(
-    () => Math.max(1, ...filteredAgents.map((agent) => Number(agent.tickets) || 0)),
-    [filteredAgents],
-  );
 
   const graphData = useMemo(
     () =>
@@ -392,53 +385,7 @@ const AgentAnalysisPage = () => {
         <Spin spinning={isAnalysisLoading || isAnalysisFetching || isGroupLoading || isGroupFetching} className="flex min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col gap-4">
             {filteredAgents.length ? (
-              <>
-                <AgentActivityGraph data={graphData} />
-                <div className="h-[calc(100vh-330px)] w-full overflow-y-auto px-2 py-2">
-                  {filteredAgents.map((agent, index) => {
-                    const percent = Math.max(
-                      2,
-                      Math.min(100, Math.round(((Number(agent.tickets) || 0) / maxCount) * 100)),
-                    );
-                    const avatarColor = avatarColors[index % avatarColors.length];
-
-                    return (
-                      <div
-                        key={agent.id}
-                        className="border-b border-slate-100 px-2 py-3 last:border-b-0"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-start gap-3">
-                            <span
-                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                              style={{ backgroundColor: avatarColor }}
-                            >
-                              {agent.name.slice(0, 2).toUpperCase()}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-medium leading-5 text-slate-900">
-                                {agent.name}{" "}
-                                <span className="text-[13px] font-normal text-slate-500">
-                                  ({agent.groupName || agent.role})
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="shrink-0 whitespace-nowrap pt-0.5 text-sm font-medium text-slate-700">
-                            {agent.tickets} Tickets
-                          </div>
-                        </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full border border-sky-200 bg-white">
-                          <div
-                            className="h-full rounded-full bg-cyan-400"
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+              <AgentActivityGraph data={graphData} />
             ) : (
               <div className="flex min-h-[420px] flex-1 items-center justify-center">
                 <img src={noDataIcon} alt="" className="h-60 w-60" />

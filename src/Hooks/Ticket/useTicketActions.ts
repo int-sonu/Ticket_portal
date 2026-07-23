@@ -11,15 +11,19 @@ export const useTicketActions = () => {
 
   const refreshTickets = () => {
     queryClient.invalidateQueries({
-      queryKey: ["ticket"],
-    });
+      predicate: (query) => {
+        const [rootKey] = query.queryKey;
 
-    queryClient.invalidateQueries({
-      queryKey: ["ticket-list"],
-    });
-
-    queryClient.invalidateQueries({
-      queryKey: ["ticket-view"],
+        return (
+          typeof rootKey === "string" &&
+          (rootKey.startsWith("ticket") ||
+            rootKey === "overdue-ticket-list" ||
+            rootKey === "postponed-ticket-list" ||
+            rootKey === "created-ticket-list" ||
+            rootKey === "assign-agent-ticket-list" ||
+            rootKey === "customer-wise-active-ticket-list")
+        );
+      },
     });
   };
 

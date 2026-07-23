@@ -217,6 +217,15 @@ export const agentApis = {
     return response.data;
   },
 
+  agentUnderSupervisorList: async (payload: AgentPayload) => {
+    const response = await axiosInstance.post(
+      '/Api/V1/Agent/AgentUnderSupervisorList',
+      payload
+    );
+
+    return response.data;
+  },
+
   assignAgentList: async (payload: AgentPayload) => {
     const response = await axiosInstance.post(
       '/Api/V1/Agent/AssignAgentList',

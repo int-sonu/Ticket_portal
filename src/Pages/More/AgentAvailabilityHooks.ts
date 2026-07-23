@@ -3,12 +3,12 @@ import { agentApis } from "../../Axios/MoreApis";
 
 export type AgentAvailabilityPayload = {
   nCompanyId?: number;
+  nAgentId?: number;
   cSchemaName?: string;
   cDbName?: string;
   dFromDate?: string;
   dToDate?: string;
-  bDateFilter?: boolean;
-  cGroupName?: string;
+  bDateRange?: boolean;
 };
 
 export const useAgentAvailability = (payload: AgentAvailabilityPayload) =>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import billicon from "../../assets/Bills/billIcon.png";
 import customericonbill from "../../assets/Bills/customerIconbill.png";
 import editIcon from "../../assets/Bills/EditIcon.png";
@@ -13,13 +13,17 @@ import { billingApis } from "../../Axios/BillingApis";
 import { getApiImageBaseUrl } from "../../Axios/config";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { message, Modal } from "antd";
 import BillShareModal from "./BillShareModal";
+import PayModeDrawer from "./PayModeDrawer";
 
 type BillReadonlyViewExactProps = {
   viewData?: Record<string, any>;
   fallbackState?: Record<string, any>;
   billViewData?: Record<string, any>;
   loading?: boolean;
+  editMode?: boolean;
 };
 
 type BillItemRow = {
@@ -231,26 +235,62 @@ const collectBillIds = (value: any) => {
 };
 
 const getBillPdfUrl = (response: any) => {
-  const responseData = response?.data ?? response ?? {};
-  const candidates = [
-    responseData?.data?.pdfPath,
-    responseData?.data?.cPdfPath,
-    responseData?.data?.filePath,
-    responseData?.data?.path,
-    responseData?.data?.pdfUri,
-    responseData?.data?.pdfUrl,
-    responseData?.data?.url,
-    responseData?.pdfPath,
-    responseData?.cPdfPath,
-    responseData?.filePath,
-    responseData?.path,
-    responseData?.pdfUri,
-    responseData?.pdfUrl,
-    responseData?.url,
-  ];
+  const visited = new Set<any>();
 
-  const match = candidates.find((item) => typeof item === "string" && item.trim());
-  return typeof match === "string" ? match.trim() : "";
+  const findPdfPath = (value: any, depth = 0): string => {
+    if (value === null || value === undefined || depth > 8) return "";
+
+    if (typeof value === "string") {
+      const text = value.trim();
+      if (!text) return "";
+
+      if (/^(?:https?:\/\/|\/)?[^\s"']*(?:\/uploads\/|\.pdf(?:[?#]|$))/i.test(text)) {
+        return text;
+      }
+
+      try {
+        return findPdfPath(JSON.parse(text), depth + 1);
+      } catch {
+        return "";
+      }
+    }
+
+    if (typeof value !== "object" || visited.has(value)) return "";
+    visited.add(value);
+
+    const preferredKeys = [
+      "pdfPath",
+      "cPdfPath",
+      "filePath",
+      "cFilePath",
+      "pdfUri",
+      "pdfUrl",
+      "cPdfUrl",
+      "fileUrl",
+      "cFileUrl",
+      "url",
+      "path",
+      "message",
+      "data",
+      "result",
+    ];
+
+    for (const key of preferredKeys) {
+      if (key in value) {
+        const match = findPdfPath(value[key], depth + 1);
+        if (match) return match;
+      }
+    }
+
+    for (const child of Object.values(value)) {
+      const match = findPdfPath(child, depth + 1);
+      if (match) return match;
+    }
+
+    return "";
+  };
+
+  return findPdfPath(response);
 };
 const getFirstValue = (record: Record<string, any>, keys: string[]) => {
   for (const key of keys) {
@@ -275,7 +315,7 @@ const safeParse = (value: string | null) => {
 };
 
 const ensureAbsoluteUrl = (maybePath?: string) => {
-  const path = String(maybePath ?? "").trim();
+  const path = String(maybePath ?? "").trim().replace(/\\/g, "/");
   if (!path) return "";
   if (/^https?:\/\//i.test(path) || path.startsWith("data:")) return path;
 
@@ -334,7 +374,15 @@ const formatDateText = (value: any) => {
   const text = String(value).trim();
   if (!text) return "-";
   const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? text : parsed.toLocaleString("en-GB");
+  if (Number.isNaN(parsed.getTime())) return text;
+
+  const date = parsed.toLocaleDateString("en-GB");
+  const time = parsed.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${date} ${time}`;
 };
 
 const normalizePartRows = (partDetails: any[]): BillItemRow[] =>
@@ -406,7 +454,9 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
   fallbackState = {},
   billViewData = {},
   loading = false,
+  editMode = false,
 }) => {
+  const navigate = useNavigate();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -594,6 +644,22 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
   const billDate = formatDateText(
     billSummary.dBillDate || fallbackState.billDate || "-",
   );
+  const createdByLabel =
+    billSummary.cCreatedBy ||
+    billSummary.CreatedBy ||
+    bestBillRecord.cCreatedBy ||
+    bestBillRecord.CreatedBy ||
+    fallbackState.createdBy ||
+    "Testing Team";
+  const createdDate = formatDateText(
+    billSummary.dCreatedDate ||
+      billSummary.CreatedDate ||
+      bestBillRecord.dCreatedDate ||
+      bestBillRecord.CreatedDate ||
+      fallbackState.createdDate ||
+      billSummary.dBillDate ||
+      fallbackState.billDate,
+  );
   const companyAddress =
     apiCompanyDetails.cAddress ||
     apiCompanyDetails.address ||
@@ -648,6 +714,14 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
     payDetails[0]?.cPayMode ||
     fallbackState.payMode ||
     "-";
+  const [selectedPayMode, setSelectedPayMode] = useState("Cash");
+  const [isSavingPayMode, setIsSavingPayMode] = useState(false);
+  const [payModeOpen, setPayModeOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (payMode && payMode !== "-") setSelectedPayMode(String(payMode));
+  }, [payMode]);
 
   const itemSourceCandidates = [
     billSummary.itemDtls,
@@ -760,84 +834,168 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
     const dbName = String(companyDetailsPayload.cDbName ?? "").trim();
 
     if (!companyId || !schemaName || !dbName) {
+      message.error("Company details are missing. Unable to print this bill.");
       return;
     }
 
     const billIdToExport = billId;
     if (!billIdToExport) {
+      message.error("Bill id is missing. Unable to print this bill.");
       return;
     }
 
     setIsPrinting(true);
     try {
-      const configResponse = await billingApis.getConfiguration({
-        ...sessionPayload,
-        ...companyDetailsPayload,
-      });
-      const configuration = normalizeSingleRecord(
-        configResponse?.data?.data ?? configResponse?.data ?? configResponse ?? {},
-      );
-
       const exportPayload = {
-        ...sessionPayload,
-        ...companyDetailsPayload,
-        ...billShareContext,
         nCompanyId: companyId,
         cSchemaName: schemaName,
         cDbName: dbName,
         nBillId: billIdToExport,
-        BillId: billIdToExport,
-        billId: billIdToExport,
-        cCompanyName:
-          billShareContext.companyName ??
-          configuration?.cCompanyName ??
-          configuration?.companyName ??
-          "",
-        cAddress:
-          billShareContext.companyAddress ??
-          configuration?.cAddress ??
-          configuration?.address ??
-          "",
-        cEmail:
-          billShareContext.companyEmail ??
-          configuration?.cEmail ??
-          configuration?.email ??
-          "",
-        cPhoneNo:
-          billShareContext.companyPhone ??
-          configuration?.cPhoneNo ??
-          configuration?.phoneNo ??
-          "",
-        nBillNo: billShareContext.billNo ?? "",
-        cBillNo: billShareContext.billNo ?? "",
-        customerName: billShareContext.customerName ?? "",
-        cCustomerName: billShareContext.customerName ?? "",
-        billSummary: billShareContext.billSummary ?? {},
-        ticketSummary: billShareContext.ticketSummary ?? {},
-        itemDtls: billShareContext.rows ?? [],
-        payDtls: billShareContext.payDtls ?? [],
-        totals: billShareContext.totals ?? {},
       };
 
       const exportResponse = await billingApis.billExportPdf(exportPayload);
       const pdfUrl = getBillPdfUrl(exportResponse);
 
       if (!pdfUrl) {
+        message.error("Bill PDF was not returned by the server.");
         return;
       }
 
       const finalUrl = ensureAbsoluteUrl(pdfUrl);
       setPrintPdfUrl(finalUrl);
       setPrintModalOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to export bill PDF", error);
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to generate bill PDF.",
+      );
     } finally {
       setIsPrinting(false);
     }
   };
 
+  const handleUpdatePayMode = async () => {
+    if (isSavingPayMode) return;
+
+    const payModeIds: Record<string, number> = {
+      Cash: 1,
+      UPI: 2,
+      Card: 3,
+      "Net Banking": 4,
+      Cheque: 5,
+      Complimentary: 6,
+      Company: 7,
+      QR: 8,
+      Split: 9,
+    };
+    const nPaymode = payModeIds[selectedPayMode];
+
+    if (!billId || !nPaymode) {
+      message.error("Bill or payment mode details are missing.");
+      return;
+    }
+
+    setIsSavingPayMode(true);
+    try {
+      const response = await billingApis.billUpdate({
+        nBillId: billId,
+        nCreatedBy: Number(
+          (sessionPayload as any).nUserId ??
+            sessionPayload.nAgentId ??
+            (sessionPayload as any).nCreatedBy ??
+            sessionPayload.id ??
+            0,
+        ),
+        nCompanyId: companyDetailsPayload.nCompanyId,
+        cSchemaName: companyDetailsPayload.cSchemaName,
+        cDbName: companyDetailsPayload.cDbName,
+        payDtls: [{ nPayAmount: totals.total, nPaymode }],
+        chequeDtls: [],
+        customerCreditDtls: [],
+        transationDtls: [],
+      });
+
+      message.success(response?.message || "Bill payment mode updated successfully.");
+      setPayModeOpen(false);
+      navigate("/billsandreceipts/bills", { replace: true });
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to update bill payment mode.",
+      );
+    } finally {
+      setIsSavingPayMode(false);
+    }
+  };
+
+  const handleDeleteBill = () => {
+    if (!billId || isDeleting) {
+      if (!billId) message.error("Bill id is missing.");
+      return;
+    }
+
+    Modal.confirm({
+      title: "Delete Bill",
+      content: `Are you sure you want to delete bill ${billNo}?`,
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      cancelText: "Cancel",
+      onOk: async () => {
+        setIsDeleting(true);
+        try {
+          const response = await billingApis.billDelete({
+            ...companyDetailsPayload,
+            nBillId: billId,
+            nCreatedby: Number(
+              (sessionPayload as any).nUserId ??
+                sessionPayload.nAgentId ??
+                sessionPayload.id ??
+                0,
+            ),
+          });
+          message.success(response?.message || "Bill deleted successfully.");
+          navigate("/billsandreceipts/bills", { replace: true });
+        } catch (error: any) {
+          message.error(
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to delete bill.",
+          );
+          throw error;
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+    });
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      {editMode ? (
+        <>
+          <div className="bg-[#dcebf5] px-3 py-2 text-[12px] text-slate-600">
+            Created by : {createdByLabel} ({createdDate})
+          </div>
+          <div className="flex items-center justify-between px-5 py-3">
+            <h1 className="text-xl font-medium text-slate-900">Bills</h1>
+            <div className="flex items-center gap-4 text-sm font-medium text-slate-900">
+              <span>{billDate}</span>
+              <button
+                type="button"
+                aria-label="Close bill edit"
+                onClick={() => navigate(-1)}
+                className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-slate-100"
+              >
+                <img src={closeblack} alt="" className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
       <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-4">
         <div className="grid gap-3 text-[13px] text-slate-700 md:grid-cols-[auto_auto_auto_1fr] md:items-center">
           <div className="flex items-center gap-2 whitespace-nowrap border-sky-100 md:border-r md:pr-6">
@@ -867,8 +1025,8 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 flex-1 overflow-hidden rounded-lg border border-slate-100">
-        <div className="grid grid-cols-[40px_minmax(220px,1.8fr)_80px_100px_100px_100px_90px_110px] gap-x-2 bg-[#6aa8d9] px-3 py-2 text-[13px] font-medium text-white">
+      <div className="mt-3 flex-1 overflow-x-auto overflow-y-auto rounded-lg border border-slate-100">
+        <div className="grid min-w-[660px] grid-cols-[40px_minmax(150px,1.8fr)_60px_80px_90px_70px_70px_100px] gap-x-2 bg-[#6aa8d9] px-3 py-2 text-[13px] font-medium text-white">
           <div>Srl</div>
           <div>Description</div>
           <div className="text-right">Qty</div>
@@ -879,7 +1037,7 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
           <div className="text-right">Total</div>
         </div>
 
-        <div className="max-h-full overflow-y-auto bg-white">
+        <div className="bg-white">
           {loading ? (
             <div className="px-4 py-6 text-center text-sm text-slate-500">
               Loading bill details...
@@ -888,7 +1046,7 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
             rows.map((row, index) => (
               <div
                 key={row.key}
-                className="grid grid-cols-[40px_minmax(220px,1.8fr)_80px_100px_100px_100px_90px_110px] gap-x-2 border-b border-slate-100 px-3 py-3 text-[13px] text-slate-700 last:border-b-0"
+                className="grid min-w-[660px] grid-cols-[40px_minmax(150px,1.8fr)_60px_80px_90px_70px_70px_100px] gap-x-2 border-b border-slate-100 px-3 py-3 text-[13px] text-slate-700 last:border-b-0"
               >
                 <div>{index + 1}</div>
                 <div>{row.description}</div>
@@ -940,12 +1098,45 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                 {formatMoney(totals.total)}
               </span>
               <span>Pay Mode</span>
-              <span className="text-right font-medium text-slate-900">
-                {payMode}
-              </span>
+              {editMode ? (
+                <span className="text-right font-medium text-slate-900">
+                  {selectedPayMode}
+                </span>
+              ) : (
+                <span className="text-right font-medium text-slate-900">
+                  {payMode}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
+              {editMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="rounded-md border border-emerald-500 px-5 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPayModeOpen(true)}
+                    className="rounded-md border border-emerald-500 bg-white px-5 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
+                  >
+                    Change Pay Mode
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingPayMode}
+                    onClick={() => void handleUpdatePayMode()}
+                    className="rounded-md bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingPayMode ? "Saving..." : "Save"}
+                  </button>
+                </>
+              ) : (
+                <>
               <button
                 type="button"
                 className="flex h-12 w-12 items-center justify-center hover:bg-slate-50"
@@ -989,6 +1180,23 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                 type="button"
                 className="flex h-9 w-9 items-center justify-center  hover:bg-slate-50"
                 aria-label="Edit bill"
+                onClick={() =>
+                  navigate("/billsandreceipts/bills/edit", {
+                    state: {
+                      ...fallbackState,
+                      billId,
+                      nBillId: billId,
+                      billNo,
+                      billData: bestBillRecord,
+                      sessionPayload: {
+                        ...sessionPayload,
+                        ...companyDetailsPayload,
+                      },
+                      isEditMode: true,
+                      sourcePage: "bills",
+                    },
+                  })
+                }
               >
                 <img
                   src={editIcon}
@@ -1000,6 +1208,8 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-md border border-[#ff4d4f] bg-[#ff4d4f] hover:opacity-90"
                 aria-label="Delete bill"
+                disabled={isDeleting}
+                onClick={handleDeleteBill}
               >
                 <img
                   src={deleteRed}
@@ -1007,6 +1217,8 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                   className="h-4 w-4 brightness-0 invert"
                 />
               </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1204,6 +1416,15 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
         onClose={() => setShareModalOpen(false)}
         companyPayload={companyDetailsPayload}
         billContext={billShareContext}
+      />
+      <PayModeDrawer
+        open={payModeOpen}
+        amount={totals.total}
+        payMode={selectedPayMode}
+        onClose={() => setPayModeOpen(false)}
+        onCancel={() => setPayModeOpen(false)}
+        onSave={() => setPayModeOpen(false)}
+        onSelectPayMode={setSelectedPayMode}
       />
     </div>
   );

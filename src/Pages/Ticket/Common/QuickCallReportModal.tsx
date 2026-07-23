@@ -87,17 +87,6 @@ const getFirstTicketValue = (record: Record<string, any>, keys: string[]) =>
     undefined,
   );
 
-const parseDateValue = (value: any) => {
-  if (!value) return null;
-  if (dayjs.isDayjs(value)) return value;
-
-  const parsed = dayjs(value);
-  if (parsed.isValid()) return parsed;
-
-  const alt = dayjs(String(value).replace(/\//g, "-"));
-  return alt.isValid() ? alt : null;
-};
-
 interface QuickCallReportModalProps {
   open: boolean;
   onClose: () => void;
@@ -131,7 +120,7 @@ const QuickCallReportModal = ({
 }: QuickCallReportModalProps) => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const { quickCallReportSave } = useTicketMutations();
+  const { worksheetCallReportSave: quickCallReportSave } = useTicketMutations();
   const { mutateAsync: checkAmcExpiry } = useCheckAmcExpiry();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const voiceInputRef = useRef<HTMLInputElement | null>(null);
@@ -413,12 +402,7 @@ const QuickCallReportModal = ({
         statusOptions.find((item) => Number(item?.value) === defaultStatusId)?.value ??
         undefined,
       ToDo: getTextValue(ticketValues?.ToDo, ticketValues?.cToDo, ticketValues?.Todo),
-      NextFollowupDate: parseDateValue(
-        ticketValues?.NextFollowupDate ??
-          ticketValues?.dNextFollowupDate ??
-          ticketValues?.FollowupDate ??
-          undefined,
-      ),
+      NextFollowupDate: dayjs(),
       OnsiteRequired: Boolean(
         ticketValues?.OnsiteRequired ??
           ticketValues?.bOnsiteRequired ??
@@ -1014,7 +998,7 @@ const QuickCallReportModal = ({
                   <TextArea rows={4} className="!resize-none" />
                 </Form.Item>
 
-                <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+                <div className="grid grid-cols-[12fr_auto]  items-end gap-3">
                   <Form.Item
                     label="Next Follow up Date & Time"
                     name="NextFollowupDate"

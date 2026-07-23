@@ -10,7 +10,11 @@ import { getRequestPayload } from "../../Utils/requestPayload";
 
 type BillViewState = Record<string, any>;
 
-const BillViewPage = () => {
+type BillViewPageProps = {
+  editMode?: boolean;
+};
+
+const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const billState = (location.state ?? {}) as BillViewState;
@@ -73,17 +77,19 @@ const BillViewPage = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-        <div className="text-[18px] font-medium text-slate-900">Bill View</div>
-        <button
-          type="button"
-          aria-label="Close bill view"
-          onClick={closeBillView}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-        >
-          <CloseOutlined />
-        </button>
-      </div>
+      {!editMode ? (
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+          <div className="text-[18px] font-medium text-slate-900">Bill View</div>
+          <button
+            type="button"
+            aria-label="Close bill view"
+            onClick={closeBillView}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          >
+            <CloseOutlined />
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex-1 min-h-0 overflow-hidden p-3">
         <Spin spinning={isBillViewLoading}>
@@ -93,6 +99,7 @@ const BillViewPage = () => {
               fallbackState={billState}
               billViewData={billViewResponse}
               loading={isBillViewLoading}
+              editMode={editMode}
             />
           </div>
         </Spin>

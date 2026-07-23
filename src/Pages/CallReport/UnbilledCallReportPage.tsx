@@ -299,7 +299,7 @@ const UnbilledCallReportPage = () => {
 
   const handleRowClick = (row: CallReportRow) => {
     const sourceRow = row.raw ?? row;
-    navigate("/callreports/view", {
+    navigate("/unbilled-callreports/view", {
       state: {
         selectedRow: sourceRow,
         nCallReportId: Number(

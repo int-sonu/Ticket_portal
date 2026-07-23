@@ -138,45 +138,91 @@ const WorkSummaryPage = () => {
 
   // Fetch Work Summary Data
   const workSummaryPayload = useMemo(() => ({
-    cAgentId: selectedAgent.value,
-    dDate: selectedDate.format("YYYY/MM/DD"),
+    nAgentId: Number(selectedAgent.value) || 0,
+    dDate: selectedDate.format("YYYY-MM-DD"),
     nCompanyId: basePayload.nCompanyId,
     cSchemaName: basePayload.cSchemaName,
     cDbName: basePayload.cDbName,
   }), [basePayload, selectedAgent.value, selectedDate]);
 
-  const { data: summaryResponse, isLoading: isSummaryLoading, isFetching: isSummaryFetching } = useQuery({
+  const {
+    data: summaryResponse,
+    error: summaryError,
+    isLoading: isSummaryLoading,
+    isFetching: isSummaryFetching,
+  } = useQuery({
     queryKey: ["agent-work-summary", workSummaryPayload],
     queryFn: () => agentApis.workSummary(workSummaryPayload),
     enabled: !!basePayload.nCompanyId && !!selectedAgent.value,
+    retry: (failureCount, error: any) =>
+      error?.response?.status !== 404 && failureCount < 1,
   });
 
   const summaryData = useMemo(() => {
     const source = summaryResponse?.data || summaryResponse?.result || summaryResponse || {};
     const raw = Array.isArray(source) ? source[0] ?? {} : source;
     
-    const workingHrs = text(getValue(raw, ["cTotalWorkingHrs", "TotalWorkingHrs", "workingHours", "totalWorkingHrs", "workingHrs"]), "00 hrs 00 mins");
-    const attended = numberValue(getValue(raw, ["nTotalTicketCount", "nAttendedTickets", "AttendedTickets", "attendedTickets", "totalTickets"], 0));
-    const resolved = numberValue(getValue(raw, ["nResolvedTicketCount", "nResolvedTickets", "ResolvedTickets", "resolvedTickets", "resolved"], 0));
-    const unresolved = numberValue(getValue(raw, ["nUnresolvedTicketCount", "nUnresolvedTickets", "UnresolvedTickets", "unresolved"], 0));
+    const workingHrs = text(getValue(raw, ["cTotalWorkingHrs"]), "00 hrs 00 mins");
+    const attended = numberValue(getValue(raw, ["nTotalTicketCount", "nTotalTicketCount"], 0));
+    const resolved = numberValue(getValue(raw, ["nResolvedTicketCount", "resolved"], 0));
+    const unresolved = numberValue(getValue(raw, ["nUnresolvedTicketCount"], 0));
     
-    const website = numberValue(getValue(raw, ["nWebsite", "website", "nWebsiteCount", "websiteTickets"], 0));
-    const direct = numberValue(getValue(raw, ["nDirect", "direct", "nDirectCount", "directTickets"], 0));
-    const call = numberValue(getValue(raw, ["nCall", "call", "nCallCount", "callTickets"], 0));
-    const email = numberValue(getValue(raw, ["nEmail", "nEmailCount", "email", "emailTickets", "nMailCount"], 0));
-    const message = numberValue(getValue(raw, ["nMessage", "nMessageCount", "message", "messageTickets", "nSmsCount"], 0));
+    const modeDetails = getValue(raw, ["modewiseDtls", "ModewiseDtls", "modeWiseDetails"], []);
+    const modeCount = (aliases: string[], fallback: number) => {
+      if (!Array.isArray(modeDetails)) return fallback;
+      const matched = modeDetails.find((mode: Record<string, any>) => {
+        const name = text(
+          getValue(mode, ["cCallModeName", "cModeName", "name"]),
+        )
+          .toLowerCase()
+          .replace(/[\s_-]+/g, "");
+        return aliases.some(
+          (alias) => alias.toLowerCase().replace(/[\s_-]+/g, "") === name,
+        );
+      });
+      return matched
+        ? numberValue(
+            getValue(matched, [
+              "nCallReportCount",
+              "nTicketCount",
+              "nCount",
+              "count",
+            ], 0),
+          )
+        : fallback;
+    };
+
+    const website = modeCount(
+      ["Website", "Web"],
+      numberValue(getValue(raw, ["nWebsite", "website", "nWebsiteCount", "websiteTickets"], 0)),
+    );
+    const direct = modeCount(
+      ["Direct"],
+      numberValue(getValue(raw, ["nDirect", "direct", "nDirectCount", "directTickets"], 0)),
+    );
+    const call = modeCount(
+      ["Call", "CALL"],
+      numberValue(getValue(raw, ["nCall", "call", "nCallCount", "callTickets"], 0)),
+    );
+    const email = modeCount(
+      ["E-Mail", "Email", "Mail"],
+      numberValue(getValue(raw, ["nEmail", "nEmailCount", "email", "emailTickets", "nMailCount"], 0)),
+    );
+    const message = modeCount(
+      ["Message", "MESSAGE", "SMS"],
+      numberValue(getValue(raw, ["nMessage", "nMessageCount", "message", "messageTickets", "nSmsCount"], 0)),
+    );
     
     const generalVisit = numberValue(getValue(raw, ["nGeneralVists", "nGeneralVisit", "GeneralVisit", "generalVisit", "generalVisitCount"], 0));
     const travelExpense = numberValue(getValue(raw, ["nTravelExpense", "TravelExpense", "travelExpense", "travel"], 0));
     const travelDistance = numberValue(getValue(raw, ["nTraveledKm", "nTravelDistance", "TravelDistance", "travelDistance", "distance", "nTotalDistance"], 0));
     const otherExpense = numberValue(getValue(raw, ["nOtherExpenses", "nOtherExpense", "OtherExpense", "otherExpense", "other"], 0));
     const totalExpense = numberValue(getValue(raw, ["nTotalExpenses", "nTotalExpense", "TotalExpense", "totalExpense", "expense"], travelExpense + otherExpense));
-    const modeDetails = getValue(raw, ["modewiseDtls", "ModewiseDtls", "modeWiseDetails"], []);
     const modes = Array.isArray(modeDetails) && modeDetails.length
       ? modeDetails.map((mode: Record<string, any>, index: number) => ({
           key: getValue(mode, ["nCallModeId", "nModeId", "id"], index),
           name: text(getValue(mode, ["cCallModeName", "cModeName", "name"]), "Mode"),
-          count: numberValue(getValue(mode, ["nTicketCount", "nCount", "count"], 0)),
+          count: numberValue(getValue(mode, ["nCallReportCount", "nTicketCount", "nCount", "count"], 0)),
         }))
       : [
           { key: "website", name: "Website", count: website },
@@ -204,6 +250,10 @@ const WorkSummaryPage = () => {
       modes,
     };
   }, [summaryResponse]);
+
+  const noSummaryAvailable =
+    Number((summaryResponse as any)?.statusCode) === 404 ||
+    (summaryError as any)?.response?.status === 404;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-white p-5 lg:overflow-y-hidden">
@@ -264,6 +314,11 @@ const WorkSummaryPage = () => {
       </header>
 
       <Spin spinning={isSummaryLoading || isSummaryFetching}>
+        {noSummaryAvailable ? (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
+            No work summary is available for the selected agent and date.
+          </div>
+        ) : null}
         <div className="mt-2 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="min-w-0">
             <div className="flex h-[60px] items-center justify-between rounded-[5px] border border-[#d8efff] bg-[#e7f4fd] px-3">

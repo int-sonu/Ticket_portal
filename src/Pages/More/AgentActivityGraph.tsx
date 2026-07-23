@@ -39,7 +39,7 @@ const GraphLegend = () => (
 const getMaxValue = (rows: AgentGraphRow[]) =>
   Math.max(1, ...rows.map((item) => Math.max(Number(item.CR) || 0, Number(item.CT) || 0)));
 
-const badgePlugin = (data: AgentGraphRow[]): Plugin<"bar"> => ({
+const badgePlugin = (): Plugin<"bar"> => ({
   id: "agent-badge-plugin",
   afterDatasetsDraw(chart) {
     const { ctx, chartArea, scales } = chart;
@@ -175,7 +175,7 @@ const AgentActivityGraph: React.FC<{ data: AgentGraphRow[] }> = ({ data }) => {
     <div className="relative rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
       <GraphLegend />
       <div className="h-[420px]">
-        <Bar data={chartData} options={chartOptions} plugins={[badgePlugin(data)]} />
+        <Bar data={chartData} options={chartOptions} plugins={[badgePlugin()]} />
       </div>
     </div>
   );

@@ -247,7 +247,7 @@ const BillsListPage = () => {
   };
 
   const handleViewBill = (row: (typeof tableRows)[number]) => {
-    navigate("/billsandreceipts/bill/view", {
+    navigate("/billsandreceipts/bills/view", {
       state: {
         billId: row.billId,
         nBillId: row.billId,

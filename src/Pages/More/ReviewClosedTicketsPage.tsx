@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
 import { Input, Spin } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { CheckCircleOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
-import { agentApis } from "../../Axios/MasterApis";
-import { reportApis } from "../../Axios/ReportsApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import AntTable from "../../ui/Table/AntTable";
+import { useClosedTicketReviewList } from "../../Hooks/Ticket/useTicketQueries";
 
 const normalizeText = (value: any) =>
   String(value ?? "")
@@ -30,14 +28,27 @@ const getFieldValue = (record: Record<string, any>, keys: string[]) => {
   return recordKey ? record?.[recordKey] : "";
 };
 
-const formatDateTime = (_value: any) => {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, "0");
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const year = now.getFullYear();
-  const hours24 = now.getHours();
+const formatDateTime = (value: any) => {
+  if (!value) return "-";
+  const text = String(value).trim();
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ ,T]+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);
+  let parsed: Date;
+  if (match) {
+    let hours = Number(match[4] || 0);
+    const meridian = String(match[6] || "").toUpperCase();
+    if (meridian === "PM" && hours < 12) hours += 12;
+    if (meridian === "AM" && hours === 12) hours = 0;
+    parsed = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]), hours, Number(match[5] || 0));
+  } else {
+    parsed = new Date(text);
+  }
+  if (Number.isNaN(parsed.getTime())) return text;
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = parsed.getFullYear();
+  const hours24 = parsed.getHours();
   const hours12 = hours24 % 12 || 12;
-  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
   const meridian = hours24 >= 12 ? "PM" : "AM";
 
   return `${day}/${month}/${year} ${String(hours12).padStart(2, "0")}:${minutes} ${meridian}`;
@@ -62,57 +73,19 @@ const ReviewClosedTicketsPage = () => {
   const sessionPayload = useMemo(() => getRequestPayload() as Record<string, any>, []);
   const payload = useMemo(
     () => ({
-      ...sessionPayload,
-      pageNumber: 1,
-      pageSize: 10,
+      nCompanyId: sessionPayload.nCompanyId,
+      nAgentId:
+        Number(sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nCreatedBy) || 0,
+      nPageNo: 1,
+      nPageSize: 1000,
       cSearch: search.trim(),
-      cFromDate: sessionPayload?.cFromDate ?? sessionPayload?.dFromDate,
-      cToDate: sessionPayload?.cToDate ?? sessionPayload?.dToDate,
-      dFromDate: sessionPayload?.dFromDate ?? sessionPayload?.cFromDate,
-      dToDate: sessionPayload?.dToDate ?? sessionPayload?.cToDate,
-      cCreatedBy: String(
-        sessionPayload?.nCreatedBy ??
-          sessionPayload?.nAgentId ??
-          sessionPayload?.id ??
-          0,
-      ),
-      cCustomerId: String(sessionPayload?.nCustomerId ?? sessionPayload?.customerId ?? 0),
-      cAssignAgentId: String(
-        sessionPayload?.nAssignAgentId ??
-          sessionPayload?.nAgentId ??
-          sessionPayload?.id ??
-          0,
-      ),
-      nCreatedBy:
-        Number(
-          sessionPayload?.nCreatedBy ??
-            sessionPayload?.nAgentId ??
-            sessionPayload?.id ??
-            0,
-        ) || 0,
-      nCustomerId: Number(sessionPayload?.nCustomerId ?? sessionPayload?.customerId ?? 0) || 0,
-      nAssignAgentId:
-        Number(
-          sessionPayload?.nAssignAgentId ??
-            sessionPayload?.nAgentId ??
-            sessionPayload?.id ??
-            0,
-        ) || 0,
+      cSchemaName: sessionPayload.cSchemaName,
+      cDbName: sessionPayload.cDbName,
     }),
     [sessionPayload, search],
   );
 
-  const agentListQuery = useQuery({
-    queryKey: ["ticket-review-agent-list", sessionPayload],
-    queryFn: () => agentApis.agentListAll(sessionPayload),
-    enabled: Boolean(sessionPayload?.nCompanyId),
-  });
-
-  const query = useQuery({
-    queryKey: ["ticket-list-report", payload],
-    queryFn: () => reportApis.ticketListReport(payload),
-    enabled: Boolean(sessionPayload?.nCompanyId),
-  });
+  const query = useClosedTicketReviewList(payload, Boolean(sessionPayload?.nCompanyId));
   const rows = useMemo(() => extractList(query.data), [query.data]);
 
   const filteredRows = useMemo(() => {
@@ -165,9 +138,6 @@ const ReviewClosedTicketsPage = () => {
         </h1>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500">
-            Agents loaded: {extractList(agentListQuery.data).length}
-          </span>
           <Input
             className="w-[300px]"
             allowClear
@@ -256,6 +226,24 @@ const ReviewClosedTicketsPage = () => {
                 width: 120,
                 render: (_: any, record: any) =>
                   getFieldValue(record, ["cTicketStatus"]) || "-",
+              },
+              {
+                title: "",
+                width: 60,
+                align: "center",
+                render: (_: any, record: any) => (
+                  <button
+                    type="button"
+                    aria-label="Review closed ticket"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openTicketView(record);
+                    }}
+                    className="text-lg text-sky-500 hover:text-sky-600"
+                  >
+                    <CheckCircleOutlined />
+                  </button>
+                ),
               },
             ]}
             onRow={(record) => ({

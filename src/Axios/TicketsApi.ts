@@ -359,6 +359,18 @@ export const ticketApis = {
     return response.data;
   },
 
+  ticketFollowupSave: async (
+    payload: TicketPayload
+  ) => {
+    const response =
+      await axiosInstance.post(
+        "/Api/V1/Ticket/TicketFollowupSave",
+        payload
+      );
+
+    return response.data;
+  },
+
   ticketUpdate: async (
     payload: TicketPayload
   ) => {
@@ -369,6 +381,28 @@ export const ticketApis = {
         payload,
         ["post"]
       );
+
+    return response.data;
+  },
+
+  assignTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Ticket/AssignTicket",
+      payload
+    );
+
+    return response.data;
+  },
+
+  acceptTicket: async (
+    payload: TicketPayload
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Ticket/AcceptTicket",
+      payload
+    );
 
     return response.data;
   },
@@ -388,6 +422,17 @@ export const ticketApis = {
   },
 
   ticketQuickCallReportSave: async (
+    payload: TicketPayload
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Ticket/TicketQuickCallReportSave",
+      payload
+    );
+
+    return response.data;
+  },
+
+  callReportWorksheetSave: async (
     payload: TicketPayload
   ) => {
     const response = await sendWithMethodFallback(

@@ -80,8 +80,8 @@ const LeaveApprovalViewPage = () => {
           </div>
 
           <div className="mt-4 flex items-center justify-between border-y border-slate-200 py-3 text-sm">
-            <div>Total Leaves Taken : <strong className="ml-2 text-lg">{text(value(["nTotalLeavesTaken", "nTotalLeaveTaken", "TotalLeavesTaken"]), "0")}</strong></div>
-            <div>Last Leave Taken : <strong className="ml-2 text-lg">{formatDate(value(["dLastLeaveTaken", "LastLeaveTaken", "dLastLeaveDate"]))}</strong></div>
+            <div>Total Leaves Taken : <strong className="ml-2 text-lg">{text(value(["nTotalLeaveTaken"]), "0")}</strong></div>
+            <div>Last Leave Taken : <strong className="ml-2 text-lg">{formatDate(value(["nLastLeaveDate"]))}</strong></div>
           </div>
 
           <div className="mt-3 text-lg font-medium text-sky-800">Application Details</div>

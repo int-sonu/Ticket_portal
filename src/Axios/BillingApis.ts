@@ -160,6 +160,49 @@ export const billingApis = {
     return response.data;
   },
 
+  travelLog: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TravelLog",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  ticketTravelLogList: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TicketTravelLogList",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  travelLogModeAttachmentUpload: async (
+    payload: FormData,
+    nTravelExpenseId: number,
+  ) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TravelLogModeAttachmentUpload",
+      payload,
+      {
+        params: { nTravelExpenseId },
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+
+    return response.data;
+  },
+
+  travelLogModeAttachmentDelete: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Travel/TravelLogModeAttachmentDelete",
+      payload,
+    );
+
+    return response.data;
+  },
+
   otherExpenseList: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/OtherExpenses/OtherExpenseList",
@@ -298,6 +341,15 @@ export const billingApis = {
   billSave: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Billing/BillSave",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  billUpdate: async (payload: any) => {
+    const response = await axiosInstance.put(
+      "/Api/V1/Billing/BillUpdate",
       payload,
     );
 

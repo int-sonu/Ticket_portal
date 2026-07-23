@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Empty, Input, Spin } from "antd";
-import { FilterOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { Empty, Input, Popover, Spin } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -11,6 +12,10 @@ import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import assign from "../../assets/icons/assign.svg";
+import filterIcon from "../../assets/icons/filterdetails.svg";
+import { agentApis } from "../../Axios/MasterApis";
+import AgentSelectorModal, { type SharedAgentOption } from "../More/AgentSelectorModal";
+import profileSwitch from "../../assets/icons/profile-switch.svg";
 const normalizeText = (value: any) =>
   String(value ?? "")
     .trim()
@@ -60,36 +65,124 @@ const isAssetRow = (record: Record<string, any>) =>
       record?.is_asset,
   );
 
+const repairStatusOptions = [
+  { label: "All", value: 0 },
+  { label: "Assigned", value: 1 },
+  { label: "On Progress", value: 2 },
+  { label: "Waiting For Customer Approval", value: 3 },
+  { label: "OnHold", value: 4 },
+  { label: "Parts Need External Repair", value: 5 },
+  { label: "Waiting Spare", value: 6 },
+  { label: "Transferred", value: 7 },
+  { label: "Customer Approved", value: 8 },
+];
+
 const AssignedItemRepairPage = () => {
   const navigate = useNavigate();
   const sessionPayload = useMemo<Record<string, any>>(
     () => getRequestPayload() as Record<string, any>,
     [],
   );
-  const payload = useMemo(
-    () => ({
-      ...sessionPayload,
-      nCreatedBy:
-        sessionPayload.id ??
-        sessionPayload.nAgentId ??
-        sessionPayload.nCreatedBy ??
-        0,
-    }),
-    [sessionPayload],
-  );
-
   const [activeTab, setActiveTab] = useState<"assigned" | "finished">("assigned");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(0);
+  const [draftStatus, setDraftStatus] = useState(0);
+  const [agentModalOpen, setAgentModalOpen] = useState(false);
+  const [agentSearch, setAgentSearch] = useState("");
+  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<SharedAgentOption>({
+    label: String(
+      sessionPayload.cAgentName ??
+        sessionPayload.cUserName ??
+        sessionPayload.cEmployeeName ??
+        "Self",
+    ),
+    value: String(
+      sessionPayload.id ?? sessionPayload.nAgentId ?? sessionPayload.nCreatedBy ?? "",
+    ),
+    role: "Self",
+    isSelf: true,
+  });
+
+  const currentAgentId = String(
+    sessionPayload.id ?? sessionPayload.nAgentId ?? sessionPayload.nCreatedBy ?? "",
+  );
+  const currentAgentName = String(
+    sessionPayload.cAgentName ??
+      sessionPayload.cUserName ??
+      sessionPayload.cEmployeeName ??
+      "Self",
+  );
+  const linkedAgentPayload = useMemo(
+    () => ({
+      nCompanyId: sessionPayload.nCompanyId,
+      nAgentId: Number(currentAgentId) || 0,
+      cSchemaName: sessionPayload.cSchemaName,
+      cDbName: sessionPayload.cDbName,
+    }),
+    [currentAgentId, sessionPayload],
+  );
+  const linkedAgentQuery = useQuery({
+    queryKey: ["assigned-item-repair-linked-agents", linkedAgentPayload],
+    queryFn: () => agentApis.agentUnderSupervisorList(linkedAgentPayload),
+    enabled: !!linkedAgentPayload.nCompanyId && !!linkedAgentPayload.nAgentId,
+  });
+  const linkedAgents = useMemo<SharedAgentOption[]>(() => {
+    const options = extractList(linkedAgentQuery.data)
+      .map((row: Record<string, any>) => ({
+        label:
+          formatDisplayValue(
+            getFieldValue(row, ["cAgentName", "AgentName", "cUserName", "Name"]),
+          ) || "Agent",
+        value: String(getFieldValue(row, ["nAgentId", "AgentId", "id"]) || ""),
+        role:
+          formatDisplayValue(
+            getFieldValue(row, ["cRoleName", "RoleName", "cDesignation", "Designation"]),
+          ) || "Agent",
+      }))
+      .filter((agent) => agent.value);
+    const self: SharedAgentOption = {
+      label: currentAgentName,
+      value: currentAgentId,
+      role: "Self",
+      isSelf: true,
+    };
+    const seen = new Set<string>();
+    return [self, ...options].filter((agent) => {
+      if (!agent.value || seen.has(agent.value)) return false;
+      seen.add(agent.value);
+      return true;
+    });
+  }, [currentAgentId, currentAgentName, linkedAgentQuery.data]);
+  const visibleLinkedAgents = useMemo(() => {
+    const term = normalizeText(agentSearch);
+    return term
+      ? linkedAgents.filter((agent) =>
+          normalizeText(`${agent.label} ${agent.role ?? ""}`).includes(term),
+        )
+      : linkedAgents;
+  }, [agentSearch, linkedAgents]);
+  const assignedListPayload = useMemo(
+    () => ({
+      nCompanyId: sessionPayload.nCompanyId,
+      nAgentId: Number(selectedAgent.value) || Number(currentAgentId) || 0,
+      nStatus: statusFilter || null,
+      cSchemaName: sessionPayload.cSchemaName,
+      cDbName: sessionPayload.cDbName,
+    }),
+    [currentAgentId, selectedAgent.value, sessionPayload, statusFilter],
+  );
 
   const assignedQuery = useRepairItemActivityList(
-    payload,
-    !!payload?.nCreatedBy,
+    assignedListPayload,
+    !!assignedListPayload?.nAgentId,
   );
   const finishedQuery = useRepairItemFinishedList(
-    payload,
-    !!payload?.nCreatedBy,
+    assignedListPayload,
+    !!assignedListPayload?.nAgentId,
   );
   const rows = useMemo(
     () => extractList(activeTab === "finished" ? finishedQuery.data : assignedQuery.data),
@@ -97,21 +190,7 @@ const AssignedItemRepairPage = () => {
   );
   const isLoading = activeTab === "finished" ? finishedQuery.isLoading : assignedQuery.isLoading;
 
-  const isFinishedRow = (row: Record<string, any>) =>
-    normalizeText(
-      formatDisplayValue(getFieldValue(row, ["cStatusName", "cStatus", "Status", "RepairStatus"])),
-    ).includes("finish") ||
-    normalizeText(
-      formatDisplayValue(getFieldValue(row, ["cStatusName", "cStatus", "Status", "RepairStatus"])),
-    ).includes("complete");
-
-  const visibleRows = useMemo(
-    () =>
-      rows.filter((row) =>
-        activeTab === "finished" ? isFinishedRow(row) : !isFinishedRow(row),
-      ),
-    [activeTab, rows],
-  );
+  const visibleRows = rows;
 
   const filteredRows = useMemo(() => {
     const term = normalizeText(search);
@@ -137,12 +216,12 @@ const AssignedItemRepairPage = () => {
     return filteredRows.slice(start, start + pageSize);
   }, [currentPage, filteredRows, pageSize]);
 
-  const assignedCount = extractList(assignedQuery.data).filter((row) => !isFinishedRow(row)).length;
-  const finishedCount = extractList(finishedQuery.data).filter((row) => isFinishedRow(row)).length;
+  const assignedCount = extractList(assignedQuery.data).length;
+  const finishedCount = extractList(finishedQuery.data).length;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, search]);
+  }, [activeTab, search, statusFilter, selectedAgent.value]);
 
   const openTicketView = (row: Record<string, any>) => {
     const ticketId =
@@ -161,12 +240,27 @@ const AssignedItemRepairPage = () => {
     });
   };
 
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-white px-4 py-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[18px] font-medium text-slate-900">Assign Item For Repair</h1>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAgentModalOpen(true)}
+            className="inline-flex h-[34px] max-w-[210px] items-center gap-2 rounded-md border border-sky-300 bg-sky-50 px-3 text-sm text-slate-700 hover:bg-sky-100"
+          >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-300 text-xs font-semibold text-slate-800">
+              {(selectedAgent.label[0] || "A").toUpperCase()}
+            </span>
+            <span className="truncate">
+              {selectedAgent.label}
+              {selectedAgent.role ? ` (${selectedAgent.role})` : ""}
+            </span>
+            <img src={profileSwitch} alt="" className="ml-auto h-4 w-4" />
+          </button>
           <div className="w-full max-w-[220px]">
             <Input
               allowClear
@@ -177,27 +271,67 @@ const AssignedItemRepairPage = () => {
               className="h-[34px]"
             />
           </div>
-          <button
-            type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-            aria-label="Filter"
-          >
-            <FilterOutlined />
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/item-repair/pending", {
-                state: {
-                  sessionPayload,
-                },
-              })
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            open={filterOpen}
+            onOpenChange={(open) => {
+              setDraftStatus(statusFilter);
+              setFilterOpen(open);
+            }}
+            content={
+              <div className="w-[330px]">
+                <div className="border-b border-slate-100 px-2 pb-3 text-base font-medium">
+                  Status
+                </div>
+                <div className="max-h-[390px] overflow-y-auto py-2">
+                  {repairStatusOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setDraftStatus(option.value)}
+                      className={`block w-full border-b border-slate-100 px-3 py-3 text-left text-sm ${
+                        draftStatus === option.value
+                          ? "bg-sky-500 text-white"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-3 border-t border-slate-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setFilterOpen(false)}
+                    className="rounded-md border border-emerald-500 px-5 py-2 text-sm text-emerald-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(draftStatus);
+                      setFilterOpen(false);
+                    }}
+                    className="rounded-md bg-emerald-500 px-5 py-2 text-sm text-white"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
             }
-            className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-600"
           >
-            <PlusOutlined className="mr-2 text-[12px]" />
-            Add New
-          </button>
+            <button
+              type="button"
+              aria-label="Filter assigned repair items by status"
+              className={`flex h-[34px] w-[34px] items-center justify-center rounded-md border ${
+                statusFilter ? "border-sky-400 bg-sky-50" : "border-slate-300 bg-white"
+              }`}
+            >
+              <img src={filterIcon} alt="" className="h-4 w-4" />
+            </button>
+          </Popover>
         </div>
       </div>
 
@@ -234,7 +368,7 @@ const AssignedItemRepairPage = () => {
       </div>
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-        <div className="grid grid-cols-[70px_90px_1.2fr_1.3fr_100px_100px_160px] gap-2 border-b border-slate-200 px-3 py-3 text-[12px] font-medium text-slate-900">
+        <div className="grid min-w-[880px] grid-cols-[60px_80px_1.1fr_1.2fr_90px_110px_100px_100px] gap-2 border-b border-slate-200 px-3 py-3 text-[12px] font-medium text-slate-900">
           <div>Srl No</div>
           <div>Ticket No</div>
           <div>Customer Name</div>
@@ -242,6 +376,7 @@ const AssignedItemRepairPage = () => {
           <div>Assign to</div>
           <div>Assigned on</div>
           <div>Status</div>
+          <div>Service Cost</div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden p-3">
@@ -262,7 +397,7 @@ const AssignedItemRepairPage = () => {
                         openTicketView(row);
                       }
                     }}
-                    className="grid grid-cols-[70px_90px_1.2fr_1.3fr_100px_100px_160px] gap-2 border-b border-slate-100 px-3 py-3 text-[12px] text-slate-700"
+                    className="grid min-w-[880px] grid-cols-[60px_80px_1.1fr_1.2fr_90px_110px_100px_100px] items-center gap-2 border-b border-slate-100 px-3 py-3 text-[12px] text-slate-700"
                   >
                     <div>
                       {currentPage > 0 ? (currentPage - 1) * pageSize + index + 1 : index + 1}
@@ -338,6 +473,17 @@ const AssignedItemRepairPage = () => {
                         ) || "-"}
                       </span>
                     </div>
+                    <div>
+                      ₹{Number(
+                        getFieldValue(row, [
+                          "nServiceCost",
+                          "ServiceCost",
+                          "nVendorCharge",
+                          "VendorCharge",
+                          "nRepairCost",
+                        ]) || 0,
+                      ).toFixed(2)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -368,6 +514,34 @@ const AssignedItemRepairPage = () => {
           />
         </div>
       ) : null}
+
+      <AgentSelectorModal
+        open={agentModalOpen}
+        loading={linkedAgentQuery.isLoading || linkedAgentQuery.isFetching}
+        options={visibleLinkedAgents}
+        selectedValue={selectedAgent.value}
+        search={agentSearch}
+        expandedAgentId={expandedAgentId}
+        selfOption={{
+          label: currentAgentName,
+          value: currentAgentId,
+          role: "Self",
+          isSelf: true,
+        }}
+        onSearch={setAgentSearch}
+        onSelect={(agent) => {
+          setSelectedAgent(agent);
+          setAgentModalOpen(false);
+          setAgentSearch("");
+          setExpandedAgentId(null);
+        }}
+        onExpandedChange={setExpandedAgentId}
+        onClose={() => {
+          setAgentModalOpen(false);
+          setAgentSearch("");
+          setExpandedAgentId(null);
+        }}
+      />
     </div>
   );
 };

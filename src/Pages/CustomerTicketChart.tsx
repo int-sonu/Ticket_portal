@@ -8,6 +8,7 @@ import {
   type Plugin,
 } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
+import sourceArrowIcon from "../assets/Reports/Arrow.svg";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -121,7 +122,12 @@ const CustomerTicketChart = ({
       <div className="attended-mode-scrollbar flex w-full overflow-x-auto overflow-y-hidden text-sm">
         {modes.map((mode, index) => (
           <div key={mode.key} className={`relative flex min-w-[145px] flex-none items-center gap-3 px-4 py-4 ${index ? "border-l border-slate-200" : "after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-sky-300"}`}>
-            <span className="h-0 w-0 border-y-[6px] border-l-[9px] border-y-transparent border-l-[#2d6a8c]" aria-hidden="true" />
+            <img
+              src={sourceArrowIcon}
+              alt=""
+              className="h-[10px] w-2 shrink-0"
+              aria-hidden="true"
+            />
             <span className="text-[#2d6a8c]">{mode.name}</span>
             <strong className="ml-auto">: {mode.count}</strong>
           </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal, Spin, message } from "antd";
+import { Button, Modal, Radio, Spin, message } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,19 +10,22 @@ import { customerApis } from "../../Axios/MasterApis";
 import { ticketApis } from "../../Axios/TicketsApi";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
-import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
+import {
+  useGetCustomerAlternativeContacts,
+  useGetCustomerDropDown,
+} from "../Master/CustomerMaster/Hooks";
 import { useTicketView } from "../../Hooks/Ticket/useTicketQueries";
 import BillReadonlyView from "../Bills/BillReadonlyViewExact";
 import TicketOverviewSection from "../Ticket/TicketView/TicketOverviewSection";
 import CallReportHistoryModal from "./CallReportHistoryModal";
 import QuickCallReportModal from "../Ticket/Common/QuickCallReportModal";
-import shareIcon from "../../assets/icons/shareIcon.svg";
 import closeblack from "../../assets/icons/close-black.svg";
 import EngagementMode from "../../assets/icons/EngagementMode.svg";
 import calender from "../../assets/icons/calender.svg";
 import mail from "../../assets/icons/mail.svg";
 import phone from "../../assets/icons/phone.svg";
 import contact from "../../assets/icons/contact.svg";
+import shareIcon from "../../assets/icons/shareIcon.svg";
 
 const normalizeSingleRecord = (value: any) => {
   if (Array.isArray(value)) return value[0] ?? {};
@@ -50,19 +53,49 @@ const formatDisplayValue = (value: any): string => {
   return String(value);
 };
 
+const isTruthyFlag = (value: any) =>
+  value === true ||
+  value === 1 ||
+  ["true", "1", "yes", "y"].includes(
+    String(value ?? "").trim().toLowerCase(),
+  );
+
 const parseDateText = (value: any) => {
   const text = formatDisplayValue(value);
   if (!text) return "";
-  const exact = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*([AP]M))?$/);
-  if (!exact) return text;
-  const [, dd, mm, yyyy, hh = "0", min = "0", meridiem] = exact;
+  const exact = text.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?)?$/i,
+  );
+  if (!exact) {
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime())
+      ? text.replace(/,\s*/, " ")
+      : parsed.toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+  }
+  const [, dd, mm, yyyy, hh, min = "00", meridiem] = exact;
+  if (!hh) return `${dd}/${mm}/${yyyy}`;
   let hour = Number(hh);
-  const minute = Number(min);
   if (meridiem?.toUpperCase() === "PM" && hour < 12) hour += 12;
   if (meridiem?.toUpperCase() === "AM" && hour === 12) hour = 0;
-  const parsed = new Date(Number(yyyy), Number(mm) - 1, Number(dd), hour, minute, 0, 0);
-  return Number.isNaN(parsed.getTime()) ? text : parsed.toLocaleString("en-GB");
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${dd}/${mm}/${yyyy} ${String(displayHour).padStart(2, "0")}:${min} ${period}`;
 };
+
+const escapeHtml = (value: any) =>
+  String(value ?? "-")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const parseTicketDate = (value: any): number | null => {
   if (value instanceof Date) {
@@ -250,6 +283,11 @@ const CallReportViewPage = ({
     .includes("unbilled");
   const historySelectedRow = normalizeSingleRecord(state.selectedRow);
   const [worksheetEditOpen, setWorksheetEditOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareType, setShareType] = useState<"summary" | "detailed" | "pdf">(
+    "summary",
+  );
+  const [isSharing, setIsSharing] = useState(false);
   const [isNoNeedBillMode, setIsNoNeedBillMode] = useState(false);
   const [nestedCallReportState, setNestedCallReportState] = useState<Record<string, any> | null>(
     null,
@@ -618,7 +656,7 @@ const CallReportViewPage = ({
     [ticketViewData],
   );
 
-  const backendNoNeedBillFlag = Boolean(
+  const backendNoNeedBillFlag = isTruthyFlag(
     viewData?.bNoNeedBill ??
       viewData?.NoNeedBill ??
       viewData?.IsNoNeedBill ??
@@ -779,6 +817,26 @@ const CallReportViewPage = ({
       "customerContacts",
     ]) || [],
   );
+  const alternativeContactPayload = useMemo(
+    () => ({
+      ...requestPayload,
+      nCustomerId: ticketViewCustomerId,
+      CustomerId: ticketViewCustomerId,
+      customerId: ticketViewCustomerId,
+    }),
+    [requestPayload, ticketViewCustomerId],
+  );
+  const { data: alternativeContactsResponse } =
+    useGetCustomerAlternativeContacts(
+      alternativeContactPayload,
+      !!ticketViewCustomerId,
+    );
+  const resolvedAlternativeContacts = useMemo(() => {
+    const dedicatedContacts = extractList(alternativeContactsResponse);
+    return dedicatedContacts.length
+      ? dedicatedContacts
+      : ticketViewAlternativeContacts;
+  }, [alternativeContactsResponse, ticketViewAlternativeContacts]);
   const billRequestPayload = useMemo(
     () => ({
       ...requestPayload,
@@ -853,18 +911,31 @@ const CallReportViewPage = ({
         "dScheduleDate",
       ]),
     ) || "";
+  const engagementMode =
+    worksheetDetails.cCallMode ||
+    worksheetDetails.cCallModeName ||
+    worksheetDetails.cCallreportMode ||
+    worksheetDetails.cCallreportModeName ||
+    historySelectedRow.cCallMode ||
+    historySelectedRow.cCallModeName ||
+    "-";
+  const followUpText =
+    parseDateText(
+      worksheetDetails.dNextFollowupDate ||
+        historySelectedRow.dNextFollowupDate ||
+        callreportSummary.dFollowupDate ||
+        "",
+    ) || "-";
+  const toDoText =
+    worksheetDetails.cToDo ||
+    historySelectedRow.cToDo ||
+    callreportSummary.cToDo ||
+    "-";
   const callReportInfoRows = [
     {
       label: "Mode of Engagement",
       icon: EngagementMode,
-      value:
-        worksheetDetails.cCallMode ||
-        worksheetDetails.cCallModeName ||
-        worksheetDetails.cCallreportMode ||
-        worksheetDetails.cCallreportModeName ||
-        historySelectedRow.cCallMode ||
-        historySelectedRow.cCallModeName ||
-        "-",
+      value: engagementMode,
     },
     { label: "Contact Person", icon: contact, value: contactPerson },
     { label: "Mobile No", icon: phone, value: contactNumber },
@@ -872,21 +943,11 @@ const CallReportViewPage = ({
     {
       label: "Follow Up",
       icon: calender,
-      value:
-        parseDateText(
-          worksheetDetails.dNextFollowupDate ||
-            historySelectedRow.dNextFollowupDate ||
-            callreportSummary.dFollowupDate ||
-            "",
-        ) || "-",
+      value: followUpText,
     },
     {
       label: "To Do",
-      value:
-        worksheetDetails.cToDo ||
-        historySelectedRow.cToDo ||
-        callreportSummary.cToDo ||
-        "-",
+      value: toDoText,
     },
   ];
 
@@ -1069,7 +1130,7 @@ const CallReportViewPage = ({
     nFollowUpId: callReportId,
     nWorksheetId: callReportId,
     WorksheetId: callReportId,
-    isFrom: "callreports",
+    isFrom: isUnbilledContext ? "unbilled" : "callreports",
   });
 
   const handleDoNotBillClick = () => {
@@ -1084,6 +1145,10 @@ const CallReportViewPage = ({
         try {
           await ticketApis.callReportUpdateNoNeedBill(buildNoNeedBillPayload());
           setIsNoNeedBillMode(true);
+          void queryClient.invalidateQueries({ queryKey: ["callreport-view"] });
+          void queryClient.invalidateQueries({
+            queryKey: ["unbilled-call-report-list"],
+          });
           message.success("Marked as Do Not Bill");
         } catch (error: any) {
           message.error(
@@ -1111,21 +1176,10 @@ const CallReportViewPage = ({
           await ticketApis.callReportUpdateNoNeedBill(buildRevertBillPayload());
           setIsNoNeedBillMode(false);
           void queryClient.invalidateQueries({ queryKey: ["callreport-view"] });
-          message.success("Bill state reverted");
-          const nextViewState = buildCallReportViewState();
-          try {
-            sessionStorage.setItem(
-              "ticket_portal_callreport_view_state",
-              JSON.stringify(nextViewState),
-            );
-          } catch {
-            // best effort only
-          }
-
-          navigate("/callreports/view", {
-            state: nextViewState,
-            replace: true,
+          void queryClient.invalidateQueries({
+            queryKey: ["unbilled-call-report-list"],
           });
+          message.success("Bill state reverted");
         } catch (error: any) {
           message.error(
             error?.response?.data?.message ||
@@ -1178,6 +1232,104 @@ const CallReportViewPage = ({
     navigate("/billsandreceipts/bills/add", { state: billPreviewState });
   };
 
+  const openPdfView = () => {
+    setShareOpen(false);
+    navigate("/tickets/sharecallreport", {
+      state: {
+        ...buildCallReportViewState(),
+        nCompanyId: requestPayload.nCompanyId,
+        cSchemaName: requestPayload.cSchemaName,
+        cDbName: requestPayload.cDbName,
+        customerName: ticketViewCustomerName,
+        contactPerson,
+        contactNumber: ticketViewContactNumber,
+        email: ticketViewEmail,
+        ticketNo: ticketViewTicketNo,
+        summary,
+        description,
+      },
+    });
+  };
+
+  const handleShareCallReport = async () => {
+    if (shareType === "pdf") {
+      openPdfView();
+      return;
+    }
+
+    if (!ticketViewEmail) {
+      message.error("Customer email is missing");
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      const informationLabel =
+        shareType === "summary"
+          ? "Call Report Summary Information"
+          : "Call Report Detailed Information";
+      const emailRows = [
+        ["Ticket Number", ticketViewTicketNo || "-"],
+        ["Ticket Date", parseDateText(ticketViewCreatedDate) || "-"],
+        ["Call Report Number", callReportId || "-"],
+        ["Call Report Date", parseDateText(callReportDateText) || "-"],
+        ["Customer Name", ticketViewCustomerName || "-"],
+        ["Contact Person", contactPerson || "-"],
+        ["Contact Number", ticketViewContactNumber || "-"],
+        ["Summary", summary || "-"],
+        ...(shareType === "detailed"
+          ? [
+              ["Description", description || "-"],
+              ["Mode of Engagement", engagementMode],
+              ["Email", ticketViewEmail || "-"],
+              ["Follow Up", followUpText],
+              ["To Do", toDoText],
+            ]
+          : []),
+        ["Status", ticketViewStatus || "-"],
+      ];
+      const emailBody = `
+        <div style="background:#f5f5fa;padding:20px;font-family:Arial,sans-serif;color:#222">
+          <div style="max-width:640px;margin:auto;background:#fff;padding:24px;border-radius:10px">
+            <h2 style="margin:0 0 22px;text-align:center;font-size:20px">Call Report Details</h2>
+            <div style="background:#f8f8f8;padding:20px;border-radius:8px">
+              ${emailRows
+                .map(
+                  ([label, value]) =>
+                    `<p style="margin:0 0 14px"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`,
+                )
+                .join("")}
+            </div>
+          </div>
+        </div>`;
+
+      await ticketApis.sendEstimateMail({
+        toEmail: ticketViewEmail,
+        subject: `${informationLabel} - Ticket No: ${ticketViewTicketNo || "-"}`,
+        body: emailBody,
+        attachmentUrl: "",
+        cType: shareType,
+        nAgentId: Number(
+          sessionPayload.nAgentId ?? sessionPayload.id ?? 0,
+        ),
+        nCompanyId: Number(requestPayload.nCompanyId ?? 0),
+        cSchemaName: String(requestPayload.cSchemaName ?? ""),
+        cDbName: String(requestPayload.cDbName ?? ""),
+      });
+
+      message.success(`${informationLabel} sent successfully`);
+      setShareOpen(false);
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to share call report",
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div
       className={`flex w-full flex-col ${
@@ -1205,14 +1357,20 @@ const CallReportViewPage = ({
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 px-3">
-                <button
-                  type="button"
-                  aria-label="Share call report"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
-                >
-                  <img src={shareIcon} alt="" className="h-5 w-5" aria-hidden="true" />
-                </button>
+              <div className="flex items-center px-3">
+                {isUnbilledContext ? (
+                  <button
+                    type="button"
+                    aria-label="Share call report"
+                    onClick={() => {
+                      setShareType("summary");
+                      setShareOpen(true);
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100"
+                  >
+                    <img src={shareIcon} alt="" className="h-4 w-4" />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   aria-label="Close"
@@ -1323,7 +1481,7 @@ const CallReportViewPage = ({
                     attachments={ticketViewAttachments}
                     attachmentsLoading={isTicketViewLoading}
                     createdByTeam={ticketViewCreatedByTeam}
-                    alternativeContacts={ticketViewAlternativeContacts}
+                    alternativeContacts={resolvedAlternativeContacts}
                     assignedTo={ticketViewAssignedTo}
                     assignAgentNames={ticketViewAssignAgentNames}
                     previousCallReport={null}
@@ -1410,7 +1568,7 @@ const CallReportViewPage = ({
                   attachments={ticketViewAttachments}
                   attachmentsLoading={isTicketViewLoading}
                   createdByTeam={ticketViewCreatedByTeam}
-                  alternativeContacts={ticketViewAlternativeContacts}
+                  alternativeContacts={resolvedAlternativeContacts}
                   assignedTo={ticketViewAssignedTo}
                   assignAgentNames={ticketViewAssignAgentNames}
                   previousCallReport={null}
@@ -1508,6 +1666,54 @@ const CallReportViewPage = ({
       drawerWidth={560}
       onSaved={handleWorksheetEditSaved}
     />
+      <Modal
+        open={shareOpen}
+        onCancel={() => setShareOpen(false)}
+        footer={null}
+        centered
+        width={400}
+        destroyOnClose
+        title="Choose a type of information"
+      >
+        <div className="border-t border-slate-200 pt-4">
+          <p className="mb-3 text-sm text-slate-700">
+            Please choose a type of ticket information to share
+          </p>
+          <Radio.Group
+            value={shareType}
+            onChange={(event) => setShareType(event.target.value)}
+            className="flex flex-col gap-3"
+          >
+            <Radio value="summary">Summary information</Radio>
+            <Radio value="detailed">Detailed Information</Radio>
+            <Radio value="pdf">Share PDF</Radio>
+          </Radio.Group>
+
+          {shareType === "pdf" ? (
+            <div className="mt-3 text-right">
+              <button
+                type="button"
+                onClick={openPdfView}
+                className="text-sm text-sky-600 underline"
+              >
+                View PDF
+              </button>
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button onClick={() => setShareOpen(false)}>Cancel</Button>
+            <Button
+              type="primary"
+              loading={isSharing}
+              onClick={handleShareCallReport}
+              className="!border-emerald-500 !bg-emerald-500"
+            >
+              Ok
+            </Button>
+          </div>
+        </div>
+      </Modal>
   </div>
   );
 };

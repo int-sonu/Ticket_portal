@@ -658,6 +658,16 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   overflow: visible;
 }
 
+.ticket-create-grid > *,
+.ticket-create-form,
+.ticket-create-right .ant-form-item,
+.ticket-create-right .ant-upload-wrapper,
+.ticket-create-right .ant-upload,
+.ticket-create-right .ant-upload-select {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .ticket-create-grid--ticket {
   gap: 0;
 }
@@ -673,6 +683,17 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 @media (max-width: 992px) {
   .ticket-create-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ticket-create-left {
+    border-right: 0 !important;
+    padding-inline: 12px !important;
+  }
+
+  .ticket-create-right {
+    border-top: 1px solid #e2e8f0;
+    padding-inline: 12px !important;
+    padding-top: 12px;
   }
 }
 
@@ -693,7 +714,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .ticket-upload-btn {
-  width: 398%;
+  width: 100%;
   min-width: 0;
   border-color: #0284c7 !important;
   color: #0284c7 !important;
@@ -701,6 +722,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   border-radius: 3px !important;
   display: flex;
   justify-content: center;
+}
+
+.ticket-create-right .ant-upload-wrapper,
+.ticket-create-right .ant-upload,
+.ticket-create-right .ant-upload-select {
+  display: block;
+  width: 100%;
 }
 
 .ticket-right-actions {
@@ -1584,9 +1612,9 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   }
 
   .ticket-create-header {
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 6px;
+    padding-inline: 8px;
   }
 
   .ticket-create-header h2 {
@@ -1603,6 +1631,25 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
   .ticket-create-grid {
     overflow: visible;
+  }
+
+  .ticket-followup-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ticket-followup-row > .ant-form-item {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  .ticket-followup-row > .ant-form-item:last-child {
+    align-self: flex-start;
+    padding-top: 0 !important;
+  }
+
+  .customer-tickets-page {
+    height: calc(100dvh - 72px) !important;
   }
 
   .ticket-right-actions {
@@ -1628,7 +1675,22 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   }
 }
 
+.quick-call-simple-drawer .ant-drawer-body {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 @media (max-width: 576px) {
+  .quick-call-simple-drawer {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
+  .quick-call-simple-drawer .ant-drawer-body {
+    padding: 14px !important;
+  }
+
   .quick-call-drawer .ant-drawer-content-wrapper {
     width: 100vw !important;
     max-width: 100vw !important;
@@ -1714,6 +1776,10 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 .followup-date-trigger .ant-input-affix-wrapper {
+  width: 100%;
+}
+
+.quick-call-drawer .followup-date-trigger {
   width: 100%;
 }
 

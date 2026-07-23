@@ -1,5 +1,6 @@
-import { Fragment, MouseEvent, useMemo, useRef, useState } from "react";
-import { Popover, Spin, Empty } from "antd";
+import { Fragment, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import { Popover, Radio, Spin, Empty } from "antd";
 import dayjs from "dayjs";
 import { useAgentAvailability } from "./AgentAvailabilityHooks";
 import { getRequestPayload } from "../../Utils/requestPayload";
@@ -16,19 +17,19 @@ const AgentAvailabilityPage = () => {
   const [scrollLeft, setScrollLeft] = useState(0);
 
   const payload = useMemo(() => {
-    const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
+    const { nCompanyId, nAgentId, id, cSchemaName, cDbName } = getRequestPayload();
     // Default to next 7 days for the view (or as provided by API)
     const dFromDate = dayjs().format("YYYY/MM/DD");
     const dToDate = dayjs().add(6, "day").format("YYYY/MM/DD");
 
     return {
       nCompanyId,
+      nAgentId: Number(nAgentId ?? id) || 0,
       cSchemaName,
       cDbName,
-      bDateFilter: true,
+      bDateRange: true,
       dFromDate,
       dToDate,
-      cGroupName: filterGroup || undefined,
     };
   }, [filterGroup]);
 
@@ -50,6 +51,25 @@ const AgentAvailabilityPage = () => {
     });
     return Array.from(groups).sort();
   }, [agentList]);
+  const displayedAgents = useMemo(
+    () =>
+      filterGroup
+        ? agentList.filter(
+            (agent) =>
+              text(
+                getValue(agent, [
+                  "cGroupName",
+                  "GroupName",
+                  "cGroup",
+                  "Group",
+                  "cService",
+                  "Service",
+                ]),
+              ).toLowerCase() === filterGroup.toLowerCase(),
+          )
+        : agentList,
+    [agentList, filterGroup],
+  );
 
   // Determine dynamic date columns from data, or fallback to generated dates
   const dateColumns = useMemo(() => {
@@ -109,13 +129,16 @@ const AgentAvailabilityPage = () => {
         <div className="mb-3 text-sm font-medium text-slate-700">Group</div>
         <div className="max-h-[170px] overflow-y-auto pr-1">
           <Radio.Group
-            value={draftGroup || "Development"}
+            value={draftGroup}
             onChange={(event) => setDraftGroup(event.target.value)}
             className="flex flex-col gap-3"
           >
-            <Radio value="Development" className="text-sm text-slate-600">
-              Development
-            </Radio>
+            <Radio value="" className="text-sm text-slate-600">All Groups</Radio>
+            {availableGroups.map((group) => (
+              <Radio key={group} value={group} className="text-sm text-slate-600">
+                {group}
+              </Radio>
+            ))}
           </Radio.Group>
         </div>
       </div>
@@ -191,16 +214,16 @@ const AgentAvailabilityPage = () => {
             ))}
 
             {/* Table Body */}
-            {isFetching && agentList.length === 0 ? (
+            {isFetching && displayedAgents.length === 0 ? (
               <div className="col-span-full flex h-40 items-center justify-center">
                 <Spin />
               </div>
-            ) : agentList.length === 0 ? (
+            ) : displayedAgents.length === 0 ? (
               <div className="col-span-full flex h-40 items-center justify-center">
                 <Empty description="No agents found" />
               </div>
             ) : (
-              agentList.map((agent, index) => {
+              displayedAgents.map((agent, index) => {
                 const name = text(
                   getValue(agent, ["cAgentName", "AgentName", "cName", "Name"]),
                   `Agent ${index + 1}`,

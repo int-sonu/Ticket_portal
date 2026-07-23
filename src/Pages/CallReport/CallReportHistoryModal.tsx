@@ -51,15 +51,18 @@ const getFieldValue = (record: Record<string, any>, keys: string[]) => {
 const parseDateText = (value: any) => {
   const text = formatDisplayValue(value);
   if (!text) return "";
-  const exact = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*([AP]M))?$/);
-  if (!exact) return text;
-  const [, dd, mm, yyyy, hh = "0", min = "0", meridiem] = exact;
+  const exact = text.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?)?$/i,
+  );
+  if (!exact) return text.replace(/,\s*/, " ");
+  const [, dd, mm, yyyy, hh, min = "00", meridiem] = exact;
+  if (!hh) return `${dd}/${mm}/${yyyy}`;
   let hour = Number(hh);
-  const minute = Number(min);
   if (meridiem?.toUpperCase() === "PM" && hour < 12) hour += 12;
   if (meridiem?.toUpperCase() === "AM" && hour === 12) hour = 0;
-  const parsed = new Date(Number(yyyy), Number(mm) - 1, Number(dd), hour, minute, 0, 0);
-  return Number.isNaN(parsed.getTime()) ? text : parsed.toLocaleString("en-GB");
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${dd}/${mm}/${yyyy} ${String(displayHour).padStart(2, "0")}:${min} ${period}`;
 };
 
 const CallReportHistoryModal = ({ record, onClose }: CallReportHistoryModalProps) => {

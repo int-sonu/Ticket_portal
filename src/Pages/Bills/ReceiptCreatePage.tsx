@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Empty, Input, InputNumber, Spin, message } from "antd";
-import { CloseOutlined, UserOutlined } from "@ant-design/icons";
+import { CloseOutlined, FileTextOutlined, UserOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { billingApis } from "../../Axios/BillingApis";
@@ -67,6 +67,19 @@ const formatDateValue = (value: any) => {
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return text;
   return parsed.toLocaleDateString("en-GB");
+};
+
+const formatDateTimeValue = (value: Date | string | number) => {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value ?? "");
+
+  const date = parsed.toLocaleDateString("en-GB").replace(/\//g, "-");
+  const time = parsed.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${date} ${time}`;
 };
 
 const formatAmount = (value: any) => {
@@ -273,7 +286,7 @@ const ReceiptCreatePage = () => {
     }
   }, [receiptState]);
 
-  const currentDateTime = new Date().toLocaleString();
+  const currentDateTime = formatDateTimeValue(new Date());
 
   const totalOutstanding = useMemo(() => {
     return outstandingRows.reduce((sum, row) => {
@@ -305,14 +318,14 @@ const ReceiptCreatePage = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <div className="flex items-center justify-between bg-[#dcebf5] px-3 py-1 text-[11px] text-slate-600">
-        <div />
+      <div className="flex items-center justify-between bg-white px-4 py-3 text-[14px] text-slate-900">
+        <div className="text-xl font-medium">Receipts</div>
         <div className="flex items-center gap-3">
           <span>{currentDateTime}</span>
           <button
             type="button"
             onClick={() => navigate("/receipts", { replace: true })}
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-700 hover:bg-white/70"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-900 hover:bg-slate-100"
             aria-label="Close receipt page"
           >
             <CloseOutlined className="text-sm" />
@@ -320,14 +333,15 @@ const ReceiptCreatePage = () => {
         </div>
       </div>
 
-      <div className="mx-2 mt-2 rounded border border-sky-100 bg-[#eef6fd] text-[11px] text-slate-700">
+      <div className="mx-3 mt-1 rounded-md border border-sky-200 bg-[#eaf5fc] text-[14px] text-slate-700">
         <div className="grid grid-cols-1 gap-0 md:grid-cols-[1fr_1fr]">
-          <div className="flex items-center gap-2 whitespace-nowrap border-b border-sky-100 px-2 py-1 md:border-b-0 md:border-r">
+          <div className="flex items-center gap-3 whitespace-nowrap border-b border-sky-100 px-3 py-3 md:border-b-0 md:border-r">
+            <FileTextOutlined className="text-lg text-slate-700" />
             <span className="text-slate-900">Receipt No :</span>
             <span className="font-medium text-slate-700">{receiptNo}</span>
           </div>
-          <div className="flex items-center gap-2 whitespace-nowrap px-2 py-1">
-            <UserOutlined className="text-slate-600" />
+          <div className="flex items-center gap-3 whitespace-nowrap px-3 py-3">
+            <UserOutlined className="text-lg text-slate-700" />
             <span className="text-slate-900">Customer Name :</span>
             <span className="truncate font-medium text-slate-700">{customerName}</span>
           </div>

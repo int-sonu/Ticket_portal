@@ -116,6 +116,11 @@ export const useTicketMutations = () => {
     onSuccess: refreshTickets,
   });
 
+  const worksheetCallReportSave = useMutation({
+    mutationFn: ticketApis.callReportWorksheetSave,
+    onSuccess: refreshTickets,
+  });
+
   return {
     createTicket,
     updateTicket,
@@ -141,6 +146,7 @@ export const useTicketMutations = () => {
     updateTicketStatus,
 
     quickCallReportSave,
+    worksheetCallReportSave,
 
   };
 };

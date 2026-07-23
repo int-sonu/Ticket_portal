@@ -16,6 +16,9 @@ const normalizeAssignedItemRepairPayload = (payload: ItemRepairPayload = {}) => 
 
   return {
     ...payload,
+    nAssignedByAgentId: Number(
+      payload?.nAssignedByAgentId ?? creatorId,
+    ) || 0,
     nCreatedBy: Number(creatorId) || 0,
     nCreatedby: Number(creatorId) || 0,
     createdBy: Number(creatorId) || 0,
@@ -45,10 +48,29 @@ export const itemRepairApis = {
     return response.data;
   },
 
+  itemRepairActionUpdate: async (payload: FormData) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/ItemRepair/ItemRepairActionUpdate",
+      payload,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+
+    return response.data;
+  },
+
+  itemRepairActionDelete: async (payload: ItemRepairPayload) => {
+    const response = await axiosInstance.delete(
+      "/Api/V1/ItemRepair/ItemRepairActionDelete",
+      { data: payload },
+    );
+
+    return response.data;
+  },
+
   repairItemActivityList: async (payload: ItemRepairPayload) => {
     const response = await axiosInstance.post(
-      "/Api/V1/ItemRepair/AssignedItemRepairListByCreator",
-      normalizeAssignedItemRepairPayload(payload),
+      "/Api/V1/ItemRepair/AssignedItemRepairList",
+      payload,
     );
 
     return response.data;
@@ -56,8 +78,8 @@ export const itemRepairApis = {
 
   repairItemFinishedList: async (payload: ItemRepairPayload) => {
     const response = await axiosInstance.post(
-      "/Api/V1/ItemRepair/AssignedItemRepairFinishedListByCreator",
-      normalizeAssignedItemRepairPayload(payload),
+      "/Api/V1/ItemRepair/AssignedItemRepairFinishedList",
+      payload,
     );
 
     return response.data;

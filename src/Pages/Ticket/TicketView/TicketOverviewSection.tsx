@@ -2,13 +2,14 @@ import { EditOutlined } from "@ant-design/icons";
 import { Empty, Image, Spin } from "antd";
 import { useRef } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
 import clockGreenIcon from "../../../assets/icons/clock-green.svg";
 import addressIcon from "../../../assets/icons/AddressIcon.svg";
 import assetIcon from "../../../assets/icons/Asseticon.svg";
 import calendarIcon from "../../../assets/icons/calenderiCon.svg";
 import groupIcon from "../../../assets/icons/GroupIcon.svg";
-import phoneIcon from "../../../assets/icons/PhoneIcon.svg";
+import phoneBlueIcon from "../../../assets/icons/PhoneBlueIcon.svg";
 import serviceTypeIcon from "../../../assets/icons/servicetypeicon.svg";
 import ticketSmallIcon from "../../../assets/icons/ticketSmallIcon.svg";
 import TicketHistory from "../TicketHistory/TicketHistory";
@@ -110,6 +111,19 @@ const TicketOverviewSection = ({
   onOpenCallReport,
 }: TicketOverviewSectionProps) => {
   const filesRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+
+  const openCustomerTickets = () => {
+    if (!customerId && !customerName) return;
+
+    navigate("/tickets/customertickets", {
+      state: {
+        customerId,
+        customerName,
+        returnTo: `/tickets/view/${ticketId}`,
+      },
+    });
+  };
 
   const getAttachmentPreview = (file: any) =>
     file?.url ??
@@ -255,9 +269,13 @@ const TicketOverviewSection = ({
               </div>
               <div className="flex items-center justify-between gap-4 rounded-lg bg-sky-50 p-3">
                 <div className="min-w-0">
-                  <div className="text-base font-semibold text-slate-900">
+                  <button
+                    type="button"
+                    onClick={openCustomerTickets}
+                    className="text-left text-base font-semibold text-sky-700 hover:text-sky-800 hover:underline"
+                  >
                     {customerName || "-"}
-                  </div>
+                  </button>
                   <div className="mt-0.5 text-sm text-slate-600">
                     {contactNumber || "-"}
                   </div>
@@ -265,13 +283,13 @@ const TicketOverviewSection = ({
                 </div>
                 <button
                   type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500 text-white shadow-sm"
                   aria-label="Call contact"
                 >
                   <img
-                    src={phoneIcon}
+                    src={phoneBlueIcon}
                     alt=""
-                    className="h-5 w-5"
+                    className="h-6 w-6"
                     style={{ filter: "invert(1) brightness(10)" }}
                   />
                 </button>
@@ -328,13 +346,13 @@ const TicketOverviewSection = ({
                         </div>
                         <button
                           type="button"
-                          className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm"
+                          className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500 text-white shadow-sm"
                           aria-label="Call alternative contact"
                         >
                           <img
-                            src={phoneIcon}
+                            src={phoneBlueIcon}
                             alt=""
-                            className="h-5 w-5"
+                            className="h-6 w-6"
                             style={{ filter: "invert(1) brightness(10)" }}
                           />
                         </button>
@@ -369,7 +387,7 @@ const TicketOverviewSection = ({
       </div>
 
       {showFollowUpAction ? (
-        <div className="mt-4 flex justify-end">
+        <div className="mt-auto flex justify-end pt-4">
           <button
             type="button"
             onClick={onFollowUpClick}
@@ -539,8 +557,8 @@ const TicketOverviewSection = ({
 
   return (
     <Spin spinning={isLoading}>
-      <div className="relative z-10 flex min-h-0 w-full flex-col pb-3 sm:pb-5">
-        <div className="rounded-tl-2xl flex min-h-0 w-full flex-col bg-white pb-3">
+      <div className="relative z-10 flex h-full min-h-0 w-full flex-col pb-3 sm:pb-5">
+        <div className="rounded-tl-2xl flex min-h-0 w-full flex-1 flex-col bg-white pb-3">
           {showTabs ? (
             <div className="sticky top-0 z-30 flex w-full items-end rounded-tl-2xl rounded-tr-2xl border border-slate-200 bg-white">
               <button
@@ -583,7 +601,7 @@ const TicketOverviewSection = ({
             </div>
           ) : null}
 
-          <div className="relative z-0 min-h-0 w-full pt-0">
+          <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col pt-0">
             {activeTab !== "files" ? (
               <div className="border-b border-slate-200 px-4 py-3">
                 <div className="flex items-start justify-between gap-4">
@@ -591,9 +609,13 @@ const TicketOverviewSection = ({
                     <div className="text-lg font-semibold text-black">
                       Ticket No : {ticketNo || "N/A"}
                     </div>
-                    <div className="text-lg font-semibold text-black">
+                    <button
+                      type="button"
+                      onClick={openCustomerTickets}
+                      className="block text-left text-lg font-semibold text-sky-700 hover:text-sky-800 hover:underline"
+                    >
                       {customerName || "-"}
-                    </div>
+                    </button>
                     <div className="text-base text-black">{summary || "-"}</div>
                     <div className="text-sm text-slate-700">
                       Description : {description || "-"}
@@ -639,7 +661,7 @@ const TicketOverviewSection = ({
               </div>
             ) : null}
 
-            <div className="relative z-0 min-h-0 w-full flex-1 py-3 pr-4">
+            <div className="relative z-0 flex min-h-0 w-full flex-1 flex-col py-3 pr-4">
               {activeTab === "details"
                 ? (detailsContent ?? defaultDetailsContent)
                 : activeTab === "history"

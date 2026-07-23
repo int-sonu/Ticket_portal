@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Dropdown, Input, Modal, Select, message } from "antd";
+import { createPortal } from "react-dom";
+import { Button, Dropdown, Input, InputNumber, Modal, Select, message } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -48,6 +50,7 @@ import ShareTicketModal from "../Common/ShareTicketModal";
 import FollowupModal from "../Common/FollowupPostponeModal";
 import AssignTicketModal from "../Common/AssignTicketModal";
 import { useTicketActions } from "../../../Hooks/Ticket/useTicketActions";
+import { itemRepairApis } from "../../../Axios/ItemRepairApis";
 const MERGE_BANNER_STORAGE_KEY = "ticket_portal_merge_banner";
 const WORKFLOW_STORAGE_PREFIX = "ticket_portal_workflow_state";
 const BILL_PREVIEW_STORAGE_KEY = "ticket_portal_bill_preview_state";
@@ -225,6 +228,26 @@ const formatRepairDateLabel = (value: any) => {
   const meridiem = hours24 >= 12 ? "PM" : "AM";
 
   return `${day} ${month} ${year} ${hours12}:${minutes} ${meridiem}`;
+};
+
+const formatFollowupDateTime = (value: any) => {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+
+  const slashDate = text.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[,\s]+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?)?$/i,
+  );
+  if (slashDate) {
+    const [, day, month, year, hour, minute, meridiem] = slashDate;
+    const datePart = `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    if (!hour || !minute) return datePart;
+    return `${datePart} ${hour.padStart(2, "0")}:${minute} ${
+      meridiem?.toUpperCase() || ""
+    }`.trim();
+  }
+
+  const parsed = dayjs(text);
+  return parsed.isValid() ? parsed.format("DD/MM/YYYY hh:mm A") : text;
 };
 
 const isCallReportHistoryItem = (item: Record<string, any>) => {
@@ -1051,7 +1074,8 @@ const TicketView = () => {
       ? "Follow Up"
       : "Ticket";
 
-  const showFollowupAction = state.isFrom === "followup";
+  const showFollowupAction = isFollowupContext || isFollowupPage;
+  const ticketContentRef = useRef<HTMLDivElement | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "history" | "files">(
     state.activeTab === "history" ||
       state.activeTab === "files" ||
@@ -1062,6 +1086,7 @@ const TicketView = () => {
   const [repairPanelTab, setRepairPanelTab] = useState<
     "activity" | "callReports"
   >("activity");
+
   const [quickCallOpen, setQuickCallOpen] = useState(
     Boolean(state.openQuickCall),
   );
@@ -1074,6 +1099,10 @@ const TicketView = () => {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferType, setTransferType] = useState<"agent" | "vendor">("agent");
   const [repairStatusOpen, setRepairStatusOpen] = useState(false);
+  const [repairActivityEditOpen, setRepairActivityEditOpen] = useState(false);
+  const [repairActivityEditing, setRepairActivityEditing] = useState<Record<string, any> | null>(null);
+  const [repairActivityCost, setRepairActivityCost] = useState<number>(0);
+  const [repairActivityComment, setRepairActivityComment] = useState("");
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [estimateOpen, setEstimateOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -1123,6 +1152,11 @@ const TicketView = () => {
       selectedRow?.ticketId ??
       0,
   );
+
+  useEffect(() => {
+    ticketContentRef.current?.scrollTo({ top: 0 });
+  }, [activeTab, ticketId]);
+
   const workflowStorageKey = ticketId
     ? `${WORKFLOW_STORAGE_PREFIX}:${ticketId}`
     : "";
@@ -1629,6 +1663,91 @@ const TicketView = () => {
 
     return historyItems;
   }, [historyItems, repairItemActivityData, resolvedRecord]);
+  const openRepairActivityEdit = (item: Record<string, any>) => {
+    setRepairActivityEditing(item);
+    setRepairActivityCost(
+      Number(
+        getFieldValue(item, [
+          "nVendorCharge",
+          "VendorCharge",
+          "nServiceCost",
+          "ServiceCost",
+          "nRepairCost",
+        ]) || 0,
+      ),
+    );
+    setRepairActivityComment(
+      formatDisplayValue(
+        getFieldValue(item, ["cComment", "Comment", "cRemarks", "Remarks", "cDescription"]),
+      ),
+    );
+    setRepairActivityEditOpen(true);
+  };
+  const saveRepairActivityEdit = async () => {
+    if (!repairActivityEditing) return;
+    const formData = new FormData();
+    const field = (name: string, keys: string[], fallback: string | number = 0) => {
+      formData.append(name, String(getFieldValue(repairActivityEditing, keys) || fallback));
+    };
+    field("nRepairActivityId", ["nRepairActivityId", "RepairActivityId", "nRepairId"]);
+    field("nCallPartId", ["nCallPartId", "CallPartId", "nCallReportPartId"]);
+    formData.append("nCompanyId", String(sessionPayload.nCompanyId || 0));
+    field("nRepairStatus", ["nRepairStatus", "RepairStatusId", "nStatus"]);
+    field("nAgentId", ["nAgentId", "AgentId", "nAssignedAgentId"]);
+    field("nVendorId", ["nVendorId", "VendorId"]);
+    field("nPartId", ["nPartId", "PartId"]);
+    formData.append("nVendorCharge", String(repairActivityCost || 0));
+    formData.append("cComment", repairActivityComment.trim());
+    formData.append("cDeleteAttachmentIds", "");
+    formData.append(
+      "nModifiedBy",
+      String(sessionPayload.id ?? sessionPayload.nAgentId ?? 0),
+    );
+    const expectedDate = getFieldValue(repairActivityEditing, [
+      "dExpectedCompletionDate",
+      "ExpectedCompletionDate",
+    ]);
+    if (expectedDate) formData.append("dExpectedCompletionDate", String(expectedDate));
+    formData.append("cSchemaName", String(sessionPayload.cSchemaName ?? ""));
+    formData.append("cDbName", String(sessionPayload.cDbName ?? ""));
+
+    await itemRepairApis.itemRepairActionUpdate(formData);
+    message.success("Repair activity updated successfully.");
+    setRepairActivityEditOpen(false);
+    setRepairActivityEditing(null);
+    await queryClient.invalidateQueries({ queryKey: ["repair-item-activity-list"] });
+    await queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+  };
+  const deleteRepairActivity = (item: Record<string, any>) => {
+    const repairActivityId =
+      Number(getFieldValue(item, ["nRepairActivityId", "RepairActivityId", "nRepairId"])) || 0;
+    const callPartId =
+      Number(getFieldValue(item, ["nCallPartId", "CallPartId", "nCallReportPartId"])) || 0;
+    if (!repairActivityId || !callPartId) {
+      message.error("Repair activity details are missing.");
+      return;
+    }
+    Modal.confirm({
+      title: "Are you sure?",
+      content: "Do you want to delete these records? This process cannot be undone.",
+      okText: "Delete",
+      cancelText: "Cancel",
+      centered: true,
+      onOk: async () => {
+        await itemRepairApis.itemRepairActionDelete({
+          nRepairActivityId: repairActivityId,
+          nCallPartId: callPartId,
+          nCompanyId: sessionPayload.nCompanyId,
+          nDeletedBy: sessionPayload.id ?? sessionPayload.nAgentId ?? 0,
+          cSchemaName: sessionPayload.cSchemaName,
+          cDbName: sessionPayload.cDbName,
+        });
+        message.success("Repair activity deleted successfully.");
+        await queryClient.invalidateQueries({ queryKey: ["repair-item-activity-list"] });
+        await queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
+      },
+    });
+  };
   const latestShareHistoryRecordId = useMemo(() => {
     const reversedItems = [...historyItems].reverse();
 
@@ -1743,7 +1862,7 @@ const TicketView = () => {
       "dScheduleDate",
     ]),
   );
-  const followupDate = formatDisplayValue(
+  const followupDate = formatFollowupDateTime(
     getFieldValue(resolvedRecord, [
      
       "dFollowupDate",
@@ -2799,31 +2918,25 @@ const TicketView = () => {
       repairPanelTab === "callReports"
         ? repairCallReportItems
         : repairActivityItems;
+    const repairCommentKeys = [
+          "Comment",
+          "Remarks",
+          "Remark",
+          "Description",
+          "cComment",
+          "cRemarks",
+          "cRemark",
+          "cDescription",
+        ];
     const repairComment =
-      formatDisplayValue(
-        getFieldValue(resolvedRecord, [
-          "Comment",
-          "Remarks",
-          "Remark",
-          "cComment",
-          "cRemarks",
-          "cRemark",
-        ]),
-      ) ||
-      formatDisplayValue(
-        getFieldValue(repairActivityItems[0] ?? {}, [
-          "Comment",
-          "Remarks",
-          "Remark",
-          "cComment",
-          "cRemarks",
-          "cRemark",
-        ]),
-      ) ||
+      formatDisplayValue(getFieldValue(resolvedRecord, repairCommentKeys)) ||
+      repairActivityItems
+        .map((item) => formatDisplayValue(getFieldValue(item, repairCommentKeys)))
+        .find(Boolean) ||
       "-";
 
     return (
-      <TicketPageShell contentClassName="relative flex h-5 min-h-0 flex-col overflow-hidden">
+      <TicketPageShell contentClassName="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
         <div className="flex w-full items-center justify-between px-0 pb-2 pt-0">
           <h1 className="text-2xl font-medium leading-none text-slate-900">
             Item Details
@@ -2966,12 +3079,15 @@ const TicketView = () => {
                         const isTransferEntry =
                           normalizeText(title).includes("transfer") ||
                           normalizeText(title).includes("vendor");
+                        const isServiceCostEntry =
+                          normalizeText(title).includes("service cost") ||
+                          normalizeText(title).includes("cost estimate");
                         const actorLabel = isAssignedEntry
                           ? "Assigned to :"
                           : isTransferEntry
                             ? "Vendor Name :"
                             : "";
-                        const showActions = index === 0 && isAssignedEntry;
+                        const showActions = isTransferEntry || isServiceCostEntry;
                         const dateText = formatRepairDateLabel(
                           getFieldValue(item, [
                             ...(isAssignedEntry
@@ -3014,6 +3130,7 @@ const TicketView = () => {
                                   <button
                                     type="button"
                                     aria-label="Edit timeline entry"
+                                    onClick={() => openRepairActivityEdit(item)}
                                     className="inline-flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-slate-100"
                                   >
                                     <img src={editBlackIcon} alt="" className="h-[15px] w-[15px]" />
@@ -3021,6 +3138,7 @@ const TicketView = () => {
                                   <button
                                     type="button"
                                     aria-label="Delete timeline entry"
+                                    onClick={() => deleteRepairActivity(item)}
                                     className="inline-flex h-5 w-5 items-center justify-center rounded-full transition hover:bg-red-50"
                                   >
                                     <img src={deleteRedIcon} alt="" className="h-[15px] w-[15px]" />
@@ -3062,11 +3180,25 @@ const TicketView = () => {
           <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-4 py-3">
             <button
               type="button"
-              onClick={() => setEstimateOpen(true)}
+              onClick={() =>
+                navigate("/tickets/estimate", {
+                  state: {
+                    ticketId,
+                    nTicketId: ticketId,
+                    customerId,
+                    nCustomerId: customerId,
+                    customerName,
+                    historyId: estimateHistoryId,
+                    sessionPayload,
+                    returnTo: location.pathname,
+                    returnState: location.state,
+                  },
+                })
+              }
               className="inline-flex items-center gap-2 rounded-md border border-emerald-500 px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
             >
               <img src={EstimateIcon} alt="" className="h-5 w-5" />
-              Estimate
+              Cost Estimate
             </button>
             <Dropdown
               trigger={["click"]}
@@ -3122,6 +3254,40 @@ const TicketView = () => {
           skipAmcWarningOnSave
           onSaved={handleCallReportSaved}
         />
+        <Modal
+          title="Edit Repair Activity"
+          open={repairActivityEditOpen}
+          onCancel={() => {
+            setRepairActivityEditOpen(false);
+            setRepairActivityEditing(null);
+          }}
+          onOk={saveRepairActivityEdit}
+          okText="Save"
+          centered
+          okButtonProps={{ className: "bg-emerald-500" }}
+        >
+          <div className="space-y-4 pt-2">
+            <label className="block">
+              <span className="mb-1 block text-sm text-slate-700">Service Cost</span>
+              <InputNumber
+                min={0}
+                precision={2}
+                value={repairActivityCost}
+                onChange={(value) => setRepairActivityCost(Number(value) || 0)}
+                className="w-full"
+                prefix="₹"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm text-slate-700">Comment</span>
+              <Input.TextArea
+                rows={4}
+                value={repairActivityComment}
+                onChange={(event) => setRepairActivityComment(event.target.value)}
+              />
+            </label>
+          </div>
+        </Modal>
         <TransferTicketModal
           open={transferOpen}
           ticketId={ticketId}
@@ -3190,10 +3356,10 @@ const TicketView = () => {
   }
 
   return (
-    <TicketPageShell contentClassName="relative flex h-5 min-h-0 flex-col overflow-hidden">
+    <TicketPageShell contentClassName="relative flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex w-full items-center justify-between px-0 pb-2 pt-0">
         <h1 className="text-2xl font-medium leading-none text-slate-900">
-          {pageHeading}
+          {isFollowupContext ? null : pageHeading}
         </h1>
 
         <div className="flex items-center gap-3">
@@ -3262,6 +3428,7 @@ const TicketView = () => {
       ) : null}
 
       <div
+        ref={ticketContentRef}
         className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${
           activeTab === "files"
             ? "files-list-scrollbar"
@@ -3297,7 +3464,7 @@ const TicketView = () => {
           assignedTo={assignedAgentsText || createdByTeam}
           alternativeContacts={alternativeContacts}
           showFilesTab={showFilesTab}
-          showFilesInDetails={true}
+          showFilesInDetails={false}
           showAssetEditIcon={!isFollowupPage && !isFollowupContext}
           extraRows={detailRows}
           showFollowUpAction={showFollowupAction}
@@ -3309,6 +3476,7 @@ const TicketView = () => {
                 selectedRow: resolvedRecord,
                 followupSourceTicket: {
                   nTicketId: ticketId,
+                  nTicketNo: ticketNo,
                   cViewSummary: summary || description || "Follow up ticket",
                   summary: summary,
                   description: description,
@@ -3319,6 +3487,11 @@ const TicketView = () => {
                     "CustomerId",
                     "customerId",
                   ]),
+                  CustomerName: customerName,
+                  ContactPerson: getFieldValue(resolvedRecord, [
+                    "cContactPerson",
+                    "ContactPerson",
+                  ]),
                   ContactNo: contactNumber,
                   Email: email,
                   IssueSummary: summary || description || "Follow up ticket",
@@ -3328,6 +3501,12 @@ const TicketView = () => {
                     getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]) === 0
                       ? undefined
                       : getFieldValue(resolvedRecord, ["nGroupId", "GroupId"]),
+                  AssignToAgent:
+                    getFieldValue(assignedAgentDetails[0] ?? {}, [
+                      "nAgentId",
+                      "AgentId",
+                      "id",
+                    ]) || undefined,
                   ServiceType:
                     getFieldValue(resolvedRecord, [
                       "nServiceTypeId",
@@ -3347,6 +3526,7 @@ const TicketView = () => {
                     "AssetId",
                   ]),
                   AssetName: selectedAssetName,
+                  FollowupDate: dayjs(),
                   files: attachments,
                 },
               },
@@ -3453,7 +3633,7 @@ const TicketView = () => {
           </div>
         </div>
       </Modal>
-      {!isFollowupPage && isUnassignedTicket ? (
+      {!isFollowupPage && !isFollowupContext && isUnassignedTicket ? (
         <div className="mt-4 flex items-center justify-end gap-4 px-1">
           <Button
             className="!border-emerald-500 !text-emerald-600 !bg-white rounded-xl shadow-sm h-10 px-8"
@@ -3467,10 +3647,30 @@ const TicketView = () => {
             loading={acceptTicket.isPending}
             onClick={() =>
               acceptTicket.mutate(
-                { TicketId: ticketId, nTicketId: ticketId } as any,
+                {
+                  ...sessionPayload,
+                  TicketId: ticketId,
+                  nTicketId: ticketId,
+                  nAgentId: Number(
+                    sessionPayload.nAgentId ??
+                      sessionPayload.id ??
+                      0,
+                  ),
+                } as any,
                 {
                   onSuccess: () => {
                     message.success("Ticket accepted successfully");
+                    navigate("/tickets", {
+                      replace: true,
+                      state: { activeTab: "ONGOING" },
+                    });
+                  },
+                  onError: (error: any) => {
+                    message.error(
+                      error?.response?.data?.message ||
+                        error?.message ||
+                        "Unable to accept ticket",
+                    );
                   },
                 }
               )
@@ -3480,7 +3680,10 @@ const TicketView = () => {
           </Button>
         </div>
       ) : null}
-      {!isFollowupPage && isWorkflowTicket && !isUnassignedTicket ? (
+      {!isFollowupPage &&
+      !isFollowupContext &&
+      isWorkflowTicket &&
+      !isUnassignedTicket ? (
         <div className="mt-4 flex flex-col gap-2 px-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
@@ -3638,18 +3841,21 @@ const TicketView = () => {
         skipAmcWarningOnSave
         onSaved={handleCallReportSaved}
       />
-      {historyCallReportState ? (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
-          <div className="h-[78vh] w-full max-w-[1000px] overflow-hidden rounded-xl bg-white shadow-2xl">
-            <CallReportViewPage
-              embedded
-              historyMode
-              overrideState={historyCallReportState}
-              onClose={() => setHistoryCallReportState(null)}
-            />
-          </div>
-        </div>
-      ) : null}
+      {historyCallReportState
+        ? createPortal(
+            <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/30 p-4">
+              <div className="h-[78vh] w-full max-w-[1000px] overflow-hidden rounded-xl bg-white shadow-2xl">
+                <CallReportViewPage
+                  embedded
+                  historyMode
+                  overrideState={historyCallReportState}
+                  onClose={() => setHistoryCallReportState(null)}
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       <AssignTicketModal
         open={assignOpen}
         onClose={() => setAssignOpen(false)}

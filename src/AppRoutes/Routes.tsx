@@ -114,6 +114,10 @@ const Routes: React.FC = () => {
             />
             
             <Route path="/callreports/view" element={<CallReportViewPage />} />
+            <Route
+              path="/unbilled-callreports/view"
+              element={<CallReportViewPage />}
+            />
             <Route path="/reports" element={<ReportsPage />} />
 
             {/* Master Module */}
@@ -271,19 +275,23 @@ const Routes: React.FC = () => {
               element={<BillViewPage />}
             />
             <Route
+              path="/billsandreceipts/bills/view"
+              element={<BillViewPage />}
+            />
+            <Route
               path="/billsandreceipts/bills/customercallreport"
               element={<BillingCustomerCallReportPage />}
             />
             <Route
               path="/billsandreceipts/bills/edit"
-              element={<BillPreviewPage />}
+              element={<BillViewPage editMode />}
             />
             <Route path="/billsandreceipts/bills" element={<BillsListPage />} />
             <Route path="/bills" element={<BillsListPage />} />
             <Route path="/receipts" element={<ReceiptsListPage />} />
             <Route path="/receipts/add" element={<ReceiptCreatePage />} />
             <Route path="/bills/add" element={<BillPreviewPage />} />
-            <Route path="/bills/edit" element={<BillPreviewPage />} />
+            <Route path="/bills/edit" element={<BillViewPage editMode />} />
             <Route path="/item-repair/assign" element={<AssignedItemRepairPage />} />
             <Route path="/item-repair/assigned" element={<AssignedItemRepairPage />} />
             <Route path="/item-repair/pending" element={<PendingItemRepairPage />} />

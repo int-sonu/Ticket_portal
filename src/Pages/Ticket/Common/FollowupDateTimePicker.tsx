@@ -18,7 +18,7 @@ import calenderiCon from "../../../assets/icons/calenderiCon.svg";
 
 dayjs.extend(customParseFormat);
 
-const DISPLAY_FORMAT = "DD/MM/YYYY";
+const DISPLAY_FORMAT = "DD/MM/YYYY hh:mm A";
 const PARSE_FORMATS = [
   DISPLAY_FORMAT,
   "DD/MM/YYYY HH:mm:ss",
@@ -38,12 +38,12 @@ const PARSE_FORMATS = [
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 type FollowupDateTimePickerProps = {
-  value?: Dayjs | string | null;
+  value?: Dayjs | Date | string | null;
   onChange?: (value: Dayjs | null) => void;
   defaultOpen?: boolean;
 };
 
-const parseValue = (value?: Dayjs | string | null) => {
+const parseValue = (value?: Dayjs | Date | string | null) => {
   if (!value) return null;
 
   if (dayjs.isDayjs(value)) return value;
@@ -66,7 +66,7 @@ const parseValue = (value?: Dayjs | string | null) => {
   return null;
 };
 
-const formatDisplayFromRaw = (value?: Dayjs | string | null) => {
+const formatDisplayFromRaw = (value?: Dayjs | Date | string | null) => {
   const parsed = parseValue(value);
   if (parsed) return parsed.format(DISPLAY_FORMAT);
 
