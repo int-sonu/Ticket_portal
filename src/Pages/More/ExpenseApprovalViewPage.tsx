@@ -1,18 +1,23 @@
-import { CloseOutlined, FilterOutlined, PlusOutlined } from "@ant-design/icons";
+import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { Empty, Modal, Spin, message } from "antd";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import dayjs, { type Dayjs } from "dayjs";
 
 import { billingApis } from "../../Axios/BillingApis";
 import { approvalApis } from "../../Axios/MoreApis";
+import { settingsApis } from "../../Axios/SettingsApi";
 import { getApiImageBaseUrl } from "../../Axios/config";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import previewIcon from "../../assets/Bills/PreviewIcon.png";
-import pdfIcon from "../../assets/icons/pdfIcon.png";
-import shareIcon from "../../assets/icons/shareIcon.svg";
+import pdfIcon from "../../assets/Bills/PrintIcon.png";
+import shareIcon from "../../assets/Bills/ShareIcon.png";
+import shared from"../../assets/Bills/shared.svg";
+import mailImage from "../../assets/images/mailImg.png";
+import filtericon from "../../assets/Bills/filter.svg";
 import {
+  useApprovalPendingExpenseList,
   useApproveExpenseApproval,
   useExpenseApprovalPeriodList,
 } from "./ExpenseApprovalHooks";
@@ -29,6 +34,7 @@ import {
 } from "./ExpenseApprovalUtils";
 import type { ExpenseApprovalRecord } from "./ExpenseApprovalUtils";
 import CalendarPopup from "../../ui/CalendarPopup/CalendarPopup";
+import { usePrintPdf } from "../../Hooks/usePrintPdf";
 
 type LocationState = {
   approvalId?: number;
@@ -40,6 +46,7 @@ type LocationState = {
   toDate?: string;
   tripModes?: unknown;
   approvalViewData?: unknown;
+  fromPending?: boolean;
 } | null;
 
 const ensureAbsoluteUrl = (maybePath?: string) => {
@@ -59,6 +66,7 @@ const ensureAbsoluteUrl = (maybePath?: string) => {
 const getExpenseApprovalPdfUrl = (response: any) => {
   const responseData = response?.data ?? response ?? {};
   const candidates = [
+    typeof responseData?.data === "string" ? responseData.data : "",
     responseData?.data?.pdfPath,
     responseData?.data?.cPdfPath,
     responseData?.data?.filePath,
@@ -66,6 +74,7 @@ const getExpenseApprovalPdfUrl = (response: any) => {
     responseData?.data?.pdfUri,
     responseData?.data?.pdfUrl,
     responseData?.data?.url,
+    responseData?.data?.message,
     responseData?.pdfPath,
     responseData?.cPdfPath,
     responseData?.filePath,
@@ -73,6 +82,8 @@ const getExpenseApprovalPdfUrl = (response: any) => {
     responseData?.pdfUri,
     responseData?.pdfUrl,
     responseData?.url,
+    responseData?.message,
+    typeof responseData === "string" ? responseData : "",
   ];
 
   const match = candidates.find((item) => typeof item === "string" && item.trim());
@@ -162,6 +173,32 @@ const normalizeRecord = (value: unknown): Record<string, unknown> => {
   return {};
 };
 
+const findConfigurationEmail = (response: unknown) => {
+  const queue: unknown[] = [response];
+  const visited = new Set<unknown>();
+  const aliases = [
+    "cEmail",
+    "email",
+    "cEmailId",
+    "emailId",
+    "cMailId",
+    "mailId",
+    "cFromEmail",
+    "fromEmail",
+  ];
+
+  while (queue.length) {
+    const value = queue.shift();
+    if (!value || typeof value !== "object" || visited.has(value)) continue;
+    visited.add(value);
+    const record = value as Record<string, unknown>;
+    const email = getValue(record, aliases);
+    if (typeof email === "string" && email.trim()) return email.trim();
+    Object.values(record).forEach((item) => queue.push(item));
+  }
+  return "";
+};
+
 const ExpenseApprovalViewPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -214,7 +251,6 @@ const ExpenseApprovalViewPage = () => {
   );
 
   // Pre-fetched data passed from the list page on row click
-  const prefetchedTripModes = state?.tripModes ?? null;
   const prefetchedApprovalViewData = state?.approvalViewData ?? null;
 
 
@@ -225,18 +261,15 @@ const ExpenseApprovalViewPage = () => {
   const [appliedToDate, setAppliedToDate] = useState<Dayjs>(defaultToDate);
   const [calendarMonth, setCalendarMonth] = useState(defaultToDate.startOf("month"));
   const [approvalSuccessOpen, setApprovalSuccessOpen] = useState(false);
+  const [approvalCompleted, setApprovalCompleted] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [printPdfUrl, setPrintPdfUrl] = useState("");
+  const { printPdf } = usePrintPdf({ extraWaitMs: 500 });
   const [isPrinting, setIsPrinting] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
+  const [shareEmails, setShareEmails] = useState<string[]>([]);
+  const [isSendingMail, setIsSendingMail] = useState(false);
   const [openingPeriodId, setOpeningPeriodId] = useState<string | null>(null);
-  const [selectedPeriodRow, setSelectedPeriodRow] = useState<{
-    row: Record<string, unknown>;
-    tripModes: unknown;
-    approvalViewData: unknown;
-  } | null>(null);
   const approvalMutation = useApproveExpenseApproval();
   const requestPayload = getRequestPayload();
   const companyContextPayload = useMemo(() => {
@@ -281,27 +314,64 @@ const ExpenseApprovalViewPage = () => {
       ),
   });
 
+  const configurationQuery = useQuery({
+    queryKey: ["expense-share-configuration", previewPayload],
+    queryFn: () => settingsApis.getConfiguration(previewPayload),
+    enabled:
+      shareModalOpen &&
+      Boolean(
+        previewPayload.nCompanyId &&
+          previewPayload.cSchemaName &&
+          previewPayload.cDbName,
+      ),
+  });
+
+  useEffect(() => {
+    const configuredEmail = findConfigurationEmail(configurationQuery.data);
+    if (!configuredEmail) return;
+    const configuredEmails = configuredEmail
+      .split(/[;,]/)
+      .map((email) => email.trim())
+      .filter(Boolean);
+    setShareEmails((current) => [...new Set([...current, ...configuredEmails])]);
+  }, [configurationQuery.data]);
+
   const payload = useMemo(() => {
     const { nCompanyId, cSchemaName, cDbName } = requestPayload;
-    const dFromDate = appliedFromDate.format("YYYY/MM/DD");
-    const dToDate = appliedToDate.format("YYYY/MM/DD");
 
     return {
       nApprovalId: approvalId,
-      nExpenseApprovalId: expenseApprovalId,
-      nExpenseId: expenseApprovalId,
-      nAgentId: agentId,
-      cAgentId,
       nCompanyId,
       cSchemaName,
       cDbName,
-      bDateFilter: true,
-      dFromDate,
-      dToDate,
     };
-  }, [approvalId, expenseApprovalId, agentId, cAgentId, appliedFromDate, appliedToDate, requestPayload]);
+  }, [approvalId, requestPayload]);
 
-  const detailsQuery = useExpenseApprovalPeriodList(payload, detailQueryEnabled);
+  const pendingExpensePayload = useMemo(
+    () => ({
+      nAgentId: agentId,
+      dFromDate: appliedFromDate.format("YYYY/MM/DD"),
+      dToDate: appliedToDate.format("YYYY/MM/DD"),
+      nCompanyId: companyContextPayload.nCompanyId,
+      cSchemaName: companyContextPayload.cSchemaName,
+      cDbName: companyContextPayload.cDbName,
+    }),
+    [
+      agentId,
+      appliedFromDate,
+      appliedToDate,
+      companyContextPayload,
+    ],
+  );
+  const periodDetailsQuery = useExpenseApprovalPeriodList(
+    payload,
+    detailQueryEnabled && !state?.fromPending,
+  );
+  const pendingDetailsQuery = useApprovalPendingExpenseList(
+    pendingExpensePayload,
+    detailQueryEnabled && Boolean(state?.fromPending),
+  );
+  const detailsQuery = state?.fromPending ? pendingDetailsQuery : periodDetailsQuery;
   const details = extractDetails(detailsQuery.data ?? prefetchedApprovalViewData, fallback);
   const companyDetails = normalizeRecord(
     companyDetailsResponse?.data?.data ?? companyDetailsResponse?.data ?? companyDetailsResponse ?? {},
@@ -434,37 +504,31 @@ const ExpenseApprovalViewPage = () => {
     ]),
     "",
   );
-  const handleOpenFilter = () => {
-    setDraftFromDate(appliedFromDate);
-    setDraftToDate(appliedToDate);
-    setCalendarMonth(appliedFromDate.startOf("month"));
-    setFilterOpen(true);
-  };
-
   const handlePeriodRowClick = async (row: Record<string, unknown>, rowKey: string) => {
     if (openingPeriodId === rowKey) return;
     setOpeningPeriodId(rowKey);
 
     let tripModes: unknown = null;
     let approvalViewData: unknown = null;
+    const approvalDetailId = Number(
+      getValue(row, [
+        "nApprovaldtlId",
+        "nApprovalDtlId",
+        "ApprovaldtlId",
+        "ApprovalDtlId",
+        "nExpensePeriodId",
+        "ExpensePeriodId",
+        "id",
+      ]) || 0,
+    );
 
     try {
       const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
       const basePayload = { nCompanyId, cSchemaName, cDbName };
-      const periodId = Number(
-        getValue(row, ["nExpensePeriodId", "ExpensePeriodId", "nExpenseApprovalPeriodId", "ExpenseApprovalPeriodId", "id"]) || 0,
-      );
       const viewPayload = {
         ...basePayload,
         nApprovalId: approvalId,
-        nExpenseApprovalId: expenseApprovalId,
-        nExpenseId: expenseApprovalId,
-        nAgentId: agentId,
-        nExpensePeriodId: periodId,
-        nExpenseApprovalPeriodId: periodId,
-        bDateFilter: true,
-        dFromDate: appliedFromDate.format("YYYY/MM/DD"),
-        dToDate: appliedToDate.format("YYYY/MM/DD"),
+        nApprovaldtlId: approvalDetailId,
       };
 
       [tripModes, approvalViewData] = await Promise.all([
@@ -477,7 +541,21 @@ const ExpenseApprovalViewPage = () => {
       setOpeningPeriodId(null);
     }
 
-    setSelectedPeriodRow({ row, tripModes, approvalViewData });
+    navigate("/more/expenseapproval/expenseapprovalview", {
+      state: {
+        approvalId,
+        approvalDetailId,
+        expenseApprovalId,
+        nAgentId: agentId,
+        cAgentId,
+        fromDate: appliedFromDate.format("YYYY/MM/DD"),
+        toDate: appliedToDate.format("YYYY/MM/DD"),
+        approval: fallback,
+        periodRow: row,
+        tripModes,
+        approvalViewData,
+      },
+    });
   };
 
   const handleApplyFilter = () => {
@@ -488,6 +566,180 @@ const ExpenseApprovalViewPage = () => {
     setFilterOpen(false);
   };
 
+  const handleApproveExpense = async () => {
+    const currentAgentId =
+      Number(requestPayload.id ?? requestPayload.nAgentId ?? 0) || 0;
+    const toApiDate = (value: unknown) =>
+      (parseDateValue(value) ?? appliedFromDate).format("YYYY/MM/DD");
+    const asList = (value: unknown): Record<string, unknown>[] =>
+      Array.isArray(value)
+        ? value.filter(
+            (item): item is Record<string, unknown> =>
+              Boolean(item && typeof item === "object"),
+          )
+        : [];
+
+    const expenseApprovalDtls = periodRows.map((row) => {
+      const expenseDetails = normalizeRecord(
+        getValue(row, ["expenseDetails", "ExpenseDetails"]),
+      );
+      const travelRows = asList(
+        getValue(expenseDetails, [
+          "travelLogData",
+          "TravelLogData",
+          "travelExpensesDtls",
+        ]),
+      );
+      const otherRows = asList(
+        getValue(expenseDetails, [
+          "expenseData",
+          "ExpenseData",
+          "otherExpensesDtls",
+        ]),
+      );
+      const travelTotal = number(
+        getValue(row, [
+          "nTotalTravelAmount",
+          "nTravelExpenseAmount",
+          "nTravelExpense",
+        ]),
+      );
+      const otherTotal = number(
+        getValue(row, [
+          "nTotalOtherAmount",
+          "nOtherExpenseAmount",
+          "nOtherExpense",
+        ]),
+      );
+
+      return {
+        dExpenseDate: toApiDate(
+          getValue(row, ["dCreatedDate", "dDate", "Date"]),
+        ),
+        cStartingLocation: text(
+          getValue(row, ["cStartingLocation", "StartingLocation"]),
+          "-",
+        ),
+        cEndingLocation: text(
+          getValue(row, ["cEndingLocation", "EndingLocation"]),
+          "-",
+        ),
+        nTotalTravelExpense: travelTotal,
+        nTotalOtherExpenseExpense: otherTotal,
+        nClaimedAmount: travelTotal + otherTotal,
+        nApprovedAmount: travelTotal + otherTotal,
+        travelExpensesDtls: travelRows.map((log) => {
+          const claimed = number(getValue(log, ["nAmount", "nClaimedAmount"]));
+          return {
+            dDate: getValue(log, ["dDate", "Date"]),
+            cTime: getValue(log, ["cTime", "Time"]),
+            cTypeName: getValue(log, ["cTypeName", "TypeName"]),
+            nTripMode: number(getValue(log, ["nTripModeId", "nTripMode"])),
+            cModeName: getValue(log, ["cModeName", "ModeName"]),
+            nRate: number(getValue(log, ["nRate", "Rate"])),
+            nKm: number(getValue(log, ["nKM", "nKm"])),
+            cInLocation: getValue(log, ["cInLocation", "InLocation"]),
+            cInLattitude: getValue(log, ["cInLattitude", "InLattitude"]),
+            cInLongitude: getValue(log, ["cInLongitude", "InLongitude"]),
+            cCustomerName: getValue(log, ["cCustomerName", "CustomerName"]),
+            nMode: number(getValue(log, ["nMode", "Mode"])),
+            nTravelledKm: number(
+              getValue(log, ["nTraveledKm", "nTravelledKm"]),
+            ),
+            nAmount: claimed,
+            cNote: getValue(log, ["cNote", "Note"]),
+            nStartingKm: number(getValue(log, ["nStartingKm", "StartingKm"])),
+            nEndingKm: number(getValue(log, ["nEndingKm", "EndingKm"])),
+            nEditedDistance: number(
+              getValue(log, ["nEditedDistance", "EditedDistance"]),
+            ),
+            cStartAttachment: getValue(log, [
+              "cStartAttachment",
+              "StartAttachment",
+            ]),
+            cEndAttachment: getValue(log, [
+              "cEndAttachment",
+              "EndAttachment",
+            ]),
+            cComment: getValue(log, ["cComment", "Comment"]),
+            nExpenseId: number(getValue(log, ["nExpenseId", "ExpenseId"])),
+            nApprovedMode: number(
+              getValue(log, ["nTripModeId", "nApprovedMode", "nTripMode"]),
+            ),
+            nApprovedTraveledDistance: number(
+              getValue(log, [
+                "nTraveledKm",
+                "nTravelledKm",
+                "nApprovedTraveledDistance",
+              ]),
+            ),
+            nClaimedAmount: claimed,
+            nApprovedAmount: claimed,
+            cApprovalComment: getValue(log, [
+              "cApprovalComment",
+              "cComment",
+              "Comment",
+            ]),
+          };
+        }),
+        otherExpensesDtls: otherRows.map((expense) => {
+          const claimed = number(
+            getValue(expense, ["nAmount", "nClaimedAmount"]),
+          );
+          return {
+            nExpenseId: number(
+              getValue(expense, ["nExpenseId", "ExpenseId"]),
+            ),
+            cItemName: getValue(expense, [
+              "cItemName",
+              "cItem",
+              "ItemName",
+            ]),
+            cComment: getValue(expense, ["cComment", "Comment"]),
+            nAmount: claimed,
+            nClaimedAmount: claimed,
+            nApprovedAmount: claimed,
+            cApprovalComment: getValue(expense, [
+              "cApprovalComment",
+              "ApprovalComment",
+            ]),
+          };
+        }),
+      };
+    });
+
+    try {
+      await approvalMutation.mutateAsync({
+        nAgentId: agentId,
+        nCreatedBy: currentAgentId,
+        cPeriod:
+          appliedFromDate.isSame(appliedToDate, "day")
+            ? appliedFromDate.format("DD/MM/YYYY")
+            : `${appliedFromDate.format("DD/MM/YYYY")} - ${appliedToDate.format("DD/MM/YYYY")}`,
+        bPeriod: !appliedFromDate.isSame(appliedToDate, "day"),
+        dFromDate: appliedFromDate.format("YYYY/MM/DD"),
+        dToDate: appliedToDate.format("YYYY/MM/DD"),
+        nTotalTravelExpense: summaryTotals.travel,
+        nTotalOtherExpenseExpense: summaryTotals.other,
+        nClaimedAmount: summaryTotals.claimed || summaryTotals.total,
+        nApprovedAmount: summaryTotals.approved || summaryTotals.total,
+        nApprovedBy: currentAgentId,
+        expenseApprovalDtls,
+        nCompanyId: companyContextPayload.nCompanyId,
+        cSchemaName: companyContextPayload.cSchemaName,
+        cDbName: companyContextPayload.cDbName,
+      });
+      setApprovalCompleted(true);
+      setApprovalSuccessOpen(true);
+      message.success("Expense approved successfully");
+    } catch (error) {
+      const data = (
+        error as { response?: { data?: { message?: string; title?: string } } }
+      )?.response?.data;
+      message.error(data?.message || data?.title || "Unable to approve expense");
+    }
+  };
+
   const handlePrintExpense = async () => {
     if (isPrinting) return;
 
@@ -495,7 +747,7 @@ const ExpenseApprovalViewPage = () => {
     const schemaName = String(companyContextPayload.cSchemaName ?? "").trim();
     const dbName = String(companyContextPayload.cDbName ?? "").trim();
 
-    if (!companyId || !schemaName || !dbName || !expenseApprovalId) {
+    if (!companyId || !schemaName || !dbName || !approvalId) {
       message.error("Unable to prepare expense print preview.");
       return;
     }
@@ -503,18 +755,10 @@ const ExpenseApprovalViewPage = () => {
     setIsPrinting(true);
     try {
       const exportResponse = await billingApis.expenseApprovalExportPdf({
-        ...requestPayload,
         nCompanyId: companyId,
         cSchemaName: schemaName,
         cDbName: dbName,
-        nExpenseApprovalId: expenseApprovalId,
         nApprovalId: approvalId,
-        nExpenseId: expenseApprovalId,
-        nAgentId: agentId,
-        cAgentId,
-        dFromDate: appliedFromDate.format("YYYY/MM/DD"),
-        dToDate: appliedToDate.format("YYYY/MM/DD"),
-        bDateFilter: true,
       });
 
       const pdfUrl = getExpenseApprovalPdfUrl(exportResponse);
@@ -523,52 +767,114 @@ const ExpenseApprovalViewPage = () => {
         return;
       }
 
-      setPrintPdfUrl(ensureAbsoluteUrl(pdfUrl));
-      setPrintModalOpen(true);
+      const absolutePdfUrl = ensureAbsoluteUrl(pdfUrl);
+      await printPdf(absolutePdfUrl);
     } catch (error) {
       console.error("Failed to export expense approval PDF", error);
-      message.error("Failed to generate expense print preview.");
+      const apiMessage = text(
+        (error as any)?.response?.data?.message ??
+          (error as any)?.response?.data?.title,
+        "Failed to generate expense print preview.",
+      );
+      message.error(apiMessage);
     } finally {
       setIsPrinting(false);
     }
   };
 
+  const handleSendExpenseMail = async () => {
+    if (!shareEmails.length || isSendingMail) {
+      if (!shareEmails.length) message.warning("Add at least one email address");
+      return;
+    }
+
+    const nCompanyId = Number(companyContextPayload.nCompanyId ?? 0) || 0;
+    const nAgentId = Number(requestPayload.nAgentId ?? requestPayload.id ?? agentId ?? 0) || 0;
+    const cSchemaName = String(companyContextPayload.cSchemaName ?? "");
+    const cDbName = String(companyContextPayload.cDbName ?? "");
+
+    if (!approvalId || !nCompanyId || !cSchemaName || !cDbName) {
+      message.error("Unable to prepare the expense report email.");
+      return;
+    }
+
+    setIsSendingMail(true);
+    try {
+      const exportResponse = await billingApis.expenseApprovalExportPdf({
+        nApprovalId: approvalId,
+        nCompanyId,
+        cSchemaName,
+        cDbName,
+      });
+      const pdfPath = getExpenseApprovalPdfUrl(exportResponse);
+      if (!pdfPath) throw new Error("The expense PDF could not be generated.");
+      const attachmentUrl = ensureAbsoluteUrl(pdfPath);
+
+      await Promise.all(
+        shareEmails.map((toEmail) =>
+          approvalApis.sendMail({
+            toEmail,
+            subject: "Expense Report",
+            body: "The expense report is attached to this email.",
+            attachmentUrl,
+            cType: "ExpenseApproval",
+            nAgentId,
+            nCompanyId,
+            cSchemaName,
+            cDbName,
+          }),
+        ),
+      );
+
+      await approvalApis.approvalPendingList({
+        nAgentId,
+        nCompanyId,
+        cSchemaName,
+        cDbName,
+      });
+
+      setShareModalOpen(false);
+      setShareEmail("");
+      message.success("Expense report sent successfully.");
+      navigate("/more/expenseapproval/pendingapproval");
+    } catch (error) {
+      const apiError = error as {
+        response?: { data?: { message?: string; title?: string } };
+        message?: string;
+      };
+      message.error(
+        apiError.response?.data?.message ||
+          apiError.response?.data?.title ||
+          apiError.message ||
+          "Unable to send the expense report.",
+      );
+    } finally {
+      setIsSendingMail(false);
+    }
+  };
+
   return (
-    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-white px-4 py-2">
-      <header className="flex items-center justify-between border-b border-slate-200 pb-2">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-white px-5 py-4">
+      <header className="mb-4 flex items-center justify-between">
         <h1 className="m-0 text-xl font-medium text-slate-950">Expense Approval</h1>
-        <div className="flex items-center gap-2">
-          <div className="text-sm font-medium text-slate-800">
-            {appliedFromDate.format("DD/MM/YYYY")} - {appliedToDate.format("DD/MM/YYYY")}
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenFilter}
-            aria-label="Open filters"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-          >
-            <FilterOutlined className="text-[15px]" />
-          </button>
-          <button
-            type="button"
-            aria-label="Close page"
-            onClick={() => navigate("/more/expense-approval")}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-transparent bg-transparent text-slate-950 transition-colors hover:bg-slate-50"
-          >
-            <CloseOutlined className="text-[18px]" />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="Close page"
+          onClick={() => navigate("/more/expense-approval")}
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-transparent text-slate-950 transition-colors hover:bg-slate-50"
+        >
+          <CloseOutlined className="text-[18px]" />
+        </button>
       </header>
 
-      <div className="min-h-0 flex-1 px-1 pt-4">
+      <div className="min-h-0 flex-1">
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#8FC6F2] text-lg font-medium text-slate-700">
+          <div className="flex items-center gap-4 rounded-md bg-[#eaf4fb] px-3 py-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#8FCFF4] text-base font-medium text-slate-700">
               {initials || "EP"}
             </div>
             <div>
               <div className="text-base font-medium text-slate-950">{agentName}</div>
-              <div className="text-sm text-slate-500">{summaryPeriod || "N/A"}</div>
             </div>
           </div>
 
@@ -599,7 +905,7 @@ const ExpenseApprovalViewPage = () => {
             </div>
           </div> */}
 
-          <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="mt-7 min-h-0 flex-1 overflow-hidden border border-slate-200 bg-white">
             {detailsQuery.isFetching ? (
               <div className="flex h-52 items-center justify-center">
                 <Spin />
@@ -650,6 +956,8 @@ const ExpenseApprovalViewPage = () => {
                       getValue(row, [
                         "nExpensePeriodId",
                         "ExpensePeriodId",
+                        "nApprovaldtlId",
+                        "nApprovalDtlId",
                         "id",
                         "nExpenseApprovalPeriodId",
                       ]) || index,
@@ -694,7 +1002,7 @@ const ExpenseApprovalViewPage = () => {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-none items-end justify-between gap-4 border-t border-slate-200 pt-4">
+      <div className="mt-3 flex flex-none items-end justify-between gap-4 bg-[#f6f6f6] px-1 py-4">
         <div className="space-y-2 text-sm text-slate-700">
           <div className="flex items-center gap-4">
             <span className="w-28">Travel Expense</span>
@@ -711,7 +1019,7 @@ const ExpenseApprovalViewPage = () => {
         </div>
 
         <div className="flex items-end gap-2">
-          <div className="flex items-center gap-2">
+          {!state?.fromPending ? <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -739,36 +1047,18 @@ const ExpenseApprovalViewPage = () => {
             >
               <img src={pdfIcon} alt="" className="h-9 w-9 rounded-md border border-black/25" />
             </button>
-          </div>
+          </div> : null}
 
-          <button
-            type="button"
-            className="rounded-md bg-emerald-500 px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-emerald-600"
-            onClick={async () => {
-              try {
-                await approvalMutation.mutateAsync({
-                  nExpenseApprovalId: expenseApprovalId,
-                  nAgentId: agentId,
-                  cAgentId,
-                  nStatus: 1,
-                  nCompanyId: companyContextPayload.nCompanyId,
-                  cSchemaName: companyContextPayload.cSchemaName,
-                  cDbName: companyContextPayload.cDbName,
-                  dFromDate: appliedFromDate.format("YYYY/MM/DD"),
-                  dToDate: appliedToDate.format("YYYY/MM/DD"),
-                  bDateFilter: true,
-                });
-                setApprovalSuccessOpen(true);
-                message.success("Expense approved successfully");
-              } catch (error) {
-                const data = (error as { response?: { data?: { message?: string; title?: string } } })?.response?.data;
-                message.error(data?.message || data?.title || "Unable to approve expense");
-              }
-            }}
-            disabled={approvalMutation.isPending}
-          >
-            {approvalMutation.isPending ? "Approving..." : "Approve"}
-          </button>
+          {state?.fromPending ? (
+            <button
+              type="button"
+              className="rounded-md bg-emerald-500 px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-emerald-600"
+              onClick={() => void handleApproveExpense()}
+              disabled={approvalMutation.isPending}
+            >
+              {approvalMutation.isPending ? "Approving..." : "Approve"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -808,7 +1098,13 @@ const ExpenseApprovalViewPage = () => {
 
       <Modal
         open={previewOpen}
-        onCancel={() => setPreviewOpen(false)}
+        onCancel={() => {
+          setPreviewOpen(false);
+          if (approvalCompleted) {
+            setApprovalCompleted(false);
+            navigate("/more/expenseapproval/pendingapproval");
+          }
+        }}
         footer={null}
         centered
         width={860}
@@ -834,7 +1130,7 @@ const ExpenseApprovalViewPage = () => {
                 aria-label="Share expense preview"
                 onClick={() => setShareModalOpen(true)}
               >
-                <img src={shareIcon} alt="" className="h-6 w-6" />
+                <img src={shared} alt="" className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -949,43 +1245,6 @@ const ExpenseApprovalViewPage = () => {
       </Modal>
 
       <Modal
-        open={printModalOpen}
-        onCancel={() => {
-          setPrintModalOpen(false);
-          setPrintPdfUrl("");
-        }}
-        footer={null}
-        centered
-        width={1100}
-        destroyOnClose
-        title={null}
-        closeIcon={<CloseOutlined className="text-xl text-black" />}
-        styles={{
-          body: { padding: 0 },
-        }}
-      >
-        <div className="flex h-[90vh] flex-col overflow-hidden rounded-lg bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-            <div className="text-[18px] font-semibold text-slate-900">Expense Print Preview</div>
-          </div>
-
-            <div className="flex-1 bg-slate-100 p-3">
-              {printPdfUrl ? (
-                <iframe
-                  title="Expense Print Preview"
-                  src={printPdfUrl}
-                className="h-full w-full rounded-md border border-slate-200 bg-white"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                Loading PDF preview...
-              </div>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
         open={shareModalOpen}
         onCancel={() => {
           setShareModalOpen(false);
@@ -993,39 +1252,87 @@ const ExpenseApprovalViewPage = () => {
         }}
         footer={null}
         centered
-        width={520}
+        width={400}
         destroyOnClose
-        title={<span className="text-[18px] font-medium text-slate-900">Share Expense Report</span>}
-        closeIcon={<CloseOutlined className="text-xl text-black" />}
+        title={null}
+        closable={false}
         styles={{
-          body: { padding: "18px 20px 20px" },
+          body: { padding: "14px 20px 20px" },
         }}
       >
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-sky-50 px-5 py-6 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-xl bg-gradient-to-b from-sky-300 to-sky-500 text-white shadow-sm">
-              <span className="text-2xl font-semibold">Mail</span>
-            </div>
-            <div className="mt-3 text-[14px] font-medium text-slate-700">Mail</div>
+        <div>
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="m-0 text-[16px] font-medium text-slate-900">
+              Share Expense Report
+            </h2>
+            <button
+              type="button"
+              aria-label="Close share dialog"
+              onClick={() => {
+                setShareModalOpen(false);
+                setShareEmail("");
+              }}
+              className="flex h-7 w-7 items-center justify-center border-0 bg-transparent text-slate-900 hover:bg-slate-100"
+            >
+              <CloseOutlined className="text-xl" />
+            </button>
           </div>
 
-          <div>
-            <div className="mb-2 text-[14px] text-slate-700">Mail</div>
+          <div className="flex h-[90px] w-20 flex-col items-center justify-center rounded-md bg-sky-100/80">
+            <img src={mailImage} alt="Mail" className="h-10 w-10 object-contain" />
+            <div className="mt-2 text-[12px] text-slate-600">Mail</div>
+          </div>
+
+          {shareEmails.length ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {shareEmails.map((email) => (
+                <span
+                  key={email}
+                  className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700"
+                >
+                  {email}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${email}`}
+                    onClick={() =>
+                      setShareEmails((current) =>
+                        current.filter((item) => item !== email)
+                      )
+                    }
+                    className="border-0 bg-transparent p-0 text-sm leading-none text-slate-700"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-3">
+            <div className="mb-1 text-[13px] text-slate-700">Mail</div>
             <div className="flex items-center gap-2">
               <input
                 type="email"
                 value={shareEmail}
                 onChange={(event) => setShareEmail(event.target.value)}
                 placeholder="Enter email address"
-                className="h-10 flex-1 rounded-md border border-slate-200 px-3 text-[14px] outline-none transition-colors focus:border-sky-400"
+                className="h-9 min-w-0 flex-1 rounded-md border border-slate-200 px-3 text-[13px] outline-none transition-colors focus:border-sky-400"
               />
               <button
                 type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-md bg-black text-white transition-colors hover:bg-slate-800"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-black text-white transition-colors hover:bg-slate-800"
                 aria-label="Add email"
                 onClick={() => {
-                  if (!shareEmail.trim()) return;
-                  message.info("Email added");
+                  const email = shareEmail.trim();
+                  if (!email) return;
+                  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    message.warning("Enter a valid email address");
+                    return;
+                  }
+                  setShareEmails((current) =>
+                    current.includes(email) ? current : [...current, email],
+                  );
+                  setShareEmail("");
                 }}
               >
                 <PlusOutlined className="text-[16px]" />
@@ -1033,16 +1340,14 @@ const ExpenseApprovalViewPage = () => {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="mt-3 flex justify-end">
             <button
               type="button"
-              className="rounded-md bg-black px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-slate-800"
-              onClick={() => {
-                message.success("Share dialog opened");
-                setShareModalOpen(false);
-              }}
+              disabled={isSendingMail}
+              className="min-w-[58px] rounded-md bg-black px-5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+              onClick={() => void handleSendExpenseMail()}
             >
-              Ok
+              {isSendingMail ? "Sending..." : "Ok"}
             </button>
           </div>
         </div>
@@ -1065,7 +1370,10 @@ const ExpenseApprovalViewPage = () => {
             <div>
               <div className="text-base font-medium text-slate-900">{agentName}</div>
               <div className="text-sm text-slate-500">
-                {text(value(["cGroupName", "GroupName", "cService", "Service"]), "Service")}
+                {text(
+                  value(["cGroupName", "GroupName", "cService", "Service"]),
+                  "Service",
+                )}
               </div>
             </div>
           </div>
@@ -1077,11 +1385,15 @@ const ExpenseApprovalViewPage = () => {
             </div>
             <div className="flex items-center justify-between">
               <span>Claimed expense</span>
-              <span className="text-slate-500">{formatCurrency(summaryTotals.claimed)}</span>
+              <span className="text-slate-500">
+                {formatCurrency(summaryTotals.claimed)}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span>Approved expense</span>
-              <span className="text-slate-500">{formatCurrency(summaryTotals.approved)}</span>
+              <span className="text-slate-500">
+                {formatCurrency(summaryTotals.approved)}
+              </span>
             </div>
           </div>
 
@@ -1091,7 +1403,7 @@ const ExpenseApprovalViewPage = () => {
               className="rounded-md bg-emerald-500 px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-emerald-600"
               onClick={() => {
                 setApprovalSuccessOpen(false);
-                navigate("/more/expenseapproval/pendingapproval");
+                setPreviewOpen(true);
               }}
             >
               Ok
@@ -1099,6 +1411,7 @@ const ExpenseApprovalViewPage = () => {
           </div>
         </div>
       </Modal>
+
     </section>
 
   );

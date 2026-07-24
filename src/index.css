@@ -18,6 +18,18 @@ body,
   flex-direction: column;
 }
 
+/* User Roles hierarchy connector lines */
+.user-roles-tree.ant-tree-show-line .ant-tree-indent-unit::before,
+.user-roles-tree .ant-tree-switcher-leaf-line::before {
+  border-inline-end-color: rgb(102, 102, 225, 100) !important;
+  border: 1px solid;
+  opacity: 1px;
+}
+
+.user-roles-tree .ant-tree-switcher-leaf-line::after {
+  border-bottom-color: #0e4296 !important;
+}
+
 /* Scroll only inside dashboard middle panel */
 .dashboard-scroll {
   overflow-y: scroll !important;

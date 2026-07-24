@@ -72,6 +72,7 @@ import AgentAnalysisPage from "../Pages/More/AgentAnalysisPage";
 import ExpenseApprovalPage from "../Pages/More/ExpenseApprovalPage";
 import ExpenseApprovalPendingPage from "../Pages/More/ExpenseApprovalPendingPage";
 import ExpenseApprovalViewPage from "../Pages/More/ExpenseApprovalViewPage";
+import ExpenseApprovalDetailPage from "../Pages/More/ExpenseApprovalDetailPage";
 import AgentAvailabilityPage from "../Pages/More/AgentAvailabilityPage";
 import WorkSummaryPage from "../Pages/More/WorkSummaryPage";
 import PunchInOutPage from "../Pages/More/PunchInOutPage";
@@ -81,6 +82,7 @@ import SupervisorAgentComp from "../Components/Settings/SupervisorAgentComp/Supe
 import NotificationSettingsPage from "../Pages/Settings/NotificationSettingsPage";
 import CompanyDetailsPage from "../Pages/Settings/CompanyDetailsPage";
 import ConfigurationsPage from "../Pages/Settings/ConfigurationsPage";
+import UserRolesPage from "../Pages/Settings/UserRolesPage";
 
 const Routes: React.FC = () => {
   return (
@@ -182,6 +184,8 @@ const Routes: React.FC = () => {
             <Route path="/more/expenseapproval/view" element={<ExpenseApprovalViewPage />} />
             <Route path="/more/expense-approval/periodwiseview" element={<ExpenseApprovalViewPage />} />
             <Route path="/more/expenseapproval/periodwiseview" element={<ExpenseApprovalViewPage />} />
+            <Route path="/more/expenseapproval/expenseapprovalview" element={<ExpenseApprovalDetailPage />} />
+            <Route path="/more/expense-approval/expenseapprovalview" element={<ExpenseApprovalDetailPage />} />
             <Route
               path="/more/review-closed-tickets"
               element={<ReviewClosedTicketsPage />}
@@ -300,6 +304,7 @@ const Routes: React.FC = () => {
             <Route path="/settings/notificationsettings" element={<NotificationSettingsPage />} />
             <Route path="/settings/companydetails" element={<CompanyDetailsPage />} />
             <Route path="/settings/configurations" element={<ConfigurationsPage />} />
+            <Route path="/settings/userroles" element={<UserRolesPage />} />
           </Route>
 
           <Route path="/estimate-invoice" element={<EstimatePdfViewer />} />

@@ -1,8 +1,8 @@
 import { Empty, Input, Spin } from "antd";
-import { FilterOutlined, SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
+import dayjs, { type Dayjs } from "dayjs";
 
 import { getRequestPayload } from "../../Utils/requestPayload";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
@@ -14,8 +14,8 @@ import {
   text,
 } from "./ExpenseApprovalUtils";
 import { useApprovalPendingList, useExpenseApprovalList } from "./ExpenseApprovalHooks";
-import { approvalApis } from "../../Axios/MoreApis";
-import { ExpenseApprovalDrawer } from "./ExpenseApprovalDrawer";
+import CalendarPopup from "../../ui/CalendarPopup/CalendarPopup";
+import filterIcon from "../../assets/Bills/filter.svg";
 
 const gridTemplate = "grid-cols-[42px_180px_150px_180px_1fr_1fr_1fr_1fr]";
 const pageColumns = [
@@ -58,18 +58,18 @@ const ExpenseApprovalPage = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [openingRowId, setOpeningRowId] = useState<number | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedRowData, setSelectedRowData] = useState<{
-    row: Record<string, unknown>;
-    tripModes: unknown;
-    approvalViewData: unknown;
-  } | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFromDate, setDraftFromDate] = useState<Dayjs>(dayjs().startOf("month"));
+  const [draftToDate, setDraftToDate] = useState<Dayjs>(dayjs().startOf("day"));
+  const [appliedFromDate, setAppliedFromDate] = useState<Dayjs>(dayjs().startOf("month"));
+  const [appliedToDate, setAppliedToDate] = useState<Dayjs>(dayjs().startOf("day"));
+  const [calendarMonth, setCalendarMonth] = useState<Dayjs>(dayjs().startOf("month"));
+  const [selectingRangeEnd, setSelectingRangeEnd] = useState(false);
 
   const payload = useMemo(() => {
     const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
-    const dToDate = dayjs().format("YYYY/MM/DD");
-    const dFromDate = dayjs().startOf("month").format("YYYY/MM/DD");
+    const dToDate = appliedToDate.format("YYYY/MM/DD");
+    const dFromDate = appliedFromDate.format("YYYY/MM/DD");
 
     return {
       nCompanyId,
@@ -79,7 +79,7 @@ const ExpenseApprovalPage = () => {
       dFromDate,
       dToDate,
     };
-  }, []);
+  }, [appliedFromDate, appliedToDate]);
 
   const approvalQuery = useExpenseApprovalList(payload);
   const pendingQuery = useApprovalPendingList(payload);
@@ -119,7 +119,7 @@ const ExpenseApprovalPage = () => {
     return Math.max(listCount, directCount);
   }, [pendingQuery.data, pendingRows.length]);
 
-  const openDetails = async (row: Record<string, unknown>) => {
+  const openDetails = (row: Record<string, unknown>) => {
     const approvalId = Number(
       getValue(row, [
         "nApprovalId",
@@ -138,73 +138,40 @@ const ExpenseApprovalPage = () => {
       ]),
     ) || 0;
     const agentId = Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0;
+    const cAgentId = text(getValue(row, ["cAgentId", "AgentCode", "cAgentCode"]), "");
     const { fromDate, toDate } = getRowPeriod(row);
 
-    if (openingRowId === expenseApprovalId) return;
-    setOpeningRowId(expenseApprovalId);
-
-    let tripModes: unknown = null;
-    let approvalViewData: unknown = null;
-
-    try {
-      const { nCompanyId, cSchemaName, cDbName } = getRequestPayload();
-      const basePayload = { nCompanyId, cSchemaName, cDbName };
-      const viewPayload = {
-        ...basePayload,
-        nApprovalId: approvalId,
-        nExpenseApprovalId: expenseApprovalId,
-        nExpenseId: expenseApprovalId,
-        nAgentId: agentId,
-        bDateFilter: true,
-        dFromDate: fromDate || dayjs().startOf("month").format("YYYY/MM/DD"),
-        dToDate: toDate || dayjs().format("YYYY/MM/DD"),
-      };
-
-      [tripModes, approvalViewData] = await Promise.all([
-        approvalApis.tripModeListDropdown(basePayload).catch(() => null),
-        approvalApis.expenseApprovalView(viewPayload).catch(() => null),
-      ]);
-    } catch {
-      // proceed with opening drawer even if prefetch fails
-    } finally {
-      setOpeningRowId(null);
-    }
-
-    setSelectedRowData({ row, tripModes, approvalViewData });
-    setDrawerOpen(true);
-  };
-
-  const handleEdit = (row: Record<string, unknown>, tripModes: unknown, approvalViewData: unknown) => {
-    const approvalId = Number(getValue(row, ["nApprovalId", "ApprovalId", "nApprovalID", "ApprovalID"])) || 0;
-    const expenseApprovalId = Number(getValue(row, ["nExpenseApprovalId", "ExpenseApprovalId", "nExpenseId", "ExpenseId", "id"])) || 0;
-    const agentId = Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0;
-    const { fromDate, toDate } = getRowPeriod(row);
-
-    navigate("/more/expense-approval/view", {
+    navigate("/more/expenseapproval/periodwiseview", {
       state: {
         approvalId,
         expenseApprovalId,
         nAgentId: agentId,
+        cAgentId,
         fromDate,
         toDate,
         approval: row,
-        tripModes,
-        approvalViewData,
       },
     });
   };
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white px-5 py-4">
-      <header className="mb-4 flex flex-none items-center justify-between gap-3">
+      <header className="relative z-30 mb-4 flex flex-none items-center justify-between gap-3">
         <h1 className="m-0 text-[22px] font-medium text-slate-950">Expense Approval</h1>
         <div className="flex items-center gap-3">
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-300 bg-white shadow-sm transition-colors hover:bg-slate-50"
             aria-label="Open filters"
+            onClick={() => {
+              setDraftFromDate(appliedFromDate);
+              setDraftToDate(appliedToDate);
+              setCalendarMonth(appliedToDate.startOf("month"));
+              setSelectingRangeEnd(false);
+              setFilterOpen((open) => !open);
+            }}
           >
-            <FilterOutlined className="text-[15px] text-slate-700" />
+            <img src={filterIcon} alt="" aria-hidden="true" className="h-5 w-5" />
           </button>
           <Input
             className="w-[280px]"
@@ -218,6 +185,41 @@ const ExpenseApprovalPage = () => {
             }}
           />
         </div>
+        <CalendarPopup
+          open={filterOpen}
+          title="Filter"
+          month={calendarMonth.toDate()}
+          selectedDate={draftToDate.toDate()}
+          selectedFromDate={draftFromDate.toDate()}
+          selectedToDate={draftToDate.toDate()}
+          onMonthChange={(month) => setCalendarMonth(dayjs(month))}
+          onYearChange={(year) => setCalendarMonth(dayjs(year))}
+          onSelectDate={(date) => {
+            const picked = dayjs(date).startOf("day");
+            setDraftFromDate(picked);
+            setDraftToDate(picked);
+          }}
+          onSelectRangeDate={(date) => {
+            const picked = dayjs(date).startOf("day");
+            if (!selectingRangeEnd) {
+              setDraftFromDate(picked);
+              setDraftToDate(picked);
+              setSelectingRangeEnd(true);
+              return;
+            }
+            setDraftFromDate(picked.isBefore(draftFromDate, "day") ? picked : draftFromDate);
+            setDraftToDate(picked.isBefore(draftFromDate, "day") ? draftFromDate : picked);
+            setSelectingRangeEnd(false);
+          }}
+          onApply={() => {
+            setAppliedFromDate(draftFromDate);
+            setAppliedToDate(draftToDate);
+            setPage(1);
+            setFilterOpen(false);
+          }}
+          onCancel={() => setFilterOpen(false)}
+          className="!right-0 !top-10 !mt-2 !w-[280px] !rounded-lg !p-2"
+        />
       </header>
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-none border-0 bg-white">
@@ -253,15 +255,12 @@ const ExpenseApprovalPage = () => {
                 text(getValue(row, ["cPeriod", "Period"]), "") ||
                 `${text(getValue(row, ["dFromDate"]), "")} - ${text(getValue(row, ["dToDate", "ToDate", "cToDate"]), "")}`;
 
-              const isOpening = openingRowId === approvalId;
-
               return (
                 <button
                   key={approvalId}
                   type="button"
-                  className={`grid min-h-[62px] w-full ${gridTemplate} items-center border-b border-slate-100 bg-white px-2 text-left text-xs transition-colors hover:bg-slate-50 ${isOpening ? "opacity-60 cursor-wait" : ""}`}
-                  onClick={() => { void openDetails(row); }}
-                  disabled={isOpening}
+                  className={`grid min-h-[62px] w-full ${gridTemplate} cursor-pointer items-center border-b border-slate-100 bg-white px-2 text-left text-xs transition-colors hover:bg-sky-50`}
+                  onClick={() => openDetails(row)}
                 >
                   <span>{(safePage - 1) * pageSize + index + 1}</span>
                   <span>{rowDate}</span>
@@ -315,14 +314,6 @@ const ExpenseApprovalPage = () => {
         />
       ) : null}
 
-      <ExpenseApprovalDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        approvalRow={selectedRowData?.row ?? null}
-        approvalViewData={selectedRowData?.approvalViewData}
-        tripModes={selectedRowData?.tripModes}
-        onEdit={handleEdit}
-      />
     </section>
   );
 };

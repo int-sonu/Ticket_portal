@@ -47,6 +47,56 @@ const rowsFrom = (response: any): RecordLike[] => {
   return value && typeof value === "object" ? [value] : [];
 };
 
+const findDeepValue = (source: unknown, keys: string[]) => {
+  const queue: unknown[] = [source];
+  const visited = new Set<unknown>();
+
+  while (queue.length) {
+    const value = queue.shift();
+    if (!value || typeof value !== "object" || visited.has(value)) continue;
+    visited.add(value);
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => queue.push(item));
+      continue;
+    }
+
+    const record = value as RecordLike;
+    const matched = getValue(record, keys, "");
+    if (matched !== "") return matched;
+    Object.values(record).forEach((item) => queue.push(item));
+  }
+
+  return "";
+};
+
+const punchIdKeys = [
+  "nPunchinId",
+  "nPunchInId",
+  "nPunchinID",
+  "nPunchInID",
+  "PunchinId",
+  "PunchInId",
+  "nPunchId",
+  "PunchId",
+  "nAttendanceId",
+  "AttendanceId",
+  "nAttendanceDtlId",
+  "AttendanceDtlId",
+  "nId",
+  "id",
+];
+
+const extractPunchinId = (response: unknown) => {
+  const nestedId = Number(findDeepValue(response, punchIdKeys)) || 0;
+  if (nestedId) return nestedId;
+
+  const unwrapped = unwrap(response);
+  return typeof unwrapped === "number" || /^\d+$/.test(String(unwrapped ?? ""))
+    ? Number(unwrapped)
+    : 0;
+};
+
 const parseClockTime = (value: unknown) => {
   const raw = String(value ?? "").trim();
   const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?\s*(AM|PM)?$/i);
@@ -140,6 +190,10 @@ const PunchInOutPage = () => {
   const [summaryMonth, setSummaryMonth] = useState(() => dayjs().startOf("month"));
   const currentUser = useMemo(() => getCurrentUser(), []);
   const currentAgentId = String(basePayload.nAgentId ?? basePayload.id ?? "");
+  const punchIdStorageKey = `attendance-punch-id:${basePayload.nCompanyId ?? 0}:${currentAgentId}`;
+  const [savedPunchinId, setSavedPunchinId] = useState(
+    () => Number(sessionStorage.getItem(punchIdStorageKey)) || 0,
+  );
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   const [agentSearch, setAgentSearch] = useState("");
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
@@ -263,9 +317,11 @@ const PunchInOutPage = () => {
   const effectiveWorkingSeconds = Math.max(durationSeconds(workingHours), durationSeconds(dailyWorking), calculatedWorkingSeconds);
   const displayedWorkingHours = formatDuration(effectiveWorkingSeconds);
   const dailyDate = getValue(daily, ["dDate", "cDate", "AttendanceDate", "date"]);
-  const punchinId = Number(
-    getValue(status, ["nPunchinId", "nPunchInId", "PunchinId", "PunchInId", "id"], 0),
-  ) || 0;
+  const punchinId =
+    extractPunchinId(statusQuery.data) ||
+    extractPunchinId(dailyQuery.data) ||
+    savedPunchinId ||
+    0;
   const punchActionPayload = {
     nAgentId: Number(basePayload.nAgentId ?? basePayload.id) || 0,
     nCompanyId: Number(basePayload.nCompanyId) || 0,
@@ -279,10 +335,31 @@ const PunchInOutPage = () => {
   const loading = statusQuery.isLoading || dailyQuery.isLoading;
   const refreshing = statusQuery.isFetching || dailyQuery.isFetching || monthlyQuery.isFetching;
   const punchMutation = useMutation({
-    mutationFn: () => isPunchedIn
-      ? attendanceApis.punchOut({ ...punchActionPayload, nPunchinId: punchinId })
-      : attendanceApis.punchIn(punchActionPayload),
-    onSuccess: async () => {
+    mutationFn: () => {
+      if (isPunchedIn && !punchinId) {
+        throw new Error(
+          "Punch-in record ID is missing. Refresh attendance status and try again.",
+        );
+      }
+
+      return isPunchedIn
+        ? attendanceApis.punchOut({
+            nPunchinId: punchinId,
+            ...punchActionPayload,
+          })
+        : attendanceApis.punchIn(punchActionPayload);
+    },
+    onSuccess: async (response) => {
+      if (isPunchedIn) {
+        sessionStorage.removeItem(punchIdStorageKey);
+        setSavedPunchinId(0);
+      } else {
+        const responsePunchinId = extractPunchinId(response);
+        if (responsePunchinId) {
+          sessionStorage.setItem(punchIdStorageKey, String(responsePunchinId));
+          setSavedPunchinId(responsePunchinId);
+        }
+      }
       await Promise.all([
         statusQuery.refetch(),
         monthlyQuery.refetch(),
@@ -291,7 +368,18 @@ const PunchInOutPage = () => {
       message.success(isPunchedIn ? "Punch out recorded." : "Punch in recorded.");
     },
     onError: (error: any) => {
-      message.error(error?.response?.data?.message || error?.message || "Unable to update attendance.");
+      const response = error?.response?.data;
+      const validationErrors =
+        response?.errors && typeof response.errors === "object"
+          ? Object.values(response.errors).flat().join(" ")
+          : "";
+      message.error(
+        response?.message ||
+          response?.title ||
+          validationErrors ||
+          error?.message ||
+          "Unable to update attendance.",
+      );
     },
   });
 
@@ -322,7 +410,7 @@ const PunchInOutPage = () => {
                 disabled={refreshing || punchMutation.isPending}
                 className={`mt-4 flex h-44 w-44 cursor-pointer items-center justify-center self-start rounded-full border-[11px] text-lg font-semibold text-white shadow-[inset_0_0_0_12px_rgba(0,0,0,0.06)] transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:cursor-wait disabled:opacity-80 ${
                   isPunchedIn
-                    ? "border-rose-400 bg-rose-500"
+                    ? "border-red-500 bg-red-600"
                     : "border-emerald-400 bg-emerald-500"
                 }`}
                 aria-label={isPunchedIn ? "Punch Out" : "Punch In"}

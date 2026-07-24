@@ -125,4 +125,28 @@ export const settingsApis = {
     );
     return response.data;
   },
+
+  agentDropDown: async (payload: SettingsPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Agent/AgentDropDown",
+      payload,
+    );
+    return response.data;
+  },
+
+  getMenuRights: async (payload: SettingsPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/MenuRights/GetMenuRights",
+      payload,
+    );
+    return response.data;
+  },
+
+  menuRightsSave: async (payload: SettingsPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/MenuRights/MenuRightsSave",
+      payload,
+    );
+    return response.data;
+  },
 };

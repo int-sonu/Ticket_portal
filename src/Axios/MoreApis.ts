@@ -141,9 +141,25 @@ export const approvalApis = {
     return response.data;
   },
 
+  expenseApprovalUpdate: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.put(
+      "/Api/V1/Approval/ExpenseApprovalUpdate",
+      payload,
+    );
+    return response.data;
+  },
+
   tripModeListDropdown: async (payload: ApprovalPayload) => {
     const response = await axiosInstance.post(
       "/Api/V1/TripMode/TripModeListDropdown",
+      payload,
+    );
+    return response.data;
+  },
+
+  sendMail: async (payload: ApprovalPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Utility/SendMail",
       payload,
     );
     return response.data;

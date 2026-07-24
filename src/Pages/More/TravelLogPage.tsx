@@ -313,13 +313,6 @@ const TravelLogPage = () => {
     [attachmentSource],
   );
 
-  const summaryRecord = useMemo(() => {
-    const summaryRows = extractRows(
-      travelLogResponse?.data ?? travelLogResponse ?? {},
-    );
-    return summaryRows[0] ?? (travelLogResponse?.data ?? travelLogResponse ?? {});
-  }, [travelLogResponse]);
-
   const handleAttachmentUpload = async (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
@@ -454,25 +447,6 @@ const TravelLogPage = () => {
             }}
             onCancel={() => setCalendarOpen(false)}
           />
-        </div>
-      </div>
-
-      <div className="grid flex-none grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
-          <div className="text-xs text-slate-500">Date</div>
-          <div className="mt-1 font-medium text-slate-800">{selectedDate.format("DD/MM/YYYY")}</div>
-        </div>
-        <div className="rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
-          <div className="text-xs text-slate-500">Distance Travelled</div>
-          <div className="mt-1 font-medium text-slate-800">
-            {text(getValue(summaryRecord as RecordLike, ["nTravelledKm", "nCalculatedDistance", "nDistance", "TotalDistance"]), "0")} km
-          </div>
-        </div>
-        <div className="rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
-          <div className="text-xs text-slate-500">Travel Expense</div>
-          <div className="mt-1 font-medium text-slate-800">
-            ₹{Number(getValue(summaryRecord as RecordLike, ["nAmount", "nExpenseAmount", "TotalExpense"]) || 0).toFixed(2)}
-          </div>
         </div>
       </div>
 

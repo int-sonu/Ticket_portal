@@ -128,14 +128,35 @@ const ExpenseApprovalPendingPage = () => {
 
   const openDetails = (row: Record<string, unknown>) => {
     const bounds = getPeriodBounds(row);
-    setCalendarMonth(bounds.periodStart.startOf("month"));
-    setActiveDateField(null);
-    setPeriodModal({
-      row,
-      periodStart: bounds.periodStart,
-      periodEnd: bounds.periodEnd,
-      from: bounds.periodStart,
-      to: bounds.periodEnd,
+    navigate("/more/expenseapproval/periodwiseview", {
+      state: {
+        approvalId:
+          Number(
+            getValue(row, [
+              "nApprovalId",
+              "ApprovalId",
+              "nApprovalID",
+              "ApprovalID",
+            ]),
+          ) || 0,
+        expenseApprovalId:
+          Number(
+            getValue(row, [
+              "nExpenseApprovalId",
+              "ExpenseApprovalId",
+              "nExpenseId",
+              "ExpenseId",
+              "id",
+            ]),
+          ) || 0,
+        nAgentId:
+          Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0,
+        cAgentId: text(getValue(row, ["cAgentId", "AgentCode"]), ""),
+        approval: row,
+        fromDate: bounds.periodStart.format("YYYY/MM/DD"),
+        toDate: bounds.periodEnd.format("YYYY/MM/DD"),
+        fromPending: true,
+      },
     });
   };
 
@@ -153,9 +174,9 @@ const ExpenseApprovalPendingPage = () => {
         </button>
       </header>
 
-      <div className="mb-4 flex items-center justify-end gap-3">
+      <div className="mb-3 flex w-full items-center">
         <Input
-          className="w-[280px]"
+          className="h-9 w-full"
           placeholder="Search"
           allowClear
           value={search}
@@ -272,7 +293,6 @@ const ExpenseApprovalPendingPage = () => {
                 <CalendarOutlined className="text-slate-500" />
               </div>
             </div>
-
             <div>
               <div className="mb-2 text-sm text-slate-600">To</div>
               <button
@@ -347,6 +367,7 @@ const ExpenseApprovalPendingPage = () => {
                   approval: periodModal.row,
                   fromDate: periodModal.from.format("YYYY/MM/DD"),
                   toDate: periodModal.to.format("YYYY/MM/DD"),
+                  fromPending: true,
                 },
               });
               setActiveDateField(null);

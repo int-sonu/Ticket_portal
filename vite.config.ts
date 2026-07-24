@@ -20,6 +20,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
       },
+      '/Uploads': {
+        target: 'https://postgresqlticketapi.ortezerp.in',
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
 })

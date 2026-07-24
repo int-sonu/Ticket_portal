@@ -9,7 +9,6 @@ import { extractList } from "../Master/Common/SimpleMasterUtils";
 import filterIcon from "../../assets/icons/searchFilterIcon.svg";
 import FilterList from "./FilterList";
 import noDataIcon from "../../assets/images/noDataGif.gif";
-import AgentActivityGraph from "./AgentActivityGraph";
 
 type RowLike = Record<string, any>;
 
@@ -217,16 +216,8 @@ const AgentAnalysisPage = () => {
       .sort((left, right) => Number(right.tickets) - Number(left.tickets));
   }, [agents, search, selectedFilter.group]);
 
-  const graphData = useMemo(
-    () =>
-      filteredAgents.map((agent) => ({
-        name: agent.name,
-        group: agent.groupName,
-        CR: Number(agent.raw?.nCallReport ?? agent.raw?.CallReport ?? agent.raw?.callReport ?? 0) || 0,
-        CT: Number(agent.raw?.nCreatedTickets ?? agent.raw?.CreatedTickets ?? agent.raw?.createdTickets ?? agent.tickets) || 0,
-        closed: Number(agent.raw?.nClosedTicket ?? agent.raw?.ClosedTicket ?? agent.raw?.closedTickets ?? 0) || 0,
-        ongoing: Number(agent.raw?.nOngoingTicket ?? agent.raw?.OngoingTicket ?? agent.raw?.ongoingTickets ?? 0) || 0,
-      })),
+  const maximumTicketCount = useMemo(
+    () => Math.max(1, ...filteredAgents.map((agent) => Number(agent.tickets) || 0)),
     [filteredAgents],
   );
 
@@ -382,10 +373,68 @@ const AgentAnalysisPage = () => {
         </div>
       </div>
       <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm p-3">
-        <Spin spinning={isAnalysisLoading || isAnalysisFetching || isGroupLoading || isGroupFetching} className="flex min-h-0 flex-1">
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <Spin
+          spinning={isAnalysisLoading || isAnalysisFetching || isGroupLoading || isGroupFetching}
+          className="flex min-h-0 w-full flex-1 [&_.ant-spin-container]:w-full"
+        >
+          <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
             {filteredAgents.length ? (
-              <AgentActivityGraph data={graphData} />
+              <div className="min-h-0 w-full flex-1 overflow-y-auto">
+                {filteredAgents.map((agent, index) => {
+                  const initials = agent.name
+                    .split(/\s+/)
+                    .map((part) => part.charAt(0))
+                    .filter(Boolean)
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase();
+                  const progress = Math.max(
+                    4,
+                    Math.min(100, (Number(agent.tickets) / maximumTicketCount) * 100),
+                  );
+
+                  return (
+                    <div
+                      key={agent.id}
+                      className={`w-full px-1 py-2 ${
+                        index < filteredAgents.length - 1
+                          ? "border-b border-slate-100"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ffd98a] text-sm font-medium text-white">
+                          {initials}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="min-w-0 text-[15px] text-slate-900">
+                              <span className="font-medium">{agent.name}</span>
+                              {agent.groupName ? (
+                                <span className="ml-2 text-[13px] text-slate-500">
+                                  ({agent.groupName})
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="shrink-0 text-sm text-slate-600">
+                              {agent.tickets}{" "}
+                              {Number(agent.tickets) === 1 ? "Ticket" : "Tickets"}
+                            </div>
+                          </div>
+
+                          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-cyan-400"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
               <div className="flex min-h-[420px] flex-1 items-center justify-center">
                 <img src={noDataIcon} alt="" className="h-60 w-60" />
