@@ -40,12 +40,15 @@ const TicketEstimatePage = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-white">
+    <div className="relative h-full min-h-0 flex-1 bg-white">
       <EstimateModal
         open
         onClose={() => {
           const returnTo = state.returnTo || `/tickets/view/${ticketId}`;
-          navigate(returnTo, { replace: true });
+          navigate(returnTo, {
+            replace: true,
+            state: state.returnState,
+          });
         }}
         ticketId={ticketId}
         customerId={customerId}

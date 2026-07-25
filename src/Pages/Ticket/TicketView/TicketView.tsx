@@ -1778,25 +1778,8 @@ const TicketView = () => {
       (repairDetailsRecord as Record<string, any>)?.partsRepair?.[0] ??
       (repairDetailsRecord as Record<string, any>)?.PartsRepair?.[0] ??
       {};
-    const serviceChargeFlag = getFieldValue(
-      {
-        ...repairDetailsRecord,
-        ...repairPartRecord,
-      },
-      [
-        "bServiceCharge",
-        "ServiceCharge",
-        "bHasServiceCharge",
-        "HasServiceCharge",
-      ],
-    );
-    const hasServiceCharge =
-      serviceChargeFlag === true ||
-      serviceChargeFlag === 1 ||
-      normalizeText(serviceChargeFlag) === "true" ||
-      normalizeText(serviceChargeFlag) === "1";
 
-    if (hasServiceCharge && !hasServiceCostEvent) {
+    if (!hasServiceCostEvent) {
       const serviceCostEvent = {
         cViewSummary: "Service Cost Estimate",
         cCreatedDate: getFieldValue(
@@ -3111,15 +3094,15 @@ const TicketView = () => {
         ? repairCallReportItems
         : repairActivityItems;
     const repairCommentKeys = [
-          "Comment",
-          "Remarks",
-          "Remark",
-          "Description",
-          "cComment",
-          "cRemarks",
-          "cRemark",
-          "cDescription",
-        ];
+      "Comment",
+      "Remarks",
+      "Remark",
+      "Description",
+      "cComment",
+      "cRemarks",
+      "cRemark",
+      "cDescription",
+    ];
     const repairComment =
       formatDisplayValue(getFieldValue(resolvedRecord, repairCommentKeys)) ||
       repairActivityItems
@@ -3243,14 +3226,14 @@ const TicketView = () => {
             </div>
 
             <div className="min-w-0 flex min-h-0 flex-col">
-              <div className="flex items-center gap-8 border-b border-slate-200 px-4 pt-4 text-base font-semibold">
+              <div className="flex h-14 shrink-0 items-end gap-8 border-b border-slate-200 px-5 text-base font-semibold">
                 <button
                   type="button"
                   onClick={() => setRepairPanelTab("activity")}
-                  className={`pb-2 ${
+                  className={`h-full border-b-2 pt-1 ${
                     repairPanelTab === "activity"
-                      ? "border-b-2 border-slate-900 text-slate-900"
-                      : "text-slate-700"
+                      ? "border-slate-900 text-slate-900"
+                      : "border-transparent text-slate-900"
                   }`}
                 >
                   Activity
@@ -3258,17 +3241,17 @@ const TicketView = () => {
                 <button
                   type="button"
                   onClick={() => setRepairPanelTab("callReports")}
-                  className={`pb-2 ${
+                  className={`h-full border-b-2 pt-1 ${
                     repairPanelTab === "callReports"
-                      ? "border-b-2 border-slate-900 text-slate-900"
-                      : "text-slate-700"
+                      ? "border-slate-900 text-slate-900"
+                      : "border-transparent text-slate-900"
                   }`}
                 >
                   Call Reports
                 </button>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
+              <div className="min-h-0 flex-1 overflow-hidden px-6 py-6">
                 <div className="max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
                   {visibleRepairItems.length > 0 ? (
                     <div className="relative border-l border-sky-300 pl-4">
@@ -3321,6 +3304,18 @@ const TicketView = () => {
                             "AssignedVendor",
                           ]),
                         );
+                        const activityCreatedBy = formatDisplayValue(
+                          getFieldValue(item, [
+                            "CreatedByTeam",
+                            "cCreatedByTeam",
+                            "TeamName",
+                            "cTeamName",
+                            "CreatedByName",
+                            "cCreatedByName",
+                            "CreatedBy",
+                            "cCreatedBy",
+                          ]),
+                        );
                         const actor = vendorActor || assignedActor;
                         const isAssignedEntry = normalizeText(title).includes("assigned");
                         const isTransferEntry =
@@ -3371,9 +3366,9 @@ const TicketView = () => {
                           : isTransferEntry
                             ? vendorActor
                               ? "Vendor Name :"
-                              : "Transfered to :"
+                              : "Transferred to"
                             : "";
-                        const showActions = isTransferEntry || isServiceCostEntry;
+                        const showActions = index === 0 && isTransferEntry;
                         const dateText = formatRepairDateLabel(
                           getFieldValue(item, [
                             ...(isAssignedEntry
@@ -3401,7 +3396,7 @@ const TicketView = () => {
                         return (
                           <div
                             key={`${title}-${index}`}
-                            className="relative pb-4 last:pb-0"
+                            className="relative pb-5 last:pb-0"
                           >
                             <span
                               className={`absolute -left-[22px] top-1.5 h-3 w-3 rounded-full border-2 border-sky-300 ring-2 ring-white ${
@@ -3443,8 +3438,16 @@ const TicketView = () => {
                               <div className="mt-1 text-sm text-slate-700">
                                 {actorLabel ? (
                                   <>
-                                    <span className="font-medium text-slate-900">{actorLabel}</span>{" "}
-                                    <span>{actor}</span>
+                                    <span className="font-medium text-slate-900">
+                                      {actorLabel}
+                                      {" "}
+                                      {actor}
+                                    </span>
+                                    {isTransferEntry && activityCreatedBy ? (
+                                      <span className="ml-1 italic text-slate-500">
+                                        (by : {activityCreatedBy})
+                                      </span>
+                                    ) : null}
                                   </>
                                 ) : (
                                   actor
@@ -3460,8 +3463,32 @@ const TicketView = () => {
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => setEstimateOpen(true)}
-                                  className="rounded-md border border-sky-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 hover:bg-sky-50"
+                                  onClick={() =>
+                                    navigate("/tickets/estimate", {
+                                      state: {
+                                        ticketId,
+                                        nTicketId: ticketId,
+                                        customerId,
+                                        nCustomerId: customerId,
+                                        customerName,
+                                        estimateId:
+                                          Number(
+                                            getFieldValue(item, [
+                                              "nEstimateId",
+                                              "EstimateId",
+                                              "nId",
+                                              "Id",
+                                              "id",
+                                            ]),
+                                          ) || estimateHistoryId,
+                                        historyId: estimateHistoryId,
+                                        sessionPayload,
+                                        returnTo: location.pathname,
+                                        returnState: location.state,
+                                      },
+                                    })
+                                  }
+                                  className="rounded-md border border-sky-300 bg-sky-50/40 px-3 py-2 text-xs font-medium text-slate-900 hover:bg-sky-50"
                                 >
                                   Service Cost Estimate {customerName || ""} (PDF)
                                 </button>

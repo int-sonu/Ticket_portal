@@ -10,6 +10,9 @@ import deleteRed from '../../../assets/icons/delete-red.svg';
 import narrationIcon from '../../../assets/icons/NarrationIcon.svg';
 import shareIcon from '../../../assets/icons/shareIcon.svg';
 import closeBlack from '../../../assets/icons/close-black.svg';
+import previewIcon from '../../../assets/Bills/PreviewIcon.png';
+import estimateShareIcon from '../../../assets/Bills/ShareIcon.png';
+import printIcon from '../../../assets/Bills/PrintIcon.png';
 
 interface EstimateModalProps {
   open: boolean;
@@ -68,10 +71,14 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
   const [pdfRenderError, setPdfRenderError] = useState<string>('');
   const [pdfPageCount, setPdfPageCount] = useState<number>(0);
   const [loadedCustomerName, setLoadedCustomerName] = useState<string>('');
+  const [createdByText, setCreatedByText] = useState<string>('');
+  const [createdOnText, setCreatedOnText] = useState<string>('');
+  const [isEstimateShared, setIsEstimateShared] = useState(false);
   const [manualGrandTotal, setManualGrandTotal] = useState<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const resolvedEstimateId = Number(estimateId || historyId || 0);
   const displayCustomerName = customerName || loadedCustomerName;
+  const isReadOnlyEstimate = resolvedEstimateId > 0;
 
   const getPartTaxRows = (part: any) => {
     const rawTaxes =
@@ -369,6 +376,30 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
             customerName ??
             '',
         ).trim();
+      const nextCreatedBy = String(
+        header?.cCreatedByName ??
+          header?.CreatedByName ??
+          header?.cTeamName ??
+          header?.TeamName ??
+          header?.cCreatedBy ??
+          header?.CreatedBy ??
+          '',
+      ).trim();
+      const rawCreatedOn =
+        header?.dCreatedDate ??
+        header?.CreatedDate ??
+        header?.cCreatedDate ??
+        header?.CreatedOn ??
+        responseData?.dCreatedDate ??
+        responseData?.CreatedDate;
+      const parsedCreatedOn = rawCreatedOn ? new Date(rawCreatedOn) : null;
+      const sharedValue =
+        header?.bShared ??
+        header?.IsShared ??
+        header?.isShared ??
+        responseData?.bShared ??
+        responseData?.IsShared ??
+        false;
 
       if (mappedRows.length > 0) {
         setItems(mappedRows);
@@ -379,6 +410,18 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       if (nextCustomerName) {
         setLoadedCustomerName(nextCustomerName);
       }
+      setCreatedByText(nextCreatedBy);
+      setCreatedOnText(
+        parsedCreatedOn && !Number.isNaN(parsedCreatedOn.getTime())
+          ? formatEstimateDate(parsedCreatedOn)
+          : '',
+      );
+      setIsEstimateShared(
+        sharedValue === true ||
+          sharedValue === 1 ||
+          String(sharedValue).toLowerCase() === 'true' ||
+          String(sharedValue) === '1',
+      );
 
       const existingGrandTotal = getFirstNumber(
         header,
@@ -925,6 +968,72 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
     }
   };
 
+  const requestEstimatePdfUrl = async () => {
+    const targetEstimateId = Number(savedEstimateId || resolvedEstimateId || 0);
+
+    if (!targetEstimateId) {
+      throw new Error('Estimate reference is missing');
+    }
+
+    const response = await axiosInstance.post(
+      '/Api/V1/Estimate/ExportEsitmatePdf',
+      {
+        nCompanyId: Number(sessionPayload?.nCompanyId || 0),
+        nEstimateId: targetEstimateId,
+        cSchemaName: sessionPayload?.cSchemaName,
+        cDbName: sessionPayload?.cDbName,
+      },
+    );
+    const pdfUrl = getPdfUrlFromResponse(response);
+
+    if (!pdfUrl) {
+      throw new Error('Unable to open estimate PDF');
+    }
+
+    return pdfUrl;
+  };
+
+  const handlePreviewEstimate = async () => {
+    try {
+      setIsExportingPdf(true);
+      await openPdfPreviewFromUrl(await requestEstimatePdfUrl());
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleShareEstimate = async () => {
+    try {
+      setIsExportingPdf(true);
+      const pdfUrl = resolvePdfUrl(await requestEstimatePdfUrl());
+
+      if (navigator.share) {
+        await navigator.share({ title: `Estimate ${estimateNo}`, url: pdfUrl });
+      } else {
+        await navigator.clipboard.writeText(pdfUrl);
+        message.success('Estimate link copied');
+      }
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handlePrintEstimate = async () => {
+    try {
+      setIsExportingPdf(true);
+      const pdfUrl = resolvePdfUrl(await requestEstimatePdfUrl());
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleExportPdf = async () => {
     try {
       setIsExportingPdf(true);
@@ -1135,13 +1244,25 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       ),
     },
   ];
+  const visibleColumns = isReadOnlyEstimate ? columns.slice(0, -1) : columns;
 
   if (!open) return null;
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-white">
+      {isReadOnlyEstimate ? (
+        <div className="h-8 shrink-0 bg-sky-100/80 px-2 py-1.5 text-[12px] text-cyan-800">
+          Created by :{' '}
+          {createdByText ||
+            sessionPayload?.cTeamName ||
+            sessionPayload?.TeamName ||
+            'Team'}
+          {createdOnText ? ` (${createdOnText})` : ''}
+        </div>
+      ) : null}
+
       {/* Header row: Title + Date + Close */}
-      <div className="flex items-center justify-between px-3 py-1.5">
+      <div className="flex items-center justify-between px-5 py-2">
         <h2 className="m-0 text-[18px] font-normal text-black">Estimate</h2>
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-black">{formatEstimateDate(new Date())}</span>
@@ -1153,22 +1274,23 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
       <div className="border-b border-slate-200" />
 
       {/* Estimate No + Customer Name row */}
-      <div className="flex items-center gap-5 px-3 py-2 text-[13px] text-[#3b82f6]">
+      <div className="flex items-center gap-5 border-b border-slate-200 px-5 py-1.5 text-[13px] text-[#3b82f6]">
         <div>
-          <span className="text-[#64748b]">Estimate No : </span>
-          <span className="font-medium text-[#3b82f6]">{estimateNo}</span>
+          <span className="text-black">Estimate No : </span>
+          <span className="text-slate-500">{estimateNo}</span>
         </div>
+        <div className="h-5 border-l border-slate-200" />
         <div>
-          <span className="text-[#64748b]">Customer Name : </span>
-          <span className="text-[#64748b]">{displayCustomerName}</span>
+          <span className="text-black">Customer Name : </span>
+          <span className="text-slate-500">{displayCustomerName}</span>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto px-6 pb-6">
-        <div className="mb-2 font-bold text-slate-800">Add Items</div>
+      <div className="min-h-0 flex-1 overflow-auto px-5 pb-5 pt-1">
+        <div className="mb-1 text-[17px] font-medium text-black">Add Items</div>
         <Table
           dataSource={items}
-          columns={columns}
+          columns={visibleColumns}
           pagination={false}
           loading={loading}
           size="small"
@@ -1217,7 +1339,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         )}
       </div>
 
-      <div className="mt-auto flex items-end justify-between border-t border-slate-200 bg-slate-50 p-6">
+      <div className="relative mt-auto flex min-h-[162px] items-start justify-between border-t border-slate-200 bg-[#f5f5f5] px-5 py-4">
         <div className="w-64 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-slate-600">Total</span>
@@ -1244,16 +1366,57 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
           
           
         </div>
-        <Button
-          type="primary"
-          style={{ backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' }}
-          className="min-w-[100px]"
-          size="large"
-          loading={isSaving}
-          onClick={handleSaveEstimate}
-        >
-          Save
-        </Button>
+        {isReadOnlyEstimate ? (
+          <>
+            <div
+              className={`text-[12px] ${
+                isEstimateShared ? 'text-emerald-600' : 'text-red-500'
+              }`}
+            >
+              {isEstimateShared ? 'Estimate Shared' : 'Estimate Not Shared'}
+            </div>
+            <div className="absolute bottom-3 right-5 flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Preview estimate"
+                disabled={isExportingPdf}
+                onClick={() => void handlePreviewEstimate()}
+                className="flex h-9 w-9 items-center justify-center disabled:opacity-50"
+              >
+                <img src={previewIcon} alt="" className="h-9 w-9 rounded border border-black/70" />
+              </button>
+              <button
+                type="button"
+                aria-label="Share estimate"
+                disabled={isExportingPdf}
+                onClick={() => void handleShareEstimate()}
+                className="flex h-9 w-9 items-center justify-center disabled:opacity-50"
+              >
+                <img src={estimateShareIcon} alt="" className="h-9 w-9 rounded border border-black/70" />
+              </button>
+              <button
+                type="button"
+                aria-label="Print estimate"
+                disabled={isExportingPdf}
+                onClick={() => void handlePrintEstimate()}
+                className="flex h-9 w-9 items-center justify-center disabled:opacity-50"
+              >
+                <img src={printIcon} alt="" className="h-9 w-9 rounded border border-black/70" />
+              </button>
+            </div>
+          </>
+        ) : (
+          <Button
+            type="primary"
+            style={{ backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' }}
+            className="min-w-[100px]"
+            size="large"
+            loading={isSaving}
+            onClick={handleSaveEstimate}
+          >
+            Save
+          </Button>
+        )}
       </div>
 
       <Modal
