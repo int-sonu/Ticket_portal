@@ -432,7 +432,7 @@ const TicketOverviewSection = ({
 
     if (variant === "list") {
       return (
-        <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden p-4">
+        <div className="files-list-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto  overflow-x-hidden p-4">
           {validAttachments.length > 0 ? (
             <div className="space-y-6">
               {validAttachments.map((file: any, index: number) => {

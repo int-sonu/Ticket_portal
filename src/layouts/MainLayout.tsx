@@ -21,7 +21,7 @@ const MainLayout: React.FC = () => {
           className={`relative z-0 flex min-h-0 flex-1 flex-col overflow-x-hidden px-4 pb-4 pt-0 transition-all duration-300 ${
             isTicketRoute ? 'overflow-hidden' : 'overflow-y-auto'
           }`}
-          style={{ marginLeft: isSidebarOpen ? '16rem' : '5rem' }}
+          style={{ marginLeft: isSidebarOpen ? '226px' : '72px' }}
         >
           <Outlet />
         </main>

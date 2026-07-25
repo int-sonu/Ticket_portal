@@ -6,28 +6,28 @@ interface BannerProps {
 
 const Banner: React.FC<BannerProps> = ({ isSidebarOpen }) => {
   return (
-    <div className="mt-auto flex flex-col w-full">
+    <div className="mt-auto flex w-full flex-col">
       {/* Upgrade Plan Card */}
       {isSidebarOpen && (
-        <div className="mx-4 mb-3.5 p-4.5 bg-[#0e6da8]/90 rounded-2xl relative overflow-hidden border border-white/10 shadow-lg flex flex-col">
-          <h4 className="font-bold text-[14px] text-white tracking-wide mb-1">
+        <div className="relative mx-[15px] mb-2 flex h-[146px] flex-col overflow-hidden rounded-xl border border-white/5 bg-[#1177a8] px-[10px] py-[6px] shadow-md">
+          <h4 className="mb-0.5 text-[13px] font-bold leading-[17px] text-white">
             Plan Details
           </h4>
-          <p className="text-[12px] text-white/95 mb-3.5 leading-relaxed font-semibold">
+          <p className="mb-0.5 text-[11px] font-medium leading-[17px] text-white">
             You are currently on the basic plan. To get more features, upgrade to one of our premium plans.
           </p>
           
           {/* Custom Saturn/Planet Wireframe SVG Icon */}
           <svg
-            width="32"
-            height="32"
+            width="30"
+            height="30"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="text-white mb-4 opacity-95"
+            className="mb-0.5 text-white opacity-95"
           >
             {/* Planet globe */}
             <circle cx="12" cy="12" r="5" />
@@ -38,22 +38,22 @@ const Banner: React.FC<BannerProps> = ({ isSidebarOpen }) => {
             />
           </svg>
           
-          <button className="w-full bg-[#1890ff] hover:bg-[#40a9ff] text-white font-bold py-2 rounded-xl text-[13px] transition-colors shadow-md shadow-blue-500/10 cursor-pointer">
+          <button className="mt-auto h-8 w-full cursor-pointer rounded-md bg-gradient-to-r from-[#079bf1] to-[#70c6f5] text-[11px] font-bold text-white shadow-sm transition-[filter] hover:brightness-110">
             Upgrade now
           </button>
         </div>
       )}
 
       {/* Bordered Logout Button */}
-      <div className="p-4 pt-1">
+      <div className="px-[23px] pb-[7px]">
         {isSidebarOpen ? (
-          <button className="w-full bg-transparent hover:bg-white/10 text-white font-bold py-2 rounded-xl border border-white/80 transition-colors text-center text-[13px] cursor-pointer">
+          <button className="h-[31px] w-full cursor-pointer rounded-md border border-white bg-transparent text-center text-[11px] font-bold text-white transition-colors hover:bg-white/10">
             Logout
           </button>
         ) : (
           <button 
             title="Logout"
-            className="w-full bg-transparent hover:bg-white/10 text-white font-bold py-2 rounded-xl border border-white/80 flex items-center justify-center transition-colors cursor-pointer"
+            className="flex h-[31px] w-full cursor-pointer items-center justify-center rounded-md border border-white bg-transparent font-bold text-white transition-colors hover:bg-white/10"
           >
             <svg
               width="18"

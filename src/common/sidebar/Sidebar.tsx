@@ -2,17 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import Banner from './Banner';
 
-// Import SVG icons
-import dashbaordIcon from '../../assets/icons/dashbaordIcon.svg';
 import masterIcon from '../../assets/icons/masterIcon.svg';
 import ticketIcon from '../../assets/icons/ticketIcon.svg';
 import callReportIcon from '../../assets/icons/callReportIcon.svg';
-import billReportIcon from '../../assets/icons/billReportIcon.svg';
-import receiptIcon from '../../assets/icons/cash-icon-white.svg';
 import ItemRepairIcon from '../../assets/icons/ItemRepairIcon.svg';
 import moreIcon from '../../assets/icons/moreIcon.svg';
 import reportsIcon from '../../assets/icons/reports-icon.svg';
 import settingsIcon from '../../assets/icons/settingsIcon.svg';
+import billsreceipts from '../../assets/icons/bills&receipts.svg';
+
 interface SidebarProps {
   isSidebarOpen: boolean;
 }
@@ -65,11 +63,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
     {
       name: 'Unbilled Call Reports',
       path: '/unbilled-callreports',
-      icon: billReportIcon,
+      icon: callReportIcon,
     },
     {
       name: 'Bill & Receipts',
-      icon: receiptIcon,
+      icon: billsreceipts,
       subItems: [
         { name: 'Bills', path: '/bills' },
         { name: 'Receipts', path: '/receipts' },
@@ -142,39 +140,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
 
   return (
     <aside
-      className={`fixed top-[38px] left-0 z-40 flex h-[calc(100vh-38px)] flex-col bg-[#1f5f8a] text-white shadow-xl transition-all duration-300 ${
-        isSidebarOpen ? 'w-64' : 'w-20'
+      className={`fixed top-[38px] left-0 z-40 flex h-[calc(100vh-38px)] flex-col bg-[#075a7a] text-white shadow-xl transition-all duration-300 ${
+        isSidebarOpen ? 'w-[226px]' : 'w-[72px]'
       }`}
     >
-      <nav className="flex-1 overflow-y-auto py-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <ul className="space-y-0.5" ref={containerRef}>
-          {/* Dashboard (Top Item - rendered manually to keep it highlight-friendly) */}
-          <li>
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#184f74] ${
-                  isActive
-                    ? 'border-l-4 border-cyan-400 bg-[#184f74]'
-                    : 'border-l-4 border-transparent'
-                }`
-              }
-              title="Dashboard"
-            >
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
-                <img
-                  src={dashbaordIcon}
-                  alt="Dashboard"
-                  className="h-5 w-5 opacity-95"
-                />
-              </span>
-              {isSidebarOpen && (
-                <span className="ml-4 truncate text-[13px] font-medium">Dashboard</span>
-              )}
-            </NavLink>
-          </li>
-
-          {/* Generically rendered items */}
+      <nav className="min-h-0 flex-1 overflow-y-auto px-[15px] pt-7 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <ul className="space-y-1.5" ref={containerRef}>
           {menuItems.map((item) => {
             const hasSub = !!item.subItems;
             const isOpen = openMenu === item.name;
@@ -184,10 +155,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                 <li key={item.name} className="relative">
                   <button
                     onClick={() => setOpenMenu(isOpen ? null : item.name)}
-                    className={`flex w-full items-center px-4 py-2.5 cursor-pointer border-l-4 transition-colors hover:bg-[#184f74] ${
+                    className={`flex h-[37px] w-full items-center rounded-md border px-3 cursor-pointer transition-colors ${
                       isOpen
-                        ? 'border-cyan-400 bg-[#184f74]'
-                        : 'border-l-4 border-transparent'
+                        ? 'border-[#66b6d5] bg-[#166c8c]'
+                        : 'border-transparent hover:border-[#237797] hover:bg-[#146784]'
                     }`}
                     title={item.name}
                     type="button"
@@ -201,17 +172,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                     </span>
                     {isSidebarOpen && (
                       <div className="ml-4 flex min-w-0 flex-1 items-center justify-between">
-                        <span className="truncate text-[13px] font-medium">{item.name}</span>
+                        <span className="truncate text-[14px] font-semibold">{item.name}</span>
                         <svg
-                          className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${
-                            isOpen ? 'rotate-180' : ''
+                          className={`h-3.5 w-3.5 text-white transition-transform duration-200 ${
+                            isOpen ? 'rotate-90' : ''
                           }`}
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="2.4"
+                          strokeWidth="2.5"
                           viewBox="0 0 24 24"
                         >
-                          <polyline points="6 9 12 15 18 9"></polyline>
+                          <polyline points="9 6 15 12 9 18"></polyline>
                         </svg>
                       </div>
                     )}
@@ -223,15 +194,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                       className={`absolute z-[9999] bg-white border border-slate-100 rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] py-1.5 flex flex-col animate-in fade-in duration-150
                         ${
                           isSidebarOpen
-                            ? 'left-4 top-[44px] w-[210px]'
-                            : 'left-20 top-0 w-48'
+                            ? 'left-0 top-[41px] w-[196px]'
+                            : 'left-[57px] top-0 w-48'
                         }`}
                     >
                       <div
                         className={`flex flex-col w-full
                           ${
                             item.subItems!.length > 8
-                              ? 'max-h-[280px] overflow-y-auto scrollbar-thin'
+                              ? 'max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-50/25'
                               : ''
                           }`}
                       >
@@ -264,10 +235,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                 <NavLink
                   to={item.path!}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-2.5 cursor-pointer border-l-4 transition-colors hover:bg-[#184f74] ${
+                    `flex h-[37px] items-center rounded-md border px-3 cursor-pointer transition-colors ${
                       isActive
-                        ? 'border-cyan-400 bg-[#184f74]'
-                        : 'border-l-4 border-transparent'
+                        ? 'border-[#91cce2] bg-[#3895b9]'
+                        : 'border-transparent hover:border-[#237797] hover:bg-[#146784]'
                     }`
                   }
                   title={item.name}
@@ -280,7 +251,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                     />
                   </span>
                   {isSidebarOpen && (
-                    <span className="ml-4 truncate text-[13px] font-medium">{item.name}</span>
+                    <span className="ml-4 truncate text-[14px] font-semibold">{item.name}</span>
                   )}
                 </NavLink>
               </li>
