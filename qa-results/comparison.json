@@ -1,0 +1,623 @@
+{
+  "generatedAt": "2026-07-25T10:10:52.739Z",
+  "baseline": {
+    "label": "baseline-5173",
+    "requestedUrl": "http://localhost:5173/",
+    "navigationStatus": null,
+    "navigationError": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/ Call log: \u001b[2m - navigating to \"http://localhost:5173/\", waiting until \"domcontentloaded\"\u001b[22m",
+    "title": "",
+    "finalUrl": "about:blank",
+    "blank": true,
+    "bodyTextLength": 0,
+    "bodyTextPreview": "",
+    "bodyHtmlHash": "e3b0c44298fc1c14",
+    "structureHash": "e3b0c44298fc1c14",
+    "structureLength": 0,
+    "metrics": {},
+    "visibleElements": [],
+    "visibleUiText": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "failedRequests": [
+      {
+        "method": "GET",
+        "url": "http://localhost:5173/",
+        "error": "net::ERR_CONNECTION_REFUSED"
+      }
+    ],
+    "errorResponses": [],
+    "linkChecks": [],
+    "functionalChecks": [],
+    "screenshotPath": "D:\\Sonu\\Ticket\\Ticket_portal\\qa-results\\baseline-5173.png"
+  },
+  "build": {
+    "label": "build-5174",
+    "requestedUrl": "http://localhost:5174/",
+    "navigationStatus": 200,
+    "navigationError": null,
+    "title": "ticket_portal",
+    "finalUrl": "http://localhost:5174/login",
+    "blank": false,
+    "bodyTextLength": 115,
+    "bodyTextPreview": "Welcome back ! Please enter your details to Login Company Code User Name Password Forgot password? Register Sign In",
+    "bodyHtmlHash": "c2a7c9177568a426",
+    "structureHash": "6db14e1cbbba8488",
+    "structureLength": 298,
+    "metrics": {
+      "totalElements": 84,
+      "visibleElements": 51,
+      "headings": 1,
+      "links": 1,
+      "buttons": 2,
+      "inputs": 3,
+      "forms": 1,
+      "images": 1,
+      "headers": 0,
+      "navs": 0,
+      "mains": 0,
+      "asides": 0
+    },
+    "visibleElements": [
+      {
+        "tag": "h1",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "",
+        "text": "Welcome back !",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 212,
+          "width": 450,
+          "height": 53
+        },
+        "style": {
+          "display": "block",
+          "color": "rgb(0, 0, 0)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "35px"
+        }
+      },
+      {
+        "tag": "form",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "",
+        "text": "Company CodeUser NamePasswordForgot password?RegisterSign In",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 331,
+          "width": 450,
+          "height": 358
+        },
+        "style": {
+          "display": "block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "14px"
+        }
+      },
+      {
+        "tag": "input",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "text",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 361,
+          "width": 450,
+          "height": 40
+        },
+        "style": {
+          "display": "inline-block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "input",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "text",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 455,
+          "width": 450,
+          "height": 40
+        },
+        "style": {
+          "display": "inline-block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "input",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "password",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 853,
+          "y": 557,
+          "width": 406,
+          "height": 24
+        },
+        "style": {
+          "display": "block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "span",
+        "role": "button",
+        "aria": "Show",
+        "name": "",
+        "type": "",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 1263,
+          "y": 561,
+          "width": 16,
+          "height": 16
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgba(0, 0, 0, 0.45)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "span",
+        "role": "img",
+        "aria": "eye-invisible",
+        "name": "",
+        "type": "",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 1263,
+          "y": 561,
+          "width": 16,
+          "height": 16
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgba(0, 0, 0, 0.45)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "a",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "",
+        "text": "Forgot password?",
+        "href": "http://localhost:5174/forgot-password",
+        "box": {
+          "x": 1195,
+          "y": 609,
+          "width": 96,
+          "height": 16
+        },
+        "style": {
+          "display": "inline",
+          "color": "rgb(22, 119, 255)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "12.25px"
+        }
+      },
+      {
+        "tag": "button",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "button",
+        "text": "Register",
+        "href": "",
+        "box": {
+          "x": 1077,
+          "y": 649,
+          "width": 100,
+          "height": 40
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(13, 58, 141)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "button",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "submit",
+        "text": "Sign In",
+        "href": "",
+        "box": {
+          "x": 1191,
+          "y": 649,
+          "width": 100,
+          "height": 40
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(13, 58, 141)",
+          "fontSize": "16px"
+        }
+      }
+    ],
+    "visibleUiText": [
+      "Welcome back !",
+      "Company CodeUser NamePasswordForgot password?RegisterSign In",
+      "Forgot password?",
+      "Register",
+      "Sign In"
+    ],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "failedRequests": [],
+    "errorResponses": [],
+    "linkChecks": [
+      {
+        "text": "Forgot password?",
+        "href": "http://localhost:5174/forgot-password",
+        "status": 200,
+        "finalUrl": "http://localhost:5174/forgot-password",
+        "broken": false,
+        "error": null
+      }
+    ],
+    "functionalChecks": [
+      {
+        "name": "Empty login validation",
+        "pass": true,
+        "details": [
+          "Company Code is required.",
+          "username is required.",
+          "password is required."
+        ]
+      },
+      {
+        "name": "Register button action",
+        "pass": false,
+        "details": [
+          "No navigation, dialog, message, or visible content change."
+        ]
+      }
+    ],
+    "screenshotPath": "D:\\Sonu\\Ticket\\Ticket_portal\\qa-results\\build-5174.png"
+  },
+  "comparison": {
+    "tests": [
+      {
+        "test": "Server/navigation",
+        "baseline": "ERROR: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/ Call log: \u001b[2m - navigating to \"http://localhost:5173/\", waiting until \"domcontentloaded\"\u001b[22m",
+        "build": "HTTP 200",
+        "pass": false,
+        "notes": "Both root URLs must load successfully."
+      },
+      {
+        "test": "Visible page content",
+        "baseline": "Blank/broken",
+        "build": "115 text chars",
+        "pass": false,
+        "notes": "Checks rendered body text and visible elements."
+      },
+      {
+        "test": "Page title",
+        "baseline": "(empty)",
+        "build": "ticket_portal",
+        "pass": false,
+        "notes": "Titles should match."
+      },
+      {
+        "test": "Final route",
+        "baseline": "blank",
+        "build": "/login",
+        "pass": false,
+        "notes": "Includes redirects such as unauthenticated /login."
+      },
+      {
+        "test": "Console/page errors",
+        "baseline": "0 console, 0 page",
+        "build": "0 console, 0 page",
+        "pass": true,
+        "notes": "Build should not introduce runtime errors."
+      },
+      {
+        "test": "Failed requests",
+        "baseline": "1 failed",
+        "build": "0 failed",
+        "pass": false,
+        "notes": "Transport-level failures."
+      },
+      {
+        "test": "HTTP 4xx/5xx responses",
+        "baseline": "0 errors",
+        "build": "0 errors",
+        "pass": true,
+        "notes": "All observed resources and API responses."
+      },
+      {
+        "test": "Visible key UI elements",
+        "baseline": "0 key elements",
+        "build": "10 key elements",
+        "pass": false,
+        "notes": "0 missing, 10 extra."
+      },
+      {
+        "test": "DOM structure",
+        "baseline": "e3b0c44298fc1c14",
+        "build": "6db14e1cbbba8488",
+        "pass": false,
+        "notes": "Tag-tree lengths: 0 vs 298."
+      },
+      {
+        "test": "Layout/computed styles",
+        "baseline": "Reference geometry",
+        "build": "0 differences",
+        "pass": true,
+        "notes": "Flags >4px geometry changes or computed style changes."
+      },
+      {
+        "test": "Visible links",
+        "baseline": "0 broken",
+        "build": "0 broken",
+        "pass": true,
+        "notes": "Same-origin visible links are opened in isolated pages."
+      },
+      {
+        "test": "Login form validation",
+        "baseline": "Unavailable/failed",
+        "build": "Working",
+        "pass": false,
+        "notes": "Submits the login form empty and expects three required-field messages."
+      },
+      {
+        "test": "Register button action",
+        "baseline": "Unavailable/failed",
+        "build": "No observable action",
+        "pass": false,
+        "notes": "Checks for navigation, dialog, message, or visible content change."
+      }
+    ],
+    "missingElements": [],
+    "extraElements": [
+      {
+        "tag": "h1",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "",
+        "text": "Welcome back !",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 212,
+          "width": 450,
+          "height": 53
+        },
+        "style": {
+          "display": "block",
+          "color": "rgb(0, 0, 0)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "35px"
+        }
+      },
+      {
+        "tag": "form",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "",
+        "text": "Company CodeUser NamePasswordForgot password?RegisterSign In",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 331,
+          "width": 450,
+          "height": 358
+        },
+        "style": {
+          "display": "block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "14px"
+        }
+      },
+      {
+        "tag": "input",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "text",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 361,
+          "width": 450,
+          "height": 40
+        },
+        "style": {
+          "display": "inline-block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "input",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "text",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 841,
+          "y": 455,
+          "width": 450,
+          "height": 40
+        },
+        "style": {
+          "display": "inline-block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "input",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "password",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 853,
+          "y": 557,
+          "width": 406,
+          "height": 24
+        },
+        "style": {
+          "display": "block",
+          "color": "rgba(0, 0, 0, 0.88)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "span",
+        "role": "button",
+        "aria": "Show",
+        "name": "",
+        "type": "",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 1263,
+          "y": 561,
+          "width": 16,
+          "height": 16
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgba(0, 0, 0, 0.45)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "span",
+        "role": "img",
+        "aria": "eye-invisible",
+        "name": "",
+        "type": "",
+        "text": "",
+        "href": "",
+        "box": {
+          "x": 1263,
+          "y": 561,
+          "width": 16,
+          "height": 16
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgba(0, 0, 0, 0.45)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "a",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "",
+        "text": "Forgot password?",
+        "href": "http://localhost:5174/forgot-password",
+        "box": {
+          "x": 1195,
+          "y": 609,
+          "width": 96,
+          "height": 16
+        },
+        "style": {
+          "display": "inline",
+          "color": "rgb(22, 119, 255)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "fontSize": "12.25px"
+        }
+      },
+      {
+        "tag": "button",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "button",
+        "text": "Register",
+        "href": "",
+        "box": {
+          "x": 1077,
+          "y": 649,
+          "width": 100,
+          "height": 40
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(13, 58, 141)",
+          "fontSize": "16px"
+        }
+      },
+      {
+        "tag": "button",
+        "role": "",
+        "aria": "",
+        "name": "",
+        "type": "submit",
+        "text": "Sign In",
+        "href": "",
+        "box": {
+          "x": 1191,
+          "y": 649,
+          "width": 100,
+          "height": 40
+        },
+        "style": {
+          "display": "flex",
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(13, 58, 141)",
+          "fontSize": "16px"
+        }
+      }
+    ],
+    "layoutDifferences": [],
+    "matches": false
+  }
+}

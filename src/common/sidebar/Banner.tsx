@@ -1,10 +1,30 @@
 import React from 'react';
+import { message } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { useLogout } from '../../Hooks/useAuth';
 
 interface BannerProps {
   isSidebarOpen: boolean;
 }
 
 const Banner: React.FC<BannerProps> = ({ isSidebarOpen }) => {
+  const navigate = useNavigate();
+  const { mutate: logoutUser, isPending } = useLogout();
+
+  const handleLogout = () => {
+    logoutUser(undefined, {
+      onSuccess: () => {
+        sessionStorage.removeItem('userSession');
+        localStorage.removeItem('userCredentials');
+        message.success('Logged out successfully');
+        navigate('/login', { replace: true });
+      },
+      onError: () => {
+        message.error('Unable to log out. Please try again.');
+      },
+    });
+  };
+
   return (
     <div className="mt-auto flex w-full flex-col">
       {/* Upgrade Plan Card */}
@@ -47,13 +67,22 @@ const Banner: React.FC<BannerProps> = ({ isSidebarOpen }) => {
       {/* Bordered Logout Button */}
       <div className="px-[23px] pb-[7px]">
         {isSidebarOpen ? (
-          <button className="h-[31px] w-full cursor-pointer rounded-md border border-white bg-transparent text-center text-[11px] font-bold text-white transition-colors hover:bg-white/10">
-            Logout
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isPending}
+            className="h-[31px] w-full cursor-pointer rounded-md border border-white bg-transparent text-center text-[11px] font-bold text-white transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+          >
+            {isPending ? 'Logging out...' : 'Logout'}
           </button>
         ) : (
           <button 
+            type="button"
             title="Logout"
-            className="flex h-[31px] w-full cursor-pointer items-center justify-center rounded-md border border-white bg-transparent font-bold text-white transition-colors hover:bg-white/10"
+            aria-label="Logout"
+            onClick={handleLogout}
+            disabled={isPending}
+            className="flex h-[31px] w-full cursor-pointer items-center justify-center rounded-md border border-white bg-transparent font-bold text-white transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
           >
             <svg
               width="18"

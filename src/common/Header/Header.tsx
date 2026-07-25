@@ -176,17 +176,17 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-[38px] bg-white flex items-center justify-between px-5 border-b border-gray-100">
+    <header className="fixed top-0 left-0 right-0 z-50 h-[38px] bg-white flex items-center justify-between px-2 sm:px-5 border-b border-gray-100">
       {/* Left: Hamburger + Company Logo + Name */}
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-3">
         <button
           onClick={toggleSidebar}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
           aria-label="Toggle Sidebar"
         >
           <MenuOutlined className="text-xl" />
         </button>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
           <img
             src={logoUrl || CompanyLogo}
             alt="header-logo"
@@ -197,15 +197,15 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
               (e.currentTarget as HTMLImageElement).src = CompanyLogo;
             }}
           />
-          <p className="text-gray-800 font-semibold text-xs tracking-wide">
+          <p className="hidden max-w-[160px] truncate text-gray-800 font-semibold text-xs tracking-wide sm:block">
             {companyName || 'Company Name'}
           </p>
         </div>
       </div>
 
       {/* Right: Username + Avatar + Bell */}
-      <div className="flex items-center gap-3 relative" ref={popupRef}>
-        <p className="text-gray-800 font-semibold text-sm">
+      <div className="relative flex shrink-0 items-center gap-2 sm:gap-3" ref={popupRef}>
+        <p className="hidden max-w-[140px] truncate text-gray-800 font-semibold text-sm md:block">
           {userName || 'User Name'}
         </p>
         <button
@@ -226,7 +226,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
         {/* User Profile Modal Dropdown */}
         {isProfileOpen && (
-          <div className="absolute right-0 top-11 z-[9999] w-[340px] rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_12px_42px_rgba(0,0,0,0.15)] flex flex-col gap-4 animate-in fade-in slide-in-from-top-3 duration-150">
+          <div className="absolute right-0 top-11 z-[9999] w-[min(340px,calc(100vw-16px))] rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-[0_12px_42px_rgba(0,0,0,0.15)] flex flex-col gap-4 animate-in fade-in slide-in-from-top-3 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-50 pb-2">
               <span className="font-bold text-slate-800 text-[15px]">User Profile</span>

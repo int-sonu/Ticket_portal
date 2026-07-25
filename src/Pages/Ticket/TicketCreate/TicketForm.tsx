@@ -2752,7 +2752,7 @@ const TicketForm = ({
               <Input />
             </Form.Item>
 
-            <div className="grid grid-cols-[1fr_1.5fr] gap-4">
+            <div className="ticket-contact-grid grid grid-cols-[1fr_1.5fr] gap-4">
               <Form.Item
                 label="Phone Number"
                 name="ContactNo"

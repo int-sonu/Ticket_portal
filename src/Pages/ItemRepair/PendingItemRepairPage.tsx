@@ -136,7 +136,7 @@ const PendingItemRepairPage = () => {
 
     if (!ticketId) return;
 
-    navigate(`/itemrepair/assignitemforrepair/itemforrepairview/${ticketId}`, {
+    navigate("/itemrepair/assignitemforrepair/itemforrepairview", {
       state: {
         selectedRow: row,
         isFrom: "item-repair",

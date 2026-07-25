@@ -5,6 +5,7 @@ export type SharedAgentOption = {
   label: string;
   value: string;
   role?: string;
+  nType?: number;
   isSelf?: boolean;
 };
 
@@ -61,7 +62,9 @@ const AgentSelectorModal = ({
         <div className="max-h-[340px] space-y-2 overflow-auto pr-1">
           {options.length ? options.map((agent) => {
             const selected = String(agent.value) === String(selectedValue ?? "");
-            const supervisor = String(agent.role ?? "").trim().toLowerCase() === "supervisor";
+            const supervisor =
+              Number(agent.nType) === 2 ||
+              String(agent.role ?? "").trim().toLowerCase() === "supervisor";
             const expanded = expandedAgentId === agent.value;
             const initial = (agent.label[0] || "A").toUpperCase();
 
@@ -92,10 +95,16 @@ const AgentSelectorModal = ({
                   <DownOutlined className={`text-[10px] transition-transform ${expanded ? "rotate-180" : ""}`} />
                 </button>
                 {expanded && selfOption ? (
-                  <button type="button" onClick={() => onSelect(selfOption)} className="flex w-full items-center gap-3 border-t border-slate-200 bg-white px-3 py-2 text-left hover:bg-slate-50">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-600"><UserOutlined className="text-xs" /></span>
-                    <span className="text-sm font-medium text-slate-700">Self</span>
-                  </button>
+                  <div className="border-t border-slate-200 bg-white">
+                    <button type="button" onClick={() => onSelect(agent)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                      <span className="flex h-5 w-5 items-center justify-center text-sky-500"><UserOutlined className="text-xs" /></span>
+                      <span className="text-sm font-medium text-slate-700">Self</span>
+                    </button>
+                    <button type="button" onClick={() => onSelect(agent)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-slate-50">
+                      <span className="flex h-5 w-5 items-center justify-center text-sky-500"><UserOutlined className="text-xs" /></span>
+                      <span className="text-sm font-medium text-slate-700">View All</span>
+                    </button>
+                  </div>
                 ) : null}
               </div>
             );

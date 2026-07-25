@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import Banner from './Banner';
 
+import dashbaordIcon from '../../assets/icons/dashbaordIcon.svg';
 import masterIcon from '../../assets/icons/masterIcon.svg';
 import ticketIcon from '../../assets/icons/ticketIcon.svg';
 import callReportIcon from '../../assets/icons/callReportIcon.svg';
@@ -13,6 +14,8 @@ import billsreceipts from '../../assets/icons/bills&receipts.svg';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
+  isMobile?: boolean;
+  onNavigate?: () => void;
 }
 
 interface SubMenuItem {
@@ -27,7 +30,11 @@ interface MenuItem {
   subItems?: SubMenuItem[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  isSidebarOpen,
+  isMobile = false,
+  onNavigate,
+}) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const containerRef = useRef<HTMLUListElement>(null);
 
@@ -53,6 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
   ];
 
   const menuItems: MenuItem[] = [
+    { name: 'Dashboard', path: '/dashboard', icon: dashbaordIcon },
     {
       name: 'Masters',
       icon: masterIcon,
@@ -133,22 +141,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
     };
   }, []);
 
-  // Automatically close submenus if sidebar closes
-  useEffect(() => {
-    setOpenMenu(null);
-  }, [isSidebarOpen]);
-
   return (
     <aside
       className={`fixed top-[38px] left-0 z-40 flex h-[calc(100vh-38px)] flex-col bg-[#075a7a] text-white shadow-xl transition-all duration-300 ${
-        isSidebarOpen ? 'w-[226px]' : 'w-[72px]'
+        isMobile
+          ? `w-[min(82vw,280px)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+          : isSidebarOpen
+            ? 'w-[226px] translate-x-0'
+            : 'w-[72px] translate-x-0'
       }`}
+      aria-hidden={isMobile && !isSidebarOpen}
     >
       <nav className="min-h-0 flex-1 overflow-y-auto px-[15px] pt-7 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <ul className="space-y-1.5" ref={containerRef}>
           {menuItems.map((item) => {
             const hasSub = !!item.subItems;
-            const isOpen = openMenu === item.name;
+            const isOpen = isSidebarOpen && openMenu === item.name;
 
             if (hasSub) {
               return (
@@ -210,7 +218,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
                           <NavLink
                             key={sub.name}
                             to={sub.path}
-                            onClick={() => setOpenMenu(null)}
+                            onClick={() => {
+                              setOpenMenu(null);
+                              onNavigate?.();
+                            }}
                             className={({ isActive }) =>
                               `px-4 py-2.5 text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors flex items-center ${
                                 isActive
@@ -234,6 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen }) => {
               <li key={item.name}>
                 <NavLink
                   to={item.path!}
+                  onClick={onNavigate}
                   className={({ isActive }) =>
                     `flex h-[37px] items-center rounded-md border px-3 cursor-pointer transition-colors ${
                       isActive

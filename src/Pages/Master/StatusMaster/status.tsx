@@ -257,7 +257,7 @@ const Status = () => {
         "status-master-table",
 
       tableScroll:
-        { y: "calc(100vh - 300px)" },
+        { y: "calc(100vh - 215px)" },
 
       disableRowHover:
         true,

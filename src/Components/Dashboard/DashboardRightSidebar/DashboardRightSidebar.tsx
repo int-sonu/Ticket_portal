@@ -15,7 +15,7 @@ const DashboardRightSidebar: FC<DashboardRightSidebarProps> = ({
 }) => {
   return (
     <aside className="flex w-full flex-col gap-4">
-      <SideStatCard label="Ongoing" value={sideStats.ongoing} image={ongoingImg} />
+      <SideStatCard  label="Ongoing" value={sideStats.ongoing} image={ongoingImg} />
       <SideStatCard label="Overdue" value={sideStats.overdue} image={overdueImg} />
       <SideStatCard
         label="Unassigned Tickets"

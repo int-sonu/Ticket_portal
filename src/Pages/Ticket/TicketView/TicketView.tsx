@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
-  useRepairItemActivityList,
+  useRepairItemDetails,
   useTicketHistory,
   useTicketHistoryAttachment,
   useTicketView,
@@ -32,6 +32,10 @@ import mergeIcon from "../../../assets/icons/mergeIcon.svg";
 import calendarIcon from "../../../assets/icons/calenderiCon.svg";
 import editBlackIcon from "../../../assets/icons/edit-black.svg";
 import deleteRedIcon from "../../../assets/icons/delete-red.svg";
+import itemRepairTicketIcon from "../../../assets/icons/ItemRepairTicketIcon.svg";
+import itemRepairCalendarIcon from "../../../assets/icons/CalanderItemRepairAddIcon.svg";
+import itemRepairCallIcon from "../../../assets/icons/itemRepairCallIcon.svg";
+import itemRepairMessageIcon from "../../../assets/icons/itemRepairMessageIcon.svg";
 import { useGetAssignAgentList } from "../../Master/Agent/Hooks";
 import { useGetAgentDropdown } from "../../Master/Agent/Hooks";
 import {
@@ -453,6 +457,31 @@ const pickRecord = (response: any) => {
   if (rows.length > 0) return rows[0];
 
   return response ?? {};
+};
+
+const pickRepairDetailsRecord = (response: any) => {
+  const dataObj = response?.Data ?? response?.data ?? response;
+  const detailCandidate =
+    dataObj?.RepairItemDetails ??
+    dataObj?.repairItemDetails ??
+    dataObj?.ItemRepairDetails ??
+    dataObj?.itemRepairDetails ??
+    dataObj?.RepairDetails ??
+    dataObj?.repairDetails;
+  const detailRecord = Array.isArray(detailCandidate)
+    ? detailCandidate[0]
+    : detailCandidate;
+  const baseRecord = pickRecord(response);
+
+  return {
+    ...(dataObj && typeof dataObj === "object" && !Array.isArray(dataObj)
+      ? dataObj
+      : {}),
+    ...(baseRecord && typeof baseRecord === "object" && !Array.isArray(baseRecord)
+      ? baseRecord
+      : {}),
+    ...(detailRecord && typeof detailRecord === "object" ? detailRecord : {}),
+  };
 };
 
 /** Resolve a potentially-relative image path to a full URL */
@@ -1318,6 +1347,43 @@ const TicketView = () => {
     }),
     [supportSessionPayload, ticketId],
   );
+  const repairDetailsPayload = useMemo(() => {
+    const repairId =
+      Number(
+        getFieldValue(selectedRow, [
+          "nRepairId",
+          "RepairId",
+          "nItemRepairId",
+          "ItemRepairId",
+          "nPartRepairId",
+          "PartRepairId",
+          "nId",
+          "Id",
+        ]),
+      ) || 0;
+    const callPartId =
+      Number(
+        getFieldValue(selectedRow, [
+          "nCallPartId",
+          "CallPartId",
+          "nTicketCallPartId",
+          "TicketCallPartId",
+          "nCallPartsId",
+        ]),
+      ) || 0;
+
+    return {
+      ...supportSessionPayload,
+      nTicketId: ticketId,
+      TicketId: ticketId,
+      nRepairId: repairId,
+      RepairId: repairId,
+      nItemRepairId: repairId,
+      ItemRepairId: repairId,
+      nCallPartId: callPartId,
+      CallPartId: callPartId,
+    };
+  }, [selectedRow, supportSessionPayload, ticketId]);
   const statusLookupPayload = useMemo(
     () => ({
       ...supportSessionPayload,
@@ -1337,17 +1403,33 @@ const TicketView = () => {
     payload,
     canLoadTicketView,
   );
+  const {
+    data: repairItemDetailsData,
+    isLoading: isRepairItemDetailsLoading,
+  } = useRepairItemDetails(
+    repairDetailsPayload,
+    isItemRepairContext &&
+      !!supportSessionPayload.nCompanyId &&
+      !!ticketId,
+  );
   const { data: statusLookupData } = useGetStatuses(statusLookupPayload);
 
   const data = ticketViewData;
-  const isLoading = isTicketViewLoading;
+  const isLoading =
+    isTicketViewLoading ||
+    (isItemRepairContext && isRepairItemDetailsLoading);
 
   const ticketData = useMemo(() => pickRecord(data), [data]);
+  const repairDetailsRecord = useMemo(
+    () => pickRepairDetailsRecord(repairItemDetailsData),
+    [repairItemDetailsData],
+  );
   const resolvedRecord = useMemo(
     () => {
       const merged = {
         ...(selectedRow || {}),
         ...(ticketData || {}),
+        ...(isItemRepairContext ? repairDetailsRecord : {}),
       };
 
       const attachmentKeys = [
@@ -1385,7 +1467,7 @@ const TicketView = () => {
 
       return merged;
     },
-    [selectedRow, ticketData],
+    [isItemRepairContext, repairDetailsRecord, selectedRow, ticketData],
   );
   const statusLookupOptions = useMemo(
     () =>
@@ -1546,10 +1628,6 @@ const TicketView = () => {
     repairSupportPayload,
     isItemRepairContext,
   );
-  const { data: repairItemActivityData } = useRepairItemActivityList(
-    repairItemPayload,
-    !!ticketId && isItemRepairContext,
-  );
   const { data: ticketHistoryData } = useTicketHistory(
     historyPayload,
     !!ticketId && !!supportSessionPayload.nCompanyId,
@@ -1650,19 +1728,116 @@ const TicketView = () => {
     [ticketHistoryData],
   );
   const repairActivityItems = useMemo(() => {
-    const nestedRepairItems = Array.isArray(
-      (resolvedRecord as Record<string, any>)?.partsRepair?.[0]?.repairItemActivity,
-    )
-      ? (resolvedRecord as Record<string, any>)?.partsRepair?.[0]?.repairItemActivity
-      : [];
+    const possibleActivityLists = [
+      (repairDetailsRecord as Record<string, any>)?.repairItemActivity,
+      (repairDetailsRecord as Record<string, any>)?.RepairItemActivity,
+      (repairDetailsRecord as Record<string, any>)?.repairActivities,
+      (repairDetailsRecord as Record<string, any>)?.RepairActivities,
+      (repairDetailsRecord as Record<string, any>)?.itemRepairActivity,
+      (repairDetailsRecord as Record<string, any>)?.ItemRepairActivity,
+      (repairDetailsRecord as Record<string, any>)?.activityList,
+      (repairDetailsRecord as Record<string, any>)?.ActivityList,
+      (repairDetailsRecord as Record<string, any>)?.partsRepair?.[0]
+        ?.repairItemActivity,
+      (repairDetailsRecord as Record<string, any>)?.PartsRepair?.[0]
+        ?.RepairItemActivity,
+      (resolvedRecord as Record<string, any>)?.partsRepair?.[0]
+        ?.repairItemActivity,
+    ];
+    const nestedRepairItems = possibleActivityLists.find(
+      (items) => Array.isArray(items) && items.length > 0,
+    );
 
-    if (nestedRepairItems.length > 0) return nestedRepairItems;
+    const items = Array.isArray(nestedRepairItems)
+      ? [...nestedRepairItems]
+      : [...historyItems];
+    const activityTitleKeys = [
+      "cViewSummary",
+      "ViewSummary",
+      "Summary",
+      "Title",
+      "Action",
+      "Activity",
+      "cActivityName",
+      "ActivityName",
+      "cRepairActivityName",
+      "RepairActivityName",
+      "cStatusName",
+      "StatusName",
+      "Status",
+      "cRepairStatusName",
+    ];
+    const hasServiceCostEvent = items.some((item) => {
+      const title = normalizeText(
+        formatDisplayValue(getFieldValue(item, activityTitleKeys)),
+      );
 
-    const apiRepairItems = extractList(repairItemActivityData);
-    if (apiRepairItems.length > 0) return apiRepairItems;
+      return title.includes("service cost") || title.includes("cost estimate");
+    });
+    const repairPartRecord =
+      (repairDetailsRecord as Record<string, any>)?.partsRepair?.[0] ??
+      (repairDetailsRecord as Record<string, any>)?.PartsRepair?.[0] ??
+      {};
+    const serviceChargeFlag = getFieldValue(
+      {
+        ...repairDetailsRecord,
+        ...repairPartRecord,
+      },
+      [
+        "bServiceCharge",
+        "ServiceCharge",
+        "bHasServiceCharge",
+        "HasServiceCharge",
+      ],
+    );
+    const hasServiceCharge =
+      serviceChargeFlag === true ||
+      serviceChargeFlag === 1 ||
+      normalizeText(serviceChargeFlag) === "true" ||
+      normalizeText(serviceChargeFlag) === "1";
 
-    return historyItems;
-  }, [historyItems, repairItemActivityData, resolvedRecord]);
+    if (hasServiceCharge && !hasServiceCostEvent) {
+      const serviceCostEvent = {
+        cViewSummary: "Service Cost Estimate",
+        cCreatedDate: getFieldValue(
+          {
+            ...repairDetailsRecord,
+            ...repairPartRecord,
+          },
+          [
+            "dServiceChargeDate",
+            "cServiceChargeDate",
+            "ServiceChargeDate",
+            "dEstimateDate",
+            "EstimateDate",
+          ],
+        ),
+        nServiceCost: getFieldValue(
+          {
+            ...repairDetailsRecord,
+            ...repairPartRecord,
+          },
+          [
+            "nServiceCost",
+            "ServiceCost",
+            "nServiceCharge",
+            "ServiceChargeAmount",
+            "nVendorCharge",
+            "VendorCharge",
+          ],
+        ),
+      };
+      const transferIndex = items.findIndex((item) =>
+        normalizeText(
+          formatDisplayValue(getFieldValue(item, activityTitleKeys)),
+        ).includes("transfer"),
+      );
+
+      items.splice(transferIndex >= 0 ? transferIndex + 1 : 0, 0, serviceCostEvent);
+    }
+
+    return items;
+  }, [historyItems, repairDetailsRecord, resolvedRecord]);
   const openRepairActivityEdit = (item: Record<string, any>) => {
     setRepairActivityEditing(item);
     setRepairActivityCost(
@@ -1715,7 +1890,7 @@ const TicketView = () => {
     message.success("Repair activity updated successfully.");
     setRepairActivityEditOpen(false);
     setRepairActivityEditing(null);
-    await queryClient.invalidateQueries({ queryKey: ["repair-item-activity-list"] });
+    await queryClient.invalidateQueries({ queryKey: ["repair-item-details"] });
     await queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
   };
   const deleteRepairActivity = (item: Record<string, any>) => {
@@ -1743,7 +1918,7 @@ const TicketView = () => {
           cDbName: sessionPayload.cDbName,
         });
         message.success("Repair activity deleted successfully.");
-        await queryClient.invalidateQueries({ queryKey: ["repair-item-activity-list"] });
+        await queryClient.invalidateQueries({ queryKey: ["repair-item-details"] });
         await queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
       },
     });
@@ -1818,27 +1993,40 @@ const TicketView = () => {
   const ticketNo = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "nTicketNo",
+      "TicketNo",
+      "nTicketId",
+      "TicketId",
     ]),
   );
   const customerName = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "cCustomerName",
+      "CustomerName",
+      "customerName",
     ]),
   );
   const summary = formatDisplayValue(
     getFieldValue(resolvedRecord, [
-    
       "cTicketSummary",
+      "TicketSummary",
+      "cSummary",
+      "Summary",
     ]),
   );
   const description = formatDisplayValue(
     getFieldValue(resolvedRecord, [
       "cDescription",
+      "Description",
+      "cTicketDescription",
+      "TicketDescription",
     ]),
   );
   const createdDateValue = getFieldValue(resolvedRecord, [
-   
     "dCreatedDate",
+    "cCreatedDate",
+    "CreatedDate",
+    "dItemTakenOn",
+    "ItemTakenOn",
   ]);
   const createdDate = formatDisplayValue(createdDateValue);
   const ticketAge = formatTicketAge(createdDateValue || createdDate, tick);
@@ -1906,11 +2094,15 @@ const TicketView = () => {
     getFieldValue(resolvedRecord, [
       "cContactNumber",
       "ContactNumber",
+      "cContactNo",
+      "ContactNo",
+      "cMobileNo",
+      "MobileNo",
       "PhoneNumber",
     ]),
   );
   const email = formatDisplayValue(
-    getFieldValue(resolvedRecord, ["cEmail", "Email"]),
+    getFieldValue(resolvedRecord, ["cEmail", "Email", "cEmailId", "EmailId"]),
   );
   const createdByTeam = formatDisplayValue(
     getFieldValue(resolvedRecord, [
@@ -2934,11 +3126,23 @@ const TicketView = () => {
         .map((item) => formatDisplayValue(getFieldValue(item, repairCommentKeys)))
         .find(Boolean) ||
       "-";
+    const repairDescription =
+      formatDisplayValue(
+        getFieldValue(resolvedRecord, [
+          "cRepairDescription",
+          "RepairDescription",
+          "cItemDescription",
+          "ItemDescription",
+          "cRepairRemarks",
+        ]),
+      ) ||
+      detailPreviousCallReport?.remarks ||
+      "No description available";
 
     return (
       <TicketPageShell contentClassName="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
         <div className="flex w-full items-center justify-between px-0 pb-2 pt-0">
-          <h1 className="text-2xl font-medium leading-none text-slate-900">
+          <h1 className="text-[20px] font-medium leading-none text-slate-900">
             Item Details
           </h1>
 
@@ -2959,51 +3163,78 @@ const TicketView = () => {
           </div>
         </div>
 
-        <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden border border-slate-200 bg-white">
           <div className="grid min-h-0 flex-1 lg:grid-cols-2 ">
             <div className="min-w-0 border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Ticket No : <span className="font-normal">{ticketNo || "N/A"}</span>
+              <div className="border-b border-slate-200 pb-3">
+                <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-[auto_1fr] sm:items-center">
+                  <div className="inline-flex items-center gap-2 font-semibold text-slate-900">
+                    <img
+                      src={itemRepairTicketIcon}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                    />
+                    Ticket No :{" "}
+                    <span className="font-normal">{ticketNo || "N/A"}</span>
                   </div>
-                  <div className="text-sm font-medium text-slate-700">
-                    Item Taken on{" "}
-                    <span className="font-normal">
-                      {createdDate || "-"} {createdByTeam ? `(by ${createdByTeam})` : ""}
+                  <div className="inline-flex min-w-0 items-center gap-2">
+                    <span className="shrink-0 font-medium italic">Item Taken on</span>
+                    <img
+                      src={itemRepairCalendarIcon}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0"
+                    />
+                    <span className="min-w-0 font-normal italic text-slate-500">
+                      {createdDate || "-"}{" "}
+                      {createdByTeam ? `(by ${createdByTeam})` : ""}
                     </span>
                   </div>
                 </div>
-                <div className="text-sm text-slate-700">
+                <div className="mt-3 space-y-1 text-sm text-slate-700">
                   <div>
-                    Ticket Summary : <span className="text-slate-600">{summary || "-"}</span>
+                    <span className="font-medium text-slate-900">Ticket Summary :</span>{" "}
+                    <span className="text-slate-600">{summary || "-"}</span>
                   </div>
                   <div>
-                    Ticket Description :{" "}
+                    <span className="font-medium text-slate-900">
+                      Ticket Description :
+                    </span>{" "}
                     <span className="text-slate-600">{description || "-"}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4">
-                <div className="text-base font-semibold text-slate-900">
+              <div className="mt-4 rounded-md border border-sky-300 bg-sky-50 px-3 py-2">
+                <div className="border-b border-sky-200 pb-2 text-base font-medium text-slate-900">
                   {customerName || "-"}
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-700">
+                <div className="grid gap-2 pt-2 text-sm text-slate-700 sm:grid-cols-2">
                   <span className="inline-flex items-center gap-2">
-                    <span className="text-slate-500">📞</span>
+                    <img
+                      src={itemRepairCallIcon}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                    />
                     {contactNumber || "NIL"}
                   </span>
-                  <span className="inline-flex items-center gap-2">
-                    <span className="text-slate-500">✉️</span>
-                    {email || "NIL"}
+                  <span className="inline-flex min-w-0 items-center gap-2 border-sky-200 sm:border-l sm:pl-3">
+                    <img
+                      src={itemRepairMessageIcon}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span className="truncate">{email || "NIL"}</span>
                   </span>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-lg bg-slate-100 px-3 py-3 text-sm text-slate-700">
+              <div className="mt-2 bg-sky-50 px-3 py-3 text-sm text-slate-700">
                 <span className="font-medium text-slate-900">Description :</span>{" "}
-                {detailPreviousCallReport?.remarks || "No description available"}
+                {repairDescription}
               </div>
 
               <div className="mt-3 text-sm text-slate-700">
@@ -3040,7 +3271,7 @@ const TicketView = () => {
               <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
                 <div className="max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
                   {visibleRepairItems.length > 0 ? (
-                    <div className="relative space-y-5 border-l-2 border-sky-300 pl-5">
+                    <div className="relative border-l border-sky-300 pl-4">
                       {visibleRepairItems.map((item: Record<string, any>, index: number) => {
                         const title = formatDisplayValue(
                           getFieldValue(item,[
@@ -3050,6 +3281,10 @@ const TicketView = () => {
                             "Title",
                             "Action",
                             "Activity",
+                            "cActivityName",
+                            "ActivityName",
+                            "cRepairActivityName",
+                            "RepairActivityName",
                             "cStatusName",
                             "StatusName",
                             "Status",
@@ -3070,11 +3305,23 @@ const TicketView = () => {
                             "cCallSummary",
                           ]),
                         );
-                        const actor = formatDisplayValue(
+                        const assignedActor = formatDisplayValue(
                           getFieldValue(item, [
                             "cAssignedAgent",
+                            "cAssignedAgentName",
+                            "AssignedAgent",
+                            "AssignedAgentName",
                           ]),
                         );
+                        const vendorActor = formatDisplayValue(
+                          getFieldValue(item, [
+                            "cVendorName",
+                            "VendorName",
+                            "cAssignedVendor",
+                            "AssignedVendor",
+                          ]),
+                        );
+                        const actor = vendorActor || assignedActor;
                         const isAssignedEntry = normalizeText(title).includes("assigned");
                         const isTransferEntry =
                           normalizeText(title).includes("transfer") ||
@@ -3082,10 +3329,49 @@ const TicketView = () => {
                         const isServiceCostEntry =
                           normalizeText(title).includes("service cost") ||
                           normalizeText(title).includes("cost estimate");
+                        const serviceCost =
+                          Number(
+                            getFieldValue(item, [
+                              "nServiceCost",
+                              "ServiceCost",
+                              "nServiceCharge",
+                              "ServiceChargeAmount",
+                              "nVendorCharge",
+                              "VendorCharge",
+                              "nRepairCost",
+                              "RepairCost",
+                            ]) ||
+                              getFieldValue(resolvedRecord, [
+                                "nServiceCost",
+                                "ServiceCost",
+                                "nServiceCharge",
+                                "ServiceChargeAmount",
+                                "nVendorCharge",
+                                "VendorCharge",
+                              ]) ||
+                              getFieldValue(
+                                (repairDetailsRecord as Record<string, any>)
+                                  ?.partsRepair?.[0] ??
+                                  (repairDetailsRecord as Record<string, any>)
+                                    ?.PartsRepair?.[0] ??
+                                  {},
+                                [
+                                  "nServiceCost",
+                                  "ServiceCost",
+                                  "nServiceCharge",
+                                  "ServiceChargeAmount",
+                                  "nVendorCharge",
+                                  "VendorCharge",
+                                ],
+                              ) ||
+                              0,
+                          ) || 0;
                         const actorLabel = isAssignedEntry
                           ? "Assigned to :"
                           : isTransferEntry
-                            ? "Vendor Name :"
+                            ? vendorActor
+                              ? "Vendor Name :"
+                              : "Transfered to :"
                             : "";
                         const showActions = isTransferEntry || isServiceCostEntry;
                         const dateText = formatRepairDateLabel(
@@ -3113,8 +3399,15 @@ const TicketView = () => {
                         const datePrefix = isAssignedEntry ? "Assigned on : " : "On : ";
 
                         return (
-                          <div key={`${title}-${index}`} className="relative pb-3">
-                            <span className="absolute -left-[23px] top-1.5 h-4 w-4 rounded-full border-2 border-sky-300 bg-sky-400 ring-4 ring-white" />
+                          <div
+                            key={`${title}-${index}`}
+                            className="relative pb-4 last:pb-0"
+                          >
+                            <span
+                              className={`absolute -left-[22px] top-1.5 h-3 w-3 rounded-full border-2 border-sky-300 ring-2 ring-white ${
+                                index === 0 ? "bg-white" : "bg-sky-300"
+                              }`}
+                            />
                             <div className="flex items-start justify-between gap-3">
                               <div className="text-sm font-medium text-slate-900">
                                 {title}
@@ -3163,6 +3456,22 @@ const TicketView = () => {
                                 <span className="font-medium text-slate-900">Comment :</span> {remarks}
                               </div>
                             ) : null}
+                            {isServiceCostEntry ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEstimateOpen(true)}
+                                  className="rounded-md border border-sky-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 hover:bg-sky-50"
+                                >
+                                  Service Cost Estimate {customerName || ""} (PDF)
+                                </button>
+                                {serviceCost > 0 ? (
+                                  <span className="text-xs font-medium text-slate-700">
+                                    Service Cost : ₹{serviceCost.toFixed(2)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}
@@ -3198,7 +3507,7 @@ const TicketView = () => {
               className="inline-flex items-center gap-2 rounded-md border border-emerald-500 px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
             >
               <img src={EstimateIcon} alt="" className="h-5 w-5" />
-              Cost Estimate
+              Estimate
             </button>
             <Dropdown
               trigger={["click"]}

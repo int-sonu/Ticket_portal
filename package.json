@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "qa:auth": "node scripts/qa-auth-flow.mjs",
+    "qa:compare": "node scripts/qa-compare.mjs",
+    "qa:routes": "node scripts/qa-routes.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -33,6 +36,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",
     "@types/node": "^24.12.3",

@@ -36,6 +36,15 @@ export const itemRepairApis = {
     return response.data;
   },
 
+  repairItemDetails: async (payload: ItemRepairPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/ItemRepair/RepairItemDetails",
+      payload,
+    );
+
+    return response.data;
+  },
+
   itemRepairAction: async (payload: ItemRepairPayload | FormData) => {
     const response = await axiosInstance.post(
       "/Api/V1/ItemRepair/ItemRepairAction",
@@ -69,8 +78,8 @@ export const itemRepairApis = {
 
   repairItemActivityList: async (payload: ItemRepairPayload) => {
     const response = await axiosInstance.post(
-      "/Api/V1/ItemRepair/AssignedItemRepairList",
-      payload,
+      "/Api/V1/ItemRepair/AssignedItemRepairListByCreator",
+      normalizeAssignedItemRepairPayload(payload),
     );
 
     return response.data;
@@ -78,8 +87,8 @@ export const itemRepairApis = {
 
   repairItemFinishedList: async (payload: ItemRepairPayload) => {
     const response = await axiosInstance.post(
-      "/Api/V1/ItemRepair/AssignedItemRepairFinishedList",
-      payload,
+      "/Api/V1/ItemRepair/AssignedItemRepairFinishedListByCreator",
+      normalizeAssignedItemRepairPayload(payload),
     );
 
     return response.data;

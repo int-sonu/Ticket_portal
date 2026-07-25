@@ -11,11 +11,35 @@ import {
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
-import assign from "../../assets/icons/assign.svg";
 import filterIcon from "../../assets/icons/filterdetails.svg";
 import { agentApis } from "../../Axios/MasterApis";
-import AgentSelectorModal, { type SharedAgentOption } from "../More/AgentSelectorModal";
-import profileSwitch from "../../assets/icons/profile-switch.svg";
+import { useGetVendorDropdown } from "../Master/VendorMaster/Hooks";
+
+type AssigneeType = "all" | "agent" | "vendor";
+
+type AssigneeOption = {
+  label: string;
+  value: string;
+  type: Exclude<AssigneeType, "all">;
+};
+
+const getCurrentAgentName = () => {
+  try {
+    const storedSession = JSON.parse(sessionStorage.getItem("userSession") || "{}");
+    const session = storedSession?.data ?? storedSession;
+
+    return String(
+      session?.cAgentName ??
+        session?.cUserName ??
+        session?.cEmployeeName ??
+        session?.name ??
+        "Self",
+    );
+  } catch {
+    return "Self";
+  }
+};
+
 const normalizeText = (value: any) =>
   String(value ?? "")
     .trim()
@@ -69,12 +93,6 @@ const repairStatusOptions = [
   { label: "All", value: 0 },
   { label: "Assigned", value: 1 },
   { label: "On Progress", value: 2 },
-  { label: "Waiting For Customer Approval", value: 3 },
-  { label: "OnHold", value: 4 },
-  { label: "Parts Need External Repair", value: 5 },
-  { label: "Waiting Spare", value: 6 },
-  { label: "Transferred", value: 7 },
-  { label: "Customer Approved", value: 8 },
 ];
 
 const AssignedItemRepairPage = () => {
@@ -90,32 +108,16 @@ const AssignedItemRepairPage = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState(0);
   const [draftStatus, setDraftStatus] = useState(0);
-  const [agentModalOpen, setAgentModalOpen] = useState(false);
-  const [agentSearch, setAgentSearch] = useState("");
-  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<SharedAgentOption>({
-    label: String(
-      sessionPayload.cAgentName ??
-        sessionPayload.cUserName ??
-        sessionPayload.cEmployeeName ??
-        "Self",
-    ),
-    value: String(
-      sessionPayload.id ?? sessionPayload.nAgentId ?? sessionPayload.nCreatedBy ?? "",
-    ),
-    role: "Self",
-    isSelf: true,
-  });
+  const [assigneeType, setAssigneeType] = useState<AssigneeType>("all");
+  const [draftAssigneeType, setDraftAssigneeType] = useState<AssigneeType>("all");
+  const [selectedAssignee, setSelectedAssignee] = useState<AssigneeOption | null>(null);
+  const [draftAssignee, setDraftAssignee] = useState<AssigneeOption | null>(null);
+  const [filterSearch, setFilterSearch] = useState("");
 
   const currentAgentId = String(
     sessionPayload.id ?? sessionPayload.nAgentId ?? sessionPayload.nCreatedBy ?? "",
   );
-  const currentAgentName = String(
-    sessionPayload.cAgentName ??
-      sessionPayload.cUserName ??
-      sessionPayload.cEmployeeName ??
-      "Self",
-  );
+  const currentAgentName = useMemo(getCurrentAgentName, []);
   const linkedAgentPayload = useMemo(
     () => ({
       nCompanyId: sessionPayload.nCompanyId,
@@ -126,11 +128,19 @@ const AssignedItemRepairPage = () => {
     [currentAgentId, sessionPayload],
   );
   const linkedAgentQuery = useQuery({
-    queryKey: ["assigned-item-repair-linked-agents", linkedAgentPayload],
-    queryFn: () => agentApis.agentUnderSupervisorList(linkedAgentPayload),
+    queryKey: ["assigned-item-repair-agent-dropdown", linkedAgentPayload],
+    queryFn: () => agentApis.agentDropDown(linkedAgentPayload),
     enabled: !!linkedAgentPayload.nCompanyId && !!linkedAgentPayload.nAgentId,
   });
-  const linkedAgents = useMemo<SharedAgentOption[]>(() => {
+  const vendorQuery = useGetVendorDropdown(
+    {
+      nCompanyId: sessionPayload.nCompanyId,
+      cSchemaName: sessionPayload.cSchemaName,
+      cDbName: sessionPayload.cDbName,
+    },
+    !!sessionPayload.nCompanyId,
+  );
+  const linkedAgents = useMemo<AssigneeOption[]>(() => {
     const options = extractList(linkedAgentQuery.data)
       .map((row: Record<string, any>) => ({
         label:
@@ -138,42 +148,56 @@ const AssignedItemRepairPage = () => {
             getFieldValue(row, ["cAgentName", "AgentName", "cUserName", "Name"]),
           ) || "Agent",
         value: String(getFieldValue(row, ["nAgentId", "AgentId", "id"]) || ""),
-        role:
-          formatDisplayValue(
-            getFieldValue(row, ["cRoleName", "RoleName", "cDesignation", "Designation"]),
-          ) || "Agent",
+        type: "agent" as const,
       }))
       .filter((agent) => agent.value);
-    const self: SharedAgentOption = {
+    const self: AssigneeOption = {
       label: currentAgentName,
       value: currentAgentId,
-      role: "Self",
-      isSelf: true,
+      type: "agent",
     };
     const seen = new Set<string>();
-    return [self, ...options].filter((agent) => {
+    return [...options, self].filter((agent) => {
       if (!agent.value || seen.has(agent.value)) return false;
       seen.add(agent.value);
       return true;
     });
   }, [currentAgentId, currentAgentName, linkedAgentQuery.data]);
-  const visibleLinkedAgents = useMemo(() => {
-    const term = normalizeText(agentSearch);
-    return term
-      ? linkedAgents.filter((agent) =>
-          normalizeText(`${agent.label} ${agent.role ?? ""}`).includes(term),
-        )
-      : linkedAgents;
-  }, [agentSearch, linkedAgents]);
+  const vendorOptions = useMemo<AssigneeOption[]>(
+    () =>
+      extractList(vendorQuery.data)
+        .map((row: Record<string, any>) => ({
+          label:
+            formatDisplayValue(
+              getFieldValue(row, ["cVendorName", "VendorName", "cName", "Name"]),
+            ) || "Vendor",
+          value: String(getFieldValue(row, ["nVendorId", "VendorId", "id"]) || ""),
+          type: "vendor" as const,
+        }))
+        .filter((vendor) => vendor.value),
+    [vendorQuery.data],
+  );
+  const visibleAssigneeOptions = useMemo(() => {
+    const term = normalizeText(filterSearch);
+    const matches = (option: AssigneeOption) =>
+      !term || normalizeText(option.label).includes(term);
+
+    return {
+      agents:
+        draftAssigneeType === "vendor" ? [] : linkedAgents.filter(matches),
+      vendors:
+        draftAssigneeType === "agent" ? [] : vendorOptions.filter(matches),
+    };
+  }, [draftAssigneeType, filterSearch, linkedAgents, vendorOptions]);
   const assignedListPayload = useMemo(
     () => ({
       nCompanyId: sessionPayload.nCompanyId,
-      nAgentId: Number(selectedAgent.value) || Number(currentAgentId) || 0,
+      nAgentId: Number(currentAgentId) || 0,
       nStatus: statusFilter || null,
       cSchemaName: sessionPayload.cSchemaName,
       cDbName: sessionPayload.cDbName,
     }),
-    [currentAgentId, selectedAgent.value, sessionPayload, statusFilter],
+    [currentAgentId, sessionPayload, statusFilter],
   );
 
   const assignedQuery = useRepairItemActivityList(
@@ -195,20 +219,57 @@ const AssignedItemRepairPage = () => {
   const filteredRows = useMemo(() => {
     const term = normalizeText(search);
     return visibleRows.filter((row) => {
+      const assignedAgentId = String(
+        getFieldValue(row, [
+          "nAssignedAgentId",
+          "nAssignedToAgentId",
+          "nAssignToAgentId",
+          "nAgentId",
+        ]) || "",
+      );
+      const vendorId = String(
+        getFieldValue(row, ["nVendorId", "VendorId", "nAssignedVendorId"]) || "",
+      );
+      const assignedAgentName = formatDisplayValue(
+        getFieldValue(row, [
+          "cAssignedAgentName",
+          "cAssignedTo",
+          "cAssignTo",
+          "cAgentName",
+          "AgentName",
+        ]),
+      );
+      const vendorName = formatDisplayValue(
+        getFieldValue(row, ["cVendorName", "VendorName"]),
+      );
+      const selectedAssigneeMatches =
+        !selectedAssignee ||
+        (selectedAssignee.type === "agent"
+          ? (assignedAgentId && assignedAgentId === selectedAssignee.value) ||
+            normalizeText(assignedAgentName) === normalizeText(selectedAssignee.label)
+          : (vendorId && vendorId === selectedAssignee.value) ||
+            normalizeText(vendorName) === normalizeText(selectedAssignee.label));
+      const assigneeTypeMatches =
+        assigneeType === "all" ||
+        (assigneeType === "vendor"
+          ? Boolean(vendorId || vendorName)
+          : !vendorId && !vendorName);
       const rowText = [
         getFieldValue(row, ["nRepairId", "RepairId", "id", "Id", "nItemRepairId"]),
         getFieldValue(row, ["nTicketId", "TicketId", "ticketId", "TicketNo"]),
         getFieldValue(row, ["cItemName", "ItemName", "cRepairItemName", "RepairItemName"]),
         getFieldValue(row, ["cCustomerName", "CustomerName"]),
         getFieldValue(row, ["cStatusName"]),
+        assignedAgentName,
+        vendorName,
         getFieldValue(row, ["dCreatedDate", "CreatedDate", "dRepairDate", "dAssignedOn", "AssignedOn"]),
       ]
         .map((item) => normalizeText(item))
         .join(" ");
 
-      return !term || rowText.includes(term);
+      return selectedAssigneeMatches && assigneeTypeMatches && (!term || rowText.includes(term));
     });
-  }, [search, visibleRows]);
+  }, [assigneeType, search, selectedAssignee, visibleRows]);
 
   const totalRows = filteredRows.length;
   const paginatedRows = useMemo(() => {
@@ -221,7 +282,7 @@ const AssignedItemRepairPage = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, search, statusFilter, selectedAgent.value]);
+  }, [activeTab, assigneeType, search, selectedAssignee, statusFilter]);
 
   const openTicketView = (row: Record<string, any>) => {
     const ticketId =
@@ -231,7 +292,7 @@ const AssignedItemRepairPage = () => {
 
     if (!ticketId) return;
 
-    navigate(`/itemrepair/assignitemforrepair/itemforrepairview/${ticketId}`, {
+    navigate("/itemrepair/assignitemforrepair/itemforrepairview", {
       state: {
         selectedRow: row,
         isFrom: "item-repair",
@@ -242,26 +303,12 @@ const AssignedItemRepairPage = () => {
 
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-white px-4 py-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-white px-2 py-3 sm:px-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <h1 className="text-[18px] font-medium text-slate-900">Assign Item For Repair</h1>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setAgentModalOpen(true)}
-            className="inline-flex h-[34px] max-w-[210px] items-center gap-2 rounded-md border border-sky-300 bg-sky-50 px-3 text-sm text-slate-700 hover:bg-sky-100"
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-300 text-xs font-semibold text-slate-800">
-              {(selectedAgent.label[0] || "A").toUpperCase()}
-            </span>
-            <span className="truncate">
-              {selectedAgent.label}
-              {selectedAgent.role ? ` (${selectedAgent.role})` : ""}
-            </span>
-            <img src={profileSwitch} alt="" className="ml-auto h-4 w-4" />
-          </button>
-          <div className="w-full max-w-[220px]">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+          <div className="min-w-[180px] flex-1 sm:w-[220px] sm:flex-none">
             <Input
               allowClear
               prefix={<SearchOutlined className="text-slate-400" />}
@@ -276,23 +323,28 @@ const AssignedItemRepairPage = () => {
             placement="bottomRight"
             open={filterOpen}
             onOpenChange={(open) => {
-              setDraftStatus(statusFilter);
+              if (open) {
+                setDraftStatus(statusFilter);
+                setDraftAssigneeType(assigneeType);
+                setDraftAssignee(selectedAssignee);
+                setFilterSearch("");
+              }
               setFilterOpen(open);
             }}
             content={
-              <div className="w-[330px]">
-                <div className="border-b border-slate-100 px-2 pb-3 text-base font-medium">
+              <div className="flex max-h-[min(66vh,510px)] w-[min(350px,calc(100vw-32px))] flex-col">
+                <div className="px-1 pb-1 text-base font-medium text-slate-900">
                   Status
                 </div>
-                <div className="max-h-[390px] overflow-y-auto py-2">
+                <div className="shrink-0">
                   {repairStatusOptions.map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => setDraftStatus(option.value)}
-                      className={`block w-full border-b border-slate-100 px-3 py-3 text-left text-sm ${
+                      className={`block w-full border-b border-slate-100 px-3 py-2.5 text-left text-sm ${
                         draftStatus === option.value
-                          ? "bg-sky-500 text-white"
+                          ? "bg-sky-50 text-sky-700"
                           : "text-slate-700 hover:bg-slate-50"
                       }`}
                     >
@@ -300,10 +352,93 @@ const AssignedItemRepairPage = () => {
                     </button>
                   ))}
                 </div>
-                <div className="flex justify-end gap-3 border-t border-slate-100 pt-3">
+
+                <div className="px-1 pb-2 pt-3 text-base font-medium text-slate-900">
+                  Assign to
+                </div>
+                <Input
+                  allowClear
+                  prefix={<SearchOutlined className="text-slate-400" />}
+                  value={filterSearch}
+                  onChange={(event) => setFilterSearch(event.target.value)}
+                  placeholder="Search"
+                  className="h-[31px]"
+                />
+                <div className="flex gap-3 border-b border-slate-100 py-2">
+                  {(["all", "agent", "vendor"] as AssigneeType[]).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setDraftAssigneeType(type);
+                        setDraftAssignee(null);
+                      }}
+                      className={`rounded-md border px-3 py-1 text-xs ${
+                        draftAssigneeType === type
+                          ? "border-sky-500 bg-sky-500 text-white"
+                          : "border-sky-400 bg-white text-sky-600"
+                      }`}
+                    >
+                      {type === "all" ? "All" : type === "agent" ? "Agents" : "Vendors"}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="min-h-[120px] flex-1 overflow-y-auto pr-1 pt-2">
+                  {visibleAssigneeOptions.agents.map((option) => (
+                    <button
+                      key={`agent-${option.value}`}
+                      type="button"
+                      onClick={() => setDraftAssignee(option)}
+                      className={`block w-full border-b border-slate-100 px-3 py-2.5 text-left text-sm ${
+                        draftAssignee?.type === option.type &&
+                        draftAssignee?.value === option.value
+                          ? "bg-slate-100 text-slate-900"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                  {visibleAssigneeOptions.vendors.length ? (
+                    <>
+                      {draftAssigneeType === "all" ? (
+                        <div className="px-1 pb-1 pt-3 text-xs text-slate-500">Vendors</div>
+                      ) : null}
+                      {visibleAssigneeOptions.vendors.map((option) => (
+                        <button
+                          key={`vendor-${option.value}`}
+                          type="button"
+                          onClick={() => setDraftAssignee(option)}
+                          className={`block w-full border-b border-slate-100 px-3 py-2.5 text-left text-sm ${
+                            draftAssignee?.type === option.type &&
+                            draftAssignee?.value === option.value
+                              ? "bg-slate-100 text-slate-900"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </>
+                  ) : null}
+                  {!visibleAssigneeOptions.agents.length &&
+                  !visibleAssigneeOptions.vendors.length ? (
+                    <div className="py-6 text-center text-sm text-slate-400">
+                      No assignee found
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 bg-white pt-3">
                   <button
                     type="button"
-                    onClick={() => setFilterOpen(false)}
+                    onClick={() => {
+                      setDraftStatus(statusFilter);
+                      setDraftAssigneeType(assigneeType);
+                      setDraftAssignee(selectedAssignee);
+                      setFilterOpen(false);
+                    }}
                     className="rounded-md border border-emerald-500 px-5 py-2 text-sm text-emerald-500"
                   >
                     Cancel
@@ -312,6 +447,8 @@ const AssignedItemRepairPage = () => {
                     type="button"
                     onClick={() => {
                       setStatusFilter(draftStatus);
+                      setAssigneeType(draftAssignee?.type ?? draftAssigneeType);
+                      setSelectedAssignee(draftAssignee);
                       setFilterOpen(false);
                     }}
                     className="rounded-md bg-emerald-500 px-5 py-2 text-sm text-white"
@@ -324,18 +461,31 @@ const AssignedItemRepairPage = () => {
           >
             <button
               type="button"
-              aria-label="Filter assigned repair items by status"
+              aria-label="Filter assigned repair items"
               className={`flex h-[34px] w-[34px] items-center justify-center rounded-md border ${
-                statusFilter ? "border-sky-400 bg-sky-50" : "border-slate-300 bg-white"
+                statusFilter || assigneeType !== "all" || selectedAssignee
+                  ? "border-sky-400 bg-sky-50"
+                  : "border-slate-300 bg-white"
               }`}
             >
               <img src={filterIcon} alt="" className="h-4 w-4" />
             </button>
           </Popover>
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/item-repair/pending", {
+                state: { sessionPayload: assignedListPayload },
+              })
+            }
+            className="inline-flex h-[34px] items-center justify-center rounded-md bg-emerald-500 px-5 text-sm font-medium text-white hover:bg-emerald-600"
+          >
+            Add New
+          </button>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-3 flex items-center gap-3">
         <button
           type="button"
           onClick={() => setActiveTab("assigned")}
@@ -345,7 +495,7 @@ const AssignedItemRepairPage = () => {
               : "border border-sky-300 bg-white text-slate-600 hover:bg-sky-50"
           }`}
         >
-          Assigned {assignedCount ? `(${assignedCount})` : ""}
+          Assigned
         </button>
         <button
           type="button"
@@ -367,22 +517,20 @@ const AssignedItemRepairPage = () => {
         </button>
       </div>
 
-      <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-        <div className="grid min-w-[880px] grid-cols-[60px_80px_1.1fr_1.2fr_90px_110px_100px_100px] gap-2 border-b border-slate-200 px-3 py-3 text-[12px] font-medium text-slate-900">
-          <div>Srl No</div>
+      <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-x-auto border border-slate-100 bg-white">
+        <div className="grid min-w-[760px] grid-cols-[55px_80px_1.2fr_1.2fr_100px_145px] gap-2 border-b border-slate-200 px-3 py-3 text-[12px] font-medium text-slate-900">
+          <div>Srl</div>
           <div>Ticket No</div>
           <div>Customer Name</div>
           <div>Item Name</div>
           <div>Assign to</div>
           <div>Assigned on</div>
-          <div>Status</div>
-          <div>Service Cost</div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden p-3">
+        <div className="min-h-0 min-w-[760px] flex-1 overflow-hidden">
           <Spin spinning={isLoading}>
             {paginatedRows.length > 0 ? (
-              <div className="max-h-[calc(100vh-260px)] overflow-y-auto overflow-x-auto pr-2">
+              <div className="max-h-[calc(100vh-260px)] overflow-y-auto">
                 {paginatedRows.map((row: any, index: number) => (
                   <div
                     key={String(
@@ -397,7 +545,7 @@ const AssignedItemRepairPage = () => {
                         openTicketView(row);
                       }
                     }}
-                    className="grid min-w-[880px] grid-cols-[60px_80px_1.1fr_1.2fr_90px_110px_100px_100px] items-center gap-2 border-b border-slate-100 px-3 py-3 text-[12px] text-slate-700"
+                    className="grid grid-cols-[55px_80px_1.2fr_1.2fr_100px_145px] items-center gap-2 border-b border-slate-100 px-3 py-3 text-[12px] text-slate-700 hover:bg-slate-50"
                   >
                     <div>
                       {currentPage > 0 ? (currentPage - 1) * pageSize + index + 1 : index + 1}
@@ -429,16 +577,17 @@ const AssignedItemRepairPage = () => {
                       </span>
                     </div>
                     <div>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openTicketView(row);
-                        }}
-                        className="inline-flex items-center gap-2 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
-                      >
-                        <img src={assign} alt="Assign" className="h-5 w-5" />
-                      </button>
+                      {formatDisplayValue(
+                        getFieldValue(row, [
+                          "cAssignedAgentName",
+                          "cAssignedTo",
+                          "cAssignTo",
+                          "cAgentName",
+                          "AgentName",
+                          "cVendorName",
+                          "VendorName",
+                        ]),
+                      ) || "-"}
                     </div>
                     <div>
                       {formatDisplayValue(
@@ -450,39 +599,6 @@ const AssignedItemRepairPage = () => {
                           "AssignedOn",
                         ]),
                       ) || "-"}
-                    </div>
-                    <div>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          normalizeText(
-                            formatDisplayValue(
-                              getFieldValue(row, ["cStatusName", "cStatus", "Status", "RepairStatus"]),
-                            ),
-                          ).includes("complete") ||
-                          normalizeText(
-                            formatDisplayValue(
-                              getFieldValue(row, ["cStatusName", "cStatus", "Status", "RepairStatus"]),
-                            ),
-                          ).includes("finish")
-                            ? "bg-emerald-50 text-emerald-600"
-                            : "bg-sky-50 text-sky-600"
-                        }`}
-                      >
-                        {formatDisplayValue(
-                          getFieldValue(row, ["cStatusName", "cStatus", "Status", "RepairStatus"]),
-                        ) || "-"}
-                      </span>
-                    </div>
-                    <div>
-                      ₹{Number(
-                        getFieldValue(row, [
-                          "nServiceCost",
-                          "ServiceCost",
-                          "nVendorCharge",
-                          "VendorCharge",
-                          "nRepairCost",
-                        ]) || 0,
-                      ).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -515,33 +631,6 @@ const AssignedItemRepairPage = () => {
         </div>
       ) : null}
 
-      <AgentSelectorModal
-        open={agentModalOpen}
-        loading={linkedAgentQuery.isLoading || linkedAgentQuery.isFetching}
-        options={visibleLinkedAgents}
-        selectedValue={selectedAgent.value}
-        search={agentSearch}
-        expandedAgentId={expandedAgentId}
-        selfOption={{
-          label: currentAgentName,
-          value: currentAgentId,
-          role: "Self",
-          isSelf: true,
-        }}
-        onSearch={setAgentSearch}
-        onSelect={(agent) => {
-          setSelectedAgent(agent);
-          setAgentModalOpen(false);
-          setAgentSearch("");
-          setExpandedAgentId(null);
-        }}
-        onExpandedChange={setExpandedAgentId}
-        onClose={() => {
-          setAgentModalOpen(false);
-          setAgentSearch("");
-          setExpandedAgentId(null);
-        }}
-      />
     </div>
   );
 };

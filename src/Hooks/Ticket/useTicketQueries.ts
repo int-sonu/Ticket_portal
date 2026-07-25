@@ -288,6 +288,17 @@ export const useRepairItemActivityDropDown = (
   });
 };
 
+export const useRepairItemDetails = (
+  payload: ItemRepairPayload,
+  enabled = true,
+) => {
+  return useQuery({
+    queryKey: ["repair-item-details", payload],
+    queryFn: () => itemRepairApis.repairItemDetails(payload),
+    enabled,
+  });
+};
+
 export const useRepairItemFinishedList = (
   payload: any,
   enabled = true

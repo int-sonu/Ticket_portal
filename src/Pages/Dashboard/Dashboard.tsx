@@ -154,11 +154,10 @@ const Dashboard: FC = () => {
     () => ({
       ...companyPayload,
       nCompanyId: basePayload.nCompanyId,
-      nAgentId: Number(selectedAgent.value || basePayload.nAgentId || basePayload.id || 0),
-      cAgentId: selectedAgent.value || String(basePayload.nAgentId ?? basePayload.id ?? ""),
-      dDate: selectedDate.format("YYYY-MM-DD"),
+      nAgentId: Number(basePayload.nAgentId || basePayload.id || 0),
+      cAgentId: String(basePayload.nAgentId ?? basePayload.id ?? ""),
     }),
-    [basePayload, companyPayload, selectedAgent.value, selectedDate],
+    [basePayload, companyPayload],
   );
 
   const dashboardPayload = useMemo<RequestPayload>(
@@ -180,12 +179,10 @@ const Dashboard: FC = () => {
   const {
     data: agentDropdownData,
     isFetching: isAgentDropdownFetching,
-    refetch: refetchAgentDropdown,
   } = useQuery({
     queryKey: ["dashboard-agent-dropdown", agentDropdownPayload],
     queryFn: () => agentApis.agentDropDown(agentDropdownPayload),
-    enabled: Boolean(companyPayload.nCompanyId),
-    refetchOnMount: "always",
+    enabled: agentModalOpen && Boolean(companyPayload.nCompanyId),
   });
 
   const { data: dashboardCountData, isFetching: isCountFetching, refetch: refetchDashboardCount } = useQuery({
@@ -295,28 +292,29 @@ const Dashboard: FC = () => {
 
   const agentOptions = useMemo<SharedAgentOption[]>(() => {
     const rows = extractRows(agentDropdownData);
-    const self = {
-      label: currentUser.name,
-      value: String(basePayload.nAgentId ?? basePayload.id ?? ""),
-      role: currentUser.role,
-      isSelf: true,
-    };
-
     const options = rows.map((row, index) => ({
       label: getAgentOptionLabel(row, index),
       value: getAgentOptionValue(row, index),
-      role: text(getValue(row, ["cTypeName", "cUserType", "cRoleName", "role"], "Agent"), "Agent"),
+      role: text(
+        getValue(
+          row,
+          ["cGroupName", "GroupName", "cTypeName", "cUserType", "cRoleName", "role"],
+          Number(getValue(row, ["nType", "type"], 3)) === 2 ? "Supervisor" : "Agent",
+        ),
+        "Agent",
+      ),
+      nType: Number(getValue(row, ["nType", "type"], 3)),
       isSelf: false,
     }));
 
     const seen = new Set<string>();
-    return [self, ...options].filter((item) => {
+    return options.filter((item) => {
       const key = `${item.value}-${item.label}`.toLowerCase();
       if (!item.value || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-  }, [agentDropdownData, basePayload.nAgentId, basePayload.id, currentUser.name, currentUser.role]);
+  }, [agentDropdownData]);
 
   const dashboardRow = useMemo(() => extractRows(dashboardCountData)[0] ?? {}, [dashboardCountData]);
   const collectionRows = useMemo(() => extractRows(collectionSummaryData), [collectionSummaryData]);
@@ -390,7 +388,6 @@ const Dashboard: FC = () => {
     isCountFetching ||
     isCollectionFetching ||
     isAgentsActivityFetching ||
-    isAgentDropdownFetching ||
     isOngoingFetching ||
     isOverdueFetching ||
     isPostponedFetching ||
@@ -406,7 +403,6 @@ const Dashboard: FC = () => {
 
   const handleRefresh = () => {
     void Promise.all([
-      refetchAgentDropdown(),
       refetchDashboardCount(),
       refetchCollectionSummary(),
       refetchAgentsActivity(),

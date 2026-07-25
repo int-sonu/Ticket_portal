@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-07-25T10:29:18.252Z",
+  "baseUrl": "http://localhost:5174/",
+  "checks": [
+    {
+      "test": "Forgot Password required validation",
+      "pass": true,
+      "notes": "Email Id is required."
+    },
+    {
+      "test": "Forgot Password sends reset API",
+      "pass": false,
+      "notes": "No API request was sent; the page only navigated locally."
+    },
+    {
+      "test": "Forgot Password opens OTP page",
+      "pass": true,
+      "notes": "Final path: /forgot-password-otp"
+    },
+    {
+      "test": "OTP page carries entered email",
+      "pass": true,
+      "notes": "Entered email is displayed."
+    },
+    {
+      "test": "OTP resend action",
+      "pass": false,
+      "notes": "No API request, navigation, or visible confirmation was produced."
+    },
+    {
+      "test": "OTP is verified by API",
+      "pass": false,
+      "notes": "Any six digits are accepted locally without an API request."
+    },
+    {
+      "test": "OTP opens Set New Password",
+      "pass": true,
+      "notes": "Final path: /set-new-password"
+    },
+    {
+      "test": "New password is saved by API",
+      "pass": false,
+      "notes": "No API request was sent; success is simulated locally."
+    },
+    {
+      "test": "Password flow returns to Login",
+      "pass": true,
+      "notes": "Final path: /login"
+    },
+    {
+      "test": "Console/page errors",
+      "pass": true,
+      "notes": "0 console errors, 0 page errors."
+    }
+  ],
+  "apiRequests": [],
+  "consoleErrors": [],
+  "pageErrors": []
+}

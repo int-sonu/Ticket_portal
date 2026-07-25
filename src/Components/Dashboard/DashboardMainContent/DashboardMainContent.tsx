@@ -35,7 +35,6 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
   collectionSummaryAmount,
   agents,
   onAgentClick,
-  onRefresh,
 }) => {
   return (
     <div className="flex w-full flex-col gap-3.5 text-[15px]">
@@ -62,9 +61,9 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
         </button>
         <button
           type="button"
-          onClick={onRefresh}
+          onClick={onAgentClick}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/60 text-[#1e5b86] hover:bg-white"
-          aria-label="Refresh dashboard"
+          aria-label="Switch agent"
         >
           <img src={profileSwitch} alt="" className="h-4 w-4 brightness-0 invert-[0.2]" />
         </button>

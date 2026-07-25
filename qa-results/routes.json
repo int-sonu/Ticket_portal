@@ -1,0 +1,309 @@
+{
+  "generatedAt": "2026-07-25T10:27:50.737Z",
+  "configuredRouteCount": 13,
+  "targets": [
+    {
+      "name": "Baseline (5173)",
+      "baseUrl": "http://localhost:5173/",
+      "available": false,
+      "availabilityError": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/ Call log: \u001b[2m - navigating to \"http://localhost:5173/\", waiting until \"domcontentloaded\"\u001b[22m",
+      "routes": []
+    },
+    {
+      "name": "Build (5174)",
+      "baseUrl": "http://localhost:5174/",
+      "available": true,
+      "availabilityError": null,
+      "routes": [
+        {
+          "route": "/bills",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/callreports",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/dashboard",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/forgot-password",
+          "kind": "public",
+          "expectedPath": "/forgot-password",
+          "finalPath": "/forgot-password",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 64,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/forgot-password-otp",
+          "kind": "public",
+          "expectedPath": "/forgot-password-otp",
+          "finalPath": "/forgot-password-otp",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 101,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/item-repair/assign",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/login",
+          "kind": "public",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/masters/agent",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/more/customer-details",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/reports",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/set-new-password",
+          "kind": "public",
+          "expectedPath": "/set-new-password",
+          "finalPath": "/set-new-password",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 83,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/settings/features",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        },
+        {
+          "route": "/tickets",
+          "kind": "private",
+          "expectedPath": "/login",
+          "finalPath": "/login",
+          "navigationStatus": 200,
+          "navigationError": null,
+          "bodyTextLength": 115,
+          "title": "ticket_portal",
+          "consoleErrors": [],
+          "pageErrors": [],
+          "failedRequests": [],
+          "errorResponses": [],
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "route": "/bills",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/callreports",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/dashboard",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/forgot-password",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /forgot-password",
+      "result": "BLOCKED",
+      "notes": "public route"
+    },
+    {
+      "route": "/forgot-password-otp",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /forgot-password-otp",
+      "result": "BLOCKED",
+      "notes": "public route"
+    },
+    {
+      "route": "/item-repair/assign",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/login",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "public route"
+    },
+    {
+      "route": "/masters/agent",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/more/customer-details",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/reports",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/set-new-password",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /set-new-password",
+      "result": "BLOCKED",
+      "notes": "public route"
+    },
+    {
+      "route": "/settings/features",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    },
+    {
+      "route": "/tickets",
+      "baseline": "BLOCKED: server unavailable",
+      "build": "PASS → /login",
+      "result": "BLOCKED",
+      "notes": "private route"
+    }
+  ]
+}

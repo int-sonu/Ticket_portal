@@ -693,8 +693,17 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 @media (max-width: 992px) {
+  .ticket-create-shell {
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .ticket-create-grid {
     grid-template-columns: 1fr;
+    flex: none;
   }
 
   .ticket-create-left {
@@ -706,6 +715,12 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
     border-top: 1px solid #e2e8f0;
     padding-inline: 12px !important;
     padding-top: 12px;
+  }
+
+  .ticket-agent-dropdown {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 }
 
@@ -1619,8 +1634,8 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
 @media (max-width: 768px) {
   .ticket-create-shell {
-    height: auto;
-    min-height: calc(100vh - 96px);
+    height: 100%;
+    min-height: 0;
   }
 
   .ticket-create-header {
@@ -1639,6 +1654,7 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
   .ticket-create-form {
     margin-left: 0;
+    width: 100%;
   }
 
   .ticket-create-grid {
@@ -1667,6 +1683,13 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   .ticket-right-actions {
     flex-direction: column;
     align-items: stretch;
+    position: sticky;
+    bottom: 0;
+    z-index: 15;
+    margin-inline: -12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
   }
 
   .ticket-quick-call-card {
@@ -1685,6 +1708,39 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
   .ticket-create-form .ant-form-item-label > label {
     font-size: 10px !important;
   }
+
+  .ticket-agent-item {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .ticket-agent-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ticket-agent-stats {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .ticket-image-editor-modal .ant-modal-body {
+    padding: 12px;
+  }
+
+  .ticket-image-editor-canvas {
+    height: min(56vh, 365px);
+  }
+
+  .ticket-image-editor-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-image-tools,
+  .ticket-image-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
 .quick-call-simple-drawer .ant-drawer-body {
@@ -1694,6 +1750,87 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 }
 
 @media (max-width: 576px) {
+  .ticket-create-header {
+    margin-top: 4px;
+    padding-inline: 4px;
+  }
+
+  .ticket-create-header__titleline {
+    max-width: calc(100% - 40px);
+  }
+
+  .ticket-create-header__subtitle-inline {
+    white-space: normal;
+  }
+
+  .ticket-create-left,
+  .ticket-create-right {
+    padding-inline: 8px !important;
+  }
+
+  .ticket-create-left > .-mx-4 {
+    width: auto !important;
+    margin-inline: -8px !important;
+    padding-inline: 8px !important;
+  }
+
+  .ticket-contact-grid,
+  .ticket-asset-drawer-form .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+  }
+
+  .ticket-create-form .source-radio-group,
+  .ticket-create-form .priority-radio-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .ticket-create-form .source-radio-group .ant-radio-wrapper,
+  .ticket-create-form .priority-radio-group .ant-radio-wrapper {
+    margin-inline-end: 0;
+  }
+
+  .ticket-create-form textarea.ant-input {
+    min-height: 72px !important;
+    height: 72px !important;
+  }
+
+  .ticket-agent-dropdown {
+    position: fixed !important;
+    inset: auto 8px 8px 8px !important;
+    width: auto;
+    max-height: min(70dvh, 520px);
+    overflow: auto;
+  }
+
+  .ticket-agent-list {
+    max-height: min(46dvh, 320px);
+  }
+
+  .ticket-right-actions {
+    margin-inline: -8px;
+  }
+
+  .ticket-create-form .ant-upload-wrapper .ant-upload-list {
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .ticket-image-editor-modal .ant-modal-footer {
+    padding: 12px;
+  }
+
+  .ticket-image-actions {
+    width: 100%;
+  }
+
+  .ticket-image-actions .ant-btn {
+    flex: 1;
+  }
+
   .quick-call-simple-drawer {
     width: 100vw !important;
     max-width: 100vw !important;
@@ -1725,6 +1862,38 @@ html.customer-asset-tab-active .simple-master-drawer .ant-drawer-footer,
 
   .ticket-search-button {
     width: 36px !important;
+  }
+}
+
+/* Shared responsive guardrails for Ant Design overlays and data-heavy pages. */
+@media (max-width: 767px) {
+  .ant-modal {
+    max-width: calc(100vw - 16px);
+    margin: 8px auto;
+  }
+
+  .ant-modal-wrap {
+    overflow-x: hidden;
+  }
+
+  .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+  }
+
+  .ant-table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ant-pagination {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .ant-picker-dropdown,
+  .ant-select-dropdown {
+    max-width: calc(100vw - 16px);
   }
 }
 
