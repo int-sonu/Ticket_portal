@@ -16,6 +16,7 @@ interface CustomerProfileTicketsProps {
   customerName: string;
 }
 
+
 type ApiRecord = Record<string, unknown>;
 
 const getValue = (record: unknown, keys: string[]) => {
