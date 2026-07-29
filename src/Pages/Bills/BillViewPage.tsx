@@ -67,6 +67,12 @@ const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
     enabled: canLoadBill,
   });
 
+  const { data: partListResponse, isLoading: isPartListLoading } = useQuery({
+    queryKey: ["bill-view-part-list", billRequestPayload],
+    queryFn: () => billingApis.partListForBilling(billRequestPayload),
+    enabled: canLoadBill,
+  });
+
   if (!billId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4">
@@ -92,10 +98,10 @@ const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
       ) : null}
 
       <div className="flex-1 min-h-0 overflow-hidden p-3">
-        <Spin spinning={isBillViewLoading}>
+        <Spin spinning={isBillViewLoading || isPartListLoading}>
           <div className="h-full min-h-0 overflow-hidden rounded-xl bg-white">
             <BillReadonlyViewExact
-              viewData={billState}
+              viewData={{ ...billState, partListResponse }}
               fallbackState={billState}
               billViewData={billViewResponse}
               loading={isBillViewLoading}

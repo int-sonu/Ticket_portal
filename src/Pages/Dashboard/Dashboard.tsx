@@ -3,6 +3,7 @@ import type { FC } from "react";
 import dayjs, { type Dayjs } from "dayjs";
 import { useQuery } from "@tanstack/react-query";
 import { Spin } from "antd";
+import { useNavigate } from "react-router-dom";
 
 import { agentApis } from "../../Axios/MasterApis";
 import { dashboardApis } from "../../Axios/DashboardApis";
@@ -10,7 +11,7 @@ import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../../Pages/Master/Common/SimpleMasterUtils";
 import DashboardMainContent from "../../Components/Dashboard/DashboardMainContent/DashboardMainContent";
 import DashboardRightSidebar from "../../Components/Dashboard/DashboardRightSidebar/DashboardRightSidebar";
-import AgentSelectorModal, { type SharedAgentOption } from "../../Pages/More/AgentSelectorModal";
+import AgentSelectorModal, { type SharedAgentOption } from "../../Pages/More/Common/AgentSelectorModal";
 import type { DashboardChartAgent, DashboardStats, SidePanelStats } from "../../Types/dashboard.types";
 
 type RecordLike = Record<string, any>;
@@ -125,6 +126,7 @@ const getAgentOptionLabel = (row: RecordLike, index: number) =>
   text(getValue(row, ["cAgentName", "AgentName", "cUserName", "cName", "Name"], `Agent ${index + 1}`));
 
 const Dashboard: FC = () => {
+  const navigate = useNavigate();
   const basePayload = useMemo(() => getRequestPayload() as RequestPayload, []);
   const currentUser = useMemo(() => getCurrentUser(), []);
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
@@ -436,6 +438,38 @@ const Dashboard: FC = () => {
               collectionSummaryAmount={`Rs. ${formatAmount(collectionSummaryAmount)}`}
               agents={agents}
               onAgentClick={() => setAgentModalOpen(true)}
+              onCreatedTicketClick={() =>
+                navigate("/dashboard/createdtickets", {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
+              onCallReportClick={() =>
+                navigate("/dashboard/callreport", {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
+              onPostponedClick={() =>
+                navigate("/dashboard/postponed", {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
+              onCollectionSummaryClick={() =>
+                navigate("/dashboard/collectionsummary", {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
               onRefresh={handleRefresh}
             />
           </Spin>
@@ -444,7 +478,41 @@ const Dashboard: FC = () => {
 
       <div className="min-w-0  border-sky-100 bg-white px-3 py-4 mt-7">
         <div className="sticky top-4 w-full">
-          <DashboardRightSidebar sideStats={sideStats} />
+        <DashboardRightSidebar
+          sideStats={sideStats}
+          onOngoingClick={() =>
+            navigate("/dashboard/ongoingtickets", {
+              state: {
+                selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedAgent,
+              },
+            })
+          }
+          onOverdueClick={() =>
+            navigate("/dashboard/overdue", {
+              state: {
+                selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedAgent,
+              },
+            })
+          }
+          onUnassignedClick={() =>
+            navigate("/dashboard/unassigned", {
+              state: {
+                selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedAgent,
+              },
+            })
+          }
+          onUpcomingClick={() =>
+            navigate("/dashboard/upcomingtickets", {
+              state: {
+                selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedAgent,
+              },
+            })
+          }
+        />
         </div>
       </div>
 

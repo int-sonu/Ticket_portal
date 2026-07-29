@@ -8,7 +8,7 @@ import {
   message,
 } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import { useGetAgents } from "../../Master/Agent/Hooks";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
@@ -72,8 +72,15 @@ const ShareTicketModal = ({
   ticketNo,
 }: ShareTicketModalProps) => {
   const [form] = Form.useForm();
+  const isSubmittingRef = useRef(false);
 
   const sessionPayload = useMemo(() => getRequestPayload(), []);
+  const currentAgentId = Number(
+    sessionPayload.nAgentId ??
+      sessionPayload.id ??
+      (sessionPayload as any).nUserId ??
+      0
+  );
   const agentPayload = useMemo(
     () => ({
       ...sessionPayload,
@@ -88,60 +95,73 @@ const ShareTicketModal = ({
     open
   );
 
-  const agentOptions = useMemo(
-    () =>
-      extractList(agentData).map((agent: any) => {
-        const agentId = Number(
-          agent?.nAgentId ?? agent?.agentId ?? agent?.id ?? agent?.value ?? 0
-        );
-        const agentName =
-          agent?.cAgentName ??
-          agent?.agentName ??
-          agent?.name ??
-          agent?.cName ??
-          `Agent ${agentId || ""}`;
+  const agentOptions = useMemo(() => {
+    const uniqueAgents = new Map<number, any>();
 
-        return {
-          value: String(agentId),
-          label: (
-            <div className="flex items-center gap-2">
-              <Avatar
-                size={24}
-                style={{
-                  backgroundColor: getAvatarColor(agentId || 0),
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {agentName
-                  .replace(/[^a-z0-9]/gi, "")
-                  .slice(0, 2)
-                  .toUpperCase() || "A"}
-              </Avatar>
-              <span>{agentName}</span>
-            </div>
-          ),
-          searchLabel: agentName,
-        };
-      }),
-    [agentData]
-  );
+    extractList(agentData).forEach((agent: any) => {
+      const agentId = Number(
+        agent?.nAgentId ?? agent?.agentId ?? agent?.id ?? agent?.value ?? 0
+      );
+
+      if (agentId > 0 && agentId !== currentAgentId && !uniqueAgents.has(agentId)) {
+        uniqueAgents.set(agentId, agent);
+      }
+    });
+
+    return Array.from(uniqueAgents.entries()).map(([agentId, agent]) => {
+      const agentName =
+        agent?.cAgentName ??
+        agent?.agentName ??
+        agent?.name ??
+        agent?.cName ??
+        `Agent ${agentId || ""}`;
+
+      return {
+        value: String(agentId),
+        label: (
+          <div className="flex items-center gap-2">
+            <Avatar
+              size={24}
+              style={{
+                backgroundColor: getAvatarColor(agentId || 0),
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              {agentName
+                .replace(/[^a-z0-9]/gi, "")
+                .slice(0, 2)
+                .toUpperCase() || "A"}
+            </Avatar>
+            <span>{agentName}</span>
+          </div>
+        ),
+        searchLabel: agentName,
+      };
+    });
+  }, [agentData, currentAgentId]);
 
   const { shareTicket } = useTicketActions();
 
   const handleSubmit = (values: any) => {
+    if (isSubmittingRef.current || shareTicket.isPending) return;
+
     const agentId = Number(values.AgentId || 0);
     const shareReason = String(values.ShareReason ?? "").trim();
-    const sharedByAgentId = Number(
-      sessionPayload.nAgentId ?? sessionPayload.id ?? sessionPayload.nUserId ?? 0
-    );
+    const sharedByAgentId = currentAgentId;
 
     if (!sessionPayload.nCompanyId || !sessionPayload.cSchemaName || !sessionPayload.cDbName) {
       message.error("Session details are missing. Please log in again.");
       return;
     }
 
+    if (!ticketId || !sharedByAgentId || !agentId || agentId === sharedByAgentId) {
+      message.error("Please select a valid different agent.");
+      return;
+    }
+
+    isSubmittingRef.current = true;
     shareTicket.mutate(
       {
         nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
@@ -151,15 +171,16 @@ const ShareTicketModal = ({
         nSharedByAgentId: sharedByAgentId,
         nSharedToAgentId: agentId,
         cShareReason: shareReason,
-        cRemarks: shareReason,
       },
       {
         onSuccess: () => {
+          isSubmittingRef.current = false;
           message.success("Ticket Shared Successfully");
           form.resetFields();
           onClose();
         },
         onError: (error: any) => {
+          isSubmittingRef.current = false;
           message.error(getErrorMessage(error));
         },
       }
@@ -179,6 +200,7 @@ const ShareTicketModal = ({
           key="save"
           type="primary"
           loading={shareTicket.isPending}
+          disabled={shareTicket.isPending}
           onClick={() => form.submit()}
         >
           Save

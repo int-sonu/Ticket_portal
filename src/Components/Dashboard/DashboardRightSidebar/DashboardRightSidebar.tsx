@@ -8,21 +8,30 @@ import type { SidePanelStats } from '../../../Types/dashboard.types';
 
 interface DashboardRightSidebarProps {
   sideStats: SidePanelStats;
+  onOngoingClick: () => void;
+  onOverdueClick: () => void;
+  onUnassignedClick: () => void;
+  onUpcomingClick: () => void;
 }
 
 const DashboardRightSidebar: FC<DashboardRightSidebarProps> = ({
   sideStats,
+  onOngoingClick,
+  onOverdueClick,
+  onUnassignedClick,
+  onUpcomingClick,
 }) => {
   return (
     <aside className="flex w-full flex-col gap-4">
-      <SideStatCard  label="Ongoing" value={sideStats.ongoing} image={ongoingImg} />
-      <SideStatCard label="Overdue" value={sideStats.overdue} image={overdueImg} />
+      <SideStatCard label="Ongoing" value={sideStats.ongoing} image={ongoingImg} onClick={onOngoingClick} />
+      <SideStatCard label="Overdue" value={sideStats.overdue} image={overdueImg} onClick={onOverdueClick} />
       <SideStatCard
         label="Unassigned Tickets"
         value={sideStats.unassigned}
         image={unassignedImg}
+        onClick={onUnassignedClick}
       />
-      <SideStatCard label="Upcoming" value={sideStats.upcoming} image={upcomingImg} />
+      <SideStatCard label="Upcoming" value={sideStats.upcoming} image={upcomingImg} onClick={onUpcomingClick} />
     </aside>
   );
 };

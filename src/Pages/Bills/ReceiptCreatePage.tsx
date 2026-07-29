@@ -21,6 +21,17 @@ type OutstandingBillRow = Record<string, any>;
 
 const RECEIPT_CREATE_STORAGE_KEY = "ticket_portal_receipt_create_state";
 const RECEIPT_PAY_MODE_STORAGE_KEY = "ticket_portal_receipt_pay_mode";
+const PAY_MODE_IDS: Record<string, number> = {
+  Cash: 1,
+  UPI: 2,
+  Card: 3,
+  "Net Banking": 4,
+  Cheque: 5,
+  Complimentary: 6,
+  Company: 7,
+  QR: 8,
+  Split: 9,
+};
 
 const getFirstValue = (record: OutstandingBillRow, keys: string[]) => {
   for (const key of keys) {
@@ -177,7 +188,8 @@ const ReceiptCreatePage = () => {
     }
   }, [location.state]);
 
-  const sessionPayload = receiptState.sessionPayload ?? getRequestPayload();
+  const sessionPayload: Record<string, any> =
+    receiptState.sessionPayload ?? getRequestPayload();
   const customerId = Number(
     receiptState.customerId ?? receiptState.nCustomerId ?? 0,
   ) || 0;
@@ -199,6 +211,7 @@ const ReceiptCreatePage = () => {
   const [outstandingRows, setOutstandingRows] = useState<OutstandingBillRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!customerId) {
@@ -238,7 +251,15 @@ const ReceiptCreatePage = () => {
           rows.forEach((row, index) => {
             const key = getOutstandingRowKey(row, index);
             const rowAmount = Number(
-              getFirstValue(row, ["nOutstandingAmount", "OutstandingAmount", "Amount", "amount"]) ||
+              getFirstValue(row, [
+                "outstandingAmt",
+                "nOutstandingAmount",
+                "OutstandingAmount",
+                "nBalanceAmount",
+                "BalanceAmount",
+                "Amount",
+                "amount",
+              ]) ||
                 0,
             );
 
@@ -291,7 +312,15 @@ const ReceiptCreatePage = () => {
   const totalOutstanding = useMemo(() => {
     return outstandingRows.reduce((sum, row) => {
       const rowAmount = Number(
-        getFirstValue(row, ["nOutstandingAmount", "OutstandingAmount", "Amount", "amount"]) ||
+        getFirstValue(row, [
+          "outstandingAmt",
+          "nOutstandingAmount",
+          "OutstandingAmount",
+          "nBalanceAmount",
+          "BalanceAmount",
+          "Amount",
+          "amount",
+        ]) ||
           0,
       );
       return sum + (Number.isFinite(rowAmount) ? rowAmount : 0);
@@ -312,8 +341,119 @@ const ReceiptCreatePage = () => {
     }));
   };
 
-  const handleSaveReceipt = () => {
-    message.info("Cannot save receipt — no amount paid.");
+  const handleSaveReceipt = async () => {
+    if (isSaving) return;
+
+    const receiptDetails = outstandingRows
+      .map((row, index) => {
+        const rowKey = getOutstandingRowKey(row, index);
+        const paidAmount = Number(billAllocations[rowKey] ?? 0);
+        const billId = Number(
+          getFirstValue(row, ["nBillId", "BillId", "billId", "nInvoiceId", "Id"]) ||
+            0,
+        );
+        const billAmount = Number(
+          getFirstValue(row, [
+            "nBillAmount",
+            "BillAmount",
+            "nTotalAmount",
+            "TotalAmount",
+            "Amount",
+          ]) || 0,
+        );
+
+        return {
+          nBillId: billId,
+          nBillAmount: Number.isFinite(billAmount) ? billAmount : 0,
+          nPayedAmount: Number.isFinite(paidAmount) ? paidAmount : 0,
+          nCompanyId: Number(sessionPayload.nCompanyId ?? 0),
+        };
+      })
+      .filter((detail) => detail.nBillId > 0 && detail.nPayedAmount > 0);
+
+    const paidAmount = receiptDetails.reduce(
+      (sum, detail) => sum + detail.nPayedAmount,
+      0,
+    );
+
+    if (paidAmount <= 0) {
+      message.warning("Enter an amount paid before saving the receipt.");
+      return;
+    }
+
+    const payModeId = PAY_MODE_IDS[payMode];
+    if (!payModeId) {
+      message.warning("Select a pay mode before saving the receipt.");
+      return;
+    }
+
+    const createdBy = Number(
+      sessionPayload.nAgentId ??
+        sessionPayload.nCreatedBy ??
+        sessionPayload.ncreatedBy ??
+        sessionPayload.id ??
+        0,
+    );
+
+    const payload = {
+      ...sessionPayload,
+      nCustomerId: customerId,
+      nPaymode: payModeId,
+      nAmount: paidAmount,
+      cCustomerName: customerName,
+      cNarration: narration,
+      ncreatedBy: createdBy,
+      receiptDetails,
+      payDtls: [{ nPayAmount: paidAmount, nPaymode: payModeId }],
+      chequeDtls: [],
+      customerCreditDtls: [],
+      transationDtls: [],
+    };
+
+    setIsSaving(true);
+    try {
+      const response = await billingApis.receiptSave(payload);
+      if (Number(response?.statusCode ?? 200) >= 400) {
+        throw new Error(response?.message || "Unable to save receipt.");
+      }
+
+      message.success(response?.message || "Receipt saved successfully.");
+      setPayModeOpen(false);
+      sessionStorage.removeItem(RECEIPT_CREATE_STORAGE_KEY);
+      navigate("/receipts", { replace: true });
+    } catch (error: any) {
+      console.error("Failed to save receipt", error);
+      message.error(
+        error?.response?.data?.message ??
+          error?.message ??
+          "Unable to save receipt.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openBillDetails = (row: OutstandingBillRow) => {
+    const billId = Number(
+      getFirstValue(row, ["nBillId", "BillId", "billId", "nInvoiceId", "Id"]) ||
+        0,
+    );
+
+    if (!billId) {
+      message.warning("Bill details are not available.");
+      return;
+    }
+
+    navigate("/billsandreceipts/bill/view", {
+      state: {
+        billId,
+        nBillId: billId,
+        billData: row,
+        sessionPayload,
+        returnTo: "/receipts/add",
+        returnState: receiptState,
+      },
+    });
   };
 
   return (
@@ -349,13 +489,14 @@ const ReceiptCreatePage = () => {
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto px-2 pt-2">
-        <div className="grid grid-cols-[48px_84px_1fr_120px_140px_120px] gap-2 border-b border-slate-200 bg-white px-2 py-3 text-[12px] font-medium text-slate-900">
+        <div className="grid min-w-[900px] grid-cols-[48px_84px_1fr_120px_140px_120px_150px] gap-2 border-b border-slate-200 bg-white px-2 py-3 text-[12px] font-medium text-slate-900">
           <div>Srl</div>
           <div>Bill No</div>
           <div>Bill Date</div>
           <div>Bill Amount</div>
           <div>Outstanding Amount</div>
           <div>Amount Paid</div>
+          <div />
         </div>
 
         <div className="mt-2 min-h-[290px] rounded-xl border border-slate-100 bg-white p-3">
@@ -365,7 +506,7 @@ const ReceiptCreatePage = () => {
                 <Empty description="No data" />
               </div>
             ) : outstandingRows.length > 0 ? (
-              <div className="call-report-scrollbar max-h-[calc(100vh-370px)] overflow-y-auto overflow-x-hidden pr-2">
+              <div className="call-report-scrollbar max-h-[calc(100vh-370px)] overflow-auto pr-2">
                 {outstandingRows.map((row, index) => {
                   const rowKey = getOutstandingRowKey(row, index);
                   const billNo = formatDisplayValue(
@@ -375,11 +516,18 @@ const ReceiptCreatePage = () => {
                     getFirstValue(row, ["dBillDate", "BillDate", "Date"]),
                   );
                   const billAmount = Number(
-                    getFirstValue(row, ["nBillAmount", "BillAmount", "TotalAmount", "Amount"]) ||
+                    getFirstValue(row, [
+                      "nBillAmount",
+                      "BillAmount",
+                      "nTotalAmount",
+                      "TotalAmount",
+                      "Amount",
+                    ]) ||
                       0,
                   );
                   const outstandingAmount = Number(
                     getFirstValue(row, [
+                      "outstandingAmt",
                       "nOutstandingAmount",
                       "OutstandingAmount",
                       "nBalanceAmount",
@@ -392,7 +540,7 @@ const ReceiptCreatePage = () => {
                   return (
                     <div
                       key={`${rowKey}-${index}`}
-                      className="grid grid-cols-[48px_84px_1fr_120px_140px_120px] gap-2 border-b border-slate-100 px-2 py-3 text-[12px] text-slate-700"
+                      className="grid min-w-[900px] grid-cols-[48px_84px_1fr_120px_140px_120px_150px] items-center gap-2 border-b border-slate-100 px-2 py-3 text-[12px] text-slate-700"
                     >
                       <div>{index + 1}</div>
                       <div>{billNo}</div>
@@ -406,6 +554,15 @@ const ReceiptCreatePage = () => {
                           onChange={(value) => updateBillAllocation(rowKey, Number(value ?? 0))}
                           className="w-full"
                         />
+                      </div>
+                      <div>
+                        <Button
+                          size="small"
+                          onClick={() => openBillDetails(row)}
+                          className="w-full"
+                        >
+                          View Bill Details
+                        </Button>
                       </div>
                     </div>
                   );
@@ -464,6 +621,7 @@ const ReceiptCreatePage = () => {
       onClose={() => setPayModeOpen(false)}
       onCancel={() => setPayModeOpen(false)}
       onSave={handleSaveReceipt}
+      saving={isSaving}
       onSelectPayMode={(mode) => {
         setPayMode(mode);
       }}

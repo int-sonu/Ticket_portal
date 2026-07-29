@@ -209,6 +209,12 @@ const CollectionSummaryListPage = () => {
   const [draftSelectedDate, setDraftSelectedDate] = useState(() =>
     normalizeDate(new Date(toDate)),
   );
+  const [draftFromDate, setDraftFromDate] = useState<Date | undefined>(() =>
+    normalizeDate(new Date(fromDate)),
+  );
+  const [draftToDate, setDraftToDate] = useState<Date | undefined>(() =>
+    normalizeDate(new Date(toDate)),
+  );
 
   const sessionPayload = useMemo(() => getRequestPayload(), []);
 
@@ -238,7 +244,9 @@ const CollectionSummaryListPage = () => {
   useEffect(() => {
     setDraftCalendarMonth(normalizeDate(new Date(toDate)));
     setDraftSelectedDate(normalizeDate(new Date(toDate)));
-  }, [toDate]);
+    setDraftFromDate(normalizeDate(new Date(fromDate)));
+    setDraftToDate(normalizeDate(new Date(toDate)));
+  }, [fromDate, toDate]);
 
   const requestPayload = useMemo(
     () => ({
@@ -351,20 +359,49 @@ const CollectionSummaryListPage = () => {
   const handleToggleFilter = () => {
     setDraftCalendarMonth(normalizeDate(new Date(toDate)));
     setDraftSelectedDate(normalizeDate(new Date(toDate)));
+    setDraftFromDate(normalizeDate(new Date(fromDate)));
+    setDraftToDate(normalizeDate(new Date(toDate)));
     setIsFilterOpen((current) => !current);
   };
 
   const handleApplyFilter = () => {
-    const selectedDate = formatDateInput(draftSelectedDate);
-    setFromDate(selectedDate);
-    setToDate(selectedDate);
+    if (!draftFromDate) return;
+    const rangeStart = normalizeDate(draftFromDate);
+    const rangeEnd = normalizeDate(draftToDate ?? draftFromDate);
+    const from = rangeStart <= rangeEnd ? rangeStart : rangeEnd;
+    const to = rangeStart <= rangeEnd ? rangeEnd : rangeStart;
+    setFromDate(formatDateInput(from));
+    setToDate(formatDateInput(to));
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
   const handleCancelFilter = () => {
     setDraftCalendarMonth(normalizeDate(new Date(toDate)));
     setDraftSelectedDate(normalizeDate(new Date(toDate)));
+    setDraftFromDate(normalizeDate(new Date(fromDate)));
+    setDraftToDate(normalizeDate(new Date(toDate)));
     setIsFilterOpen(false);
+  };
+
+  const handleSelectRangeDate = (date: Date) => {
+    const selected = normalizeDate(date);
+    setDraftSelectedDate(selected);
+
+    if (!draftFromDate || draftToDate) {
+      setDraftFromDate(selected);
+      setDraftToDate(undefined);
+      return;
+    }
+
+    const start = normalizeDate(draftFromDate);
+    if (selected < start) {
+      setDraftFromDate(selected);
+      setDraftToDate(start);
+      return;
+    }
+
+    setDraftToDate(selected);
   };
 
   return (
@@ -404,11 +441,15 @@ const CollectionSummaryListPage = () => {
                 onOpenToggle={handleToggleFilter}
                 month={draftCalendarMonth}
                 selectedDate={draftSelectedDate}
+                selectedFromDate={draftFromDate}
+                selectedToDate={draftToDate}
                 onMonthChange={setDraftCalendarMonth}
                 onYearChange={setDraftCalendarMonth}
                 onSelectDate={setDraftSelectedDate}
+                onSelectRangeDate={handleSelectRangeDate}
                 onApply={handleApplyFilter}
                 onCancel={handleCancelFilter}
+                popupClassName="!flex !h-[445px] !w-[280px] !flex-col !p-[10px] [&>div:last-child]:mt-auto"
               />
             </div>
           </div>

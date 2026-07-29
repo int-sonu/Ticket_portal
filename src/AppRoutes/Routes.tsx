@@ -15,6 +15,8 @@ import PrivateRoute from "./PrivateRoute";
 import MainLayout from "../layouts/MainLayout";
 
 import Dashboard from "../Pages/Dashboard/Dashboard";
+import DashboardCreatedTickets from "../Pages/Dashboard/DashboardCreatedTickets/DashboardCreatedTickets";
+import DashboardListPage from "../Pages/Dashboard/DashboardListPage";
 import DashboardCallReport from "../Pages/CallReport/CallReport";
 import UnbilledCallReportPage from "../Pages/CallReport/UnbilledCallReportPage";
 import BillingCustomerCallReportPage from "../Pages/CallReport/BillingCustomerCallReportPage";
@@ -63,19 +65,19 @@ import CollectionSummaryListPage from "../Pages/More/CollectionSummary/Collectio
 import LeaveApplicationPage from "../Pages/More/LeaveApplication/LeaveApplicationPage";
 import LeaveApprovalPage from "../Pages/More/LeaveApproval/LeaveApprovalPage";
 import LeaveApprovalViewPage from "../Pages/More/LeaveApproval/LeaveApprovalViewPage";
-import TravelingExpensePage from "../Pages/More/TravelingExpenseModalPage";
-import TravelingExpenseViewPage from "../Pages/More/TravelingExpenseViewPage";
-import TravelLogPage from "../Pages/More/TravelLogPage";
-import ReviewClosedTicketsPage from "../Pages/More/ReviewClosedTicketsPage";
-import TaskCalendarPage from "../Pages/More/TaskCalendarPage";
-import AgentAnalysisPage from "../Pages/More/AgentAnalysisPage";
-import ExpenseApprovalPage from "../Pages/More/ExpenseApprovalPage";
-import ExpenseApprovalPendingPage from "../Pages/More/ExpenseApprovalPendingPage";
-import ExpenseApprovalViewPage from "../Pages/More/ExpenseApprovalViewPage";
-import ExpenseApprovalDetailPage from "../Pages/More/ExpenseApprovalDetailPage";
-import AgentAvailabilityPage from "../Pages/More/AgentAvailabilityPage";
-import WorkSummaryPage from "../Pages/More/WorkSummaryPage";
-import PunchInOutPage from "../Pages/More/PunchInOutPage";
+import TravelingExpensePage from "../Pages/More/TravelingExpense/TravelingExpenseModalPage";
+import TravelingExpenseViewPage from "../Pages/More/TravelingExpense/TravelingExpenseViewPage";
+import TravelLogPage from "../Pages/More/TravelLog/TravelLogPage";
+import ReviewClosedTicketsPage from "../Pages/More/ReviewClosedTickets/ReviewClosedTicketsPage";
+import TaskCalendarPage from "../Pages/More/TaskCalendar/TaskCalendarPage";
+import AgentAnalysisPage from "../Pages/More/AgentAnalysis/AgentAnalysisPage";
+import ExpenseApprovalPage from "../Pages/More/ExpenseApproval/ExpenseApprovalPage";
+import ExpenseApprovalPendingPage from "../Pages/More/ExpenseApproval/ExpenseApprovalPendingPage";
+import ExpenseApprovalViewPage from "../Pages/More/ExpenseApproval/ExpenseApprovalViewPage";
+import ExpenseApprovalDetailPage from "../Pages/More/ExpenseApproval/ExpenseApprovalDetailPage";
+import AgentAvailabilityPage from "../Pages/More/AgentAvailability/AgentAvailabilityPage";
+import WorkSummaryPage from "../Pages/More/WorkSummary/WorkSummaryPage";
+import PunchInOutPage from "../Pages/More/PunchInOut";
 import ReportsPage from "../Pages/Reports/ReportsPage";
 import FeaturesPage from "../Pages/Settings/FeaturesPage";
 import SupervisorAgentComp from "../Components/Settings/SupervisorAgentComp/SupervisorAgentComp";
@@ -223,6 +225,38 @@ const Routes: React.FC = () => {
             {/* ========================= */}
 
             <Route path="/tickets" element={<TicketList />} />
+            <Route
+              path="/dashboard/createdtickets"
+              element={<DashboardCreatedTickets />}
+            />
+            <Route
+              path="/dashboard/callreport"
+              element={<DashboardListPage page="call-report" />}
+            />
+            <Route
+              path="/dashboard/postponed"
+              element={<DashboardListPage page="postponed" />}
+            />
+            <Route
+              path="/dashboard/collectionsummary"
+              element={<DashboardListPage page="collection-summary" />}
+            />
+            <Route
+              path="/dashboard/ongoingtickets"
+              element={<DashboardListPage page="ongoing" />}
+            />
+            <Route
+              path="/dashboard/overdue"
+              element={<DashboardListPage page="overdue" />}
+            />
+            <Route
+              path="/dashboard/unassigned"
+              element={<DashboardListPage page="unassigned" />}
+            />
+            <Route
+              path="/dashboard/upcomingtickets"
+              element={<DashboardListPage page="upcoming" />}
+            />
 
             <Route path="/tickets/create" element={<TicketCreate />} />
 

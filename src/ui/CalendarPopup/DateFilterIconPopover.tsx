@@ -8,13 +8,17 @@ type DateFilterIconPopoverProps = {
   ariaLabel: string;
   month: Date;
   selectedDate: Date;
+  selectedFromDate?: Date;
+  selectedToDate?: Date;
   onOpenToggle: () => void;
   onMonthChange: (nextMonth: Date) => void;
   onYearChange: (nextYear: Date) => void;
   onSelectDate: (date: Date) => void;
+  onSelectRangeDate?: (date: Date) => void;
   onApply: () => void;
   onCancel: () => void;
   title?: ReactNode;
+  popupClassName?: string;
 };
 
 const DateFilterIconPopover = ({
@@ -24,13 +28,17 @@ const DateFilterIconPopover = ({
   ariaLabel,
   month,
   selectedDate,
+  selectedFromDate,
+  selectedToDate,
   onOpenToggle,
   onMonthChange,
   onYearChange,
   onSelectDate,
+  onSelectRangeDate,
   onApply,
   onCancel,
   title,
+  popupClassName,
 }: DateFilterIconPopoverProps) => {
   return (
     <div className="relative">
@@ -48,11 +56,15 @@ const DateFilterIconPopover = ({
         title={title}
         month={month}
         selectedDate={selectedDate}
+        selectedFromDate={selectedFromDate}
+        selectedToDate={selectedToDate}
         onMonthChange={onMonthChange}
         onYearChange={onYearChange}
         onSelectDate={onSelectDate}
+        onSelectRangeDate={onSelectRangeDate}
         onApply={onApply}
         onCancel={onCancel}
+        className={popupClassName}
       />
     </div>
   );

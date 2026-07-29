@@ -86,6 +86,8 @@ const commonReportPayload = useMemo(() => {
     cToDate: activeAppliedFilter.to.format("YYYY-MM-DD"),
     cDate: activeAppliedFilter.from.format("YYYY-MM-DD"),
     dDate: activeAppliedFilter.from.format("YYYY-MM-DD"),
+    cAgentId: String(basePayload.nAgentId ?? basePayload.id ?? "0"),
+    nAgentId: Number(basePayload.nAgentId ?? basePayload.id ?? 0),
     nPageNo: 1,
     nPageSize: 1000,
   };
@@ -466,4 +468,3 @@ const activeFilterText = useMemo(() => {
     activeFilterText,
   };
 };
-

@@ -23,6 +23,15 @@ export const dashboardApis = {
     return response.data;
   },
 
+  collectionSummaryList: async (payload: DashboardPayload) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Dashboard/CollectionSummaryList",
+      payload,
+    );
+
+    return response.data;
+  },
+
   agentsActivityList: async (payload: DashboardPayload) => {
     const response = await axiosInstance.post(
       "/Api/V1/Dashboard/AgentsActivityList",

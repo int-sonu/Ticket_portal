@@ -123,6 +123,8 @@ const ReportsPage = () => {
   const companyPayload = useMemo(
     () => ({
       ...basePayload,
+      cAgentId: String(basePayload.nAgentId ?? basePayload.id ?? "0"),
+      nAgentId: Number(basePayload.nAgentId ?? basePayload.id ?? 0),
       nPageNo: 1,
       nPageSize: 1000,
     }),
@@ -156,6 +158,8 @@ const ReportsPage = () => {
   const dropdownCompanyPayload = useMemo(
     () => ({
       ...basePayload,
+      cAgentId: String(basePayload.nAgentId ?? basePayload.id ?? "0"),
+      nAgentId: Number(basePayload.nAgentId ?? basePayload.id ?? 0),
       nCompanyId: Number(companyId || selectedCompany?.value || basePayload.nCompanyId || 0),
       cDbName:
         selectedCompany?.raw?.cDbName ??
@@ -642,6 +646,13 @@ const ReportsPage = () => {
     setActiveReportKey(null);
   };
 
+  const showReportCatalog = () => {
+    setFilterOpen(false);
+    setDateFieldOpen(null);
+    setSearch("");
+    setActiveReportKey(null);
+  };
+
   const removeReportTab = (key: ReportKey) => {
     setOpenReports((current) => {
       const next = current.filter((item) => item !== key);
@@ -747,7 +758,7 @@ const ReportsPage = () => {
           openReports={openReports}
           activeReportKey={activeReportKey}
           onClose={closeReportView}
-          onAdd={() => openReportFilter(activeReportKey ?? pendingReportKey)}
+          onAdd={showReportCatalog}
           onFilter={() => openReportFilter(activeReportKey ?? pendingReportKey)}
           onDownloadPdf={() => runExport(downloadReportPdf)}
           onDownloadExcel={() => runExport(downloadReportExcel)}

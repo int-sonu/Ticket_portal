@@ -1,5 +1,5 @@
 import { Button, Empty, Modal, message, Spin } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import TicketPageShell from "./TicketPageShell";
@@ -26,6 +26,21 @@ const getFieldValue = (record: any, keys: string[]) => {
   if (!recordKey) return "";
 
   return record?.[recordKey] ?? "";
+};
+
+const findNestedNumber = (value: any, keys: string[]): number => {
+  if (!value || typeof value !== "object") return 0;
+
+  const directNumber = Number(getFieldValue(value, keys) || 0);
+  if (directNumber > 0) return directNumber;
+
+  const children = Array.isArray(value) ? value : Object.values(value);
+  for (const child of children) {
+    const nestedNumber = findNestedNumber(child, keys);
+    if (nestedNumber > 0) return nestedNumber;
+  }
+
+  return 0;
 };
 
 const formatDisplayValue = (value: any): string => {
@@ -300,6 +315,7 @@ const MergeTicketsPage = () => {
   );
 
   const { mergeTicket, unMergeTicket } = useTicketActions();
+  const isSubmittingRef = useRef(false);
   const [busyTicketId, setBusyTicketId] = useState<number | null>(null);
   const [mergedTicketIds, setMergedTicketIds] = useState<Set<number>>(
     () => new Set(),
@@ -372,27 +388,47 @@ const MergeTicketsPage = () => {
   );
 
   const visibleTickets = useMemo(
-    () =>
-      ticketRows
-        .map((row: any) => ({
-          row,
-          ticketId: getTicketIdValue(row),
-          ticketNo: getTicketNoValue(row, getTicketIdValue(row)),
-        }))
-        .filter(({ ticketId }) => ticketId > 0 && ticketId !== selectedTicketId)
-        .sort(
-          (a: { ticketNo: number; ticketId: number }, b: { ticketNo: number; ticketId: number }) =>
-            a.ticketNo - b.ticketNo || a.ticketId - b.ticketId,
-        ),
+    () => {
+      const uniqueTickets = new Map<number, {
+        row: any;
+        ticketId: number;
+        ticketNo: number;
+      }>();
+
+      ticketRows.forEach((row: any) => {
+        const ticketId = getTicketIdValue(row);
+
+        if (ticketId > 0 && ticketId !== selectedTicketId && !uniqueTickets.has(ticketId)) {
+          uniqueTickets.set(ticketId, {
+            row,
+            ticketId,
+            ticketNo: getTicketNoValue(row, ticketId),
+          });
+        }
+      });
+
+      return Array.from(uniqueTickets.values()).sort(
+        (a: { ticketNo: number; ticketId: number }, b: { ticketNo: number; ticketId: number }) =>
+          a.ticketNo - b.ticketNo || a.ticketId - b.ticketId,
+      );
+    },
     [selectedTicketId, ticketRows],
   );
 
   const handleMerge = (targetTicketId: number, targetTicketNo: number) => {
+    if (isSubmittingRef.current || mergeTicket.isPending) return;
+
     if (!selectedTicketId || !targetTicketId) {
       message.error("Missing ticket details for merge");
       return;
     }
 
+    if (selectedTicketId === targetTicketId) {
+      message.error("A ticket cannot be merged with itself");
+      return;
+    }
+
+    isSubmittingRef.current = true;
     setBusyTicketId(targetTicketId);
     mergeTicket.mutate(
       buildMergePayload(
@@ -403,7 +439,13 @@ const MergeTicketsPage = () => {
         targetTicketNo,
       ) as any,
       {
-        onSuccess: () => {
+        onSuccess: (response: any) => {
+          isSubmittingRef.current = false;
+          const mergeId = findNestedNumber(response, [
+            "nMergeId",
+            "MergeId",
+            "mergeId",
+          ]);
           setMergedTicketIds((prev: Set<number>) => {
             const next = new Set(prev);
             next.add(targetTicketId);
@@ -413,18 +455,20 @@ const MergeTicketsPage = () => {
             MERGE_BANNER_STORAGE_KEY,
             JSON.stringify({
               text: `Merged : Ticket No. ${targetTicketNo} Into Ticket No. ${primaryTicketNo}`,
+              mergeId,
               primaryTicketId: selectedTicketId,
               mergedTicketId: targetTicketId,
               primaryTicketNo,
               mergedTicketNo: targetTicketNo,
             }),
           );
-          message.success("Ticket merged successfully");
+          message.success("Ticket Merged Successfully");
           setBusyTicketId(null);
           setConfirmMergeTarget(null);
-          navigate(-1);
+          window.setTimeout(() => navigate(-1), 800);
         },
         onError: (error: any) => {
+          isSubmittingRef.current = false;
           message.error(getErrorMessage(error));
           setBusyTicketId(null);
         },
@@ -433,11 +477,14 @@ const MergeTicketsPage = () => {
   };
 
   const handleUnmerge = (targetTicketId: number, targetTicketNo: number) => {
+    if (isSubmittingRef.current || unMergeTicket.isPending) return;
+
     if (!selectedTicketId || !targetTicketId) {
       message.error("Missing ticket details for unmerge");
       return;
     }
 
+    isSubmittingRef.current = true;
     setBusyTicketId(targetTicketId);
     unMergeTicket.mutate(
       buildMergePayload(
@@ -449,6 +496,7 @@ const MergeTicketsPage = () => {
       ) as any,
       {
         onSuccess: () => {
+          isSubmittingRef.current = false;
           setMergedTicketIds((prev: Set<number>) => {
             const next = new Set(prev);
             next.delete(targetTicketId);
@@ -458,6 +506,7 @@ const MergeTicketsPage = () => {
           setBusyTicketId(null);
         },
         onError: (error: any) => {
+          isSubmittingRef.current = false;
           message.error(getErrorMessage(error));
           setBusyTicketId(null);
         },
@@ -639,7 +688,7 @@ const MergeTicketsPage = () => {
         destroyOnClose
         closable={false}
         maskClosable={false}
-        width={380}
+        width={480}
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -648,21 +697,21 @@ const MergeTicketsPage = () => {
               type="button"
               aria-label="Close merge confirmation"
               onClick={() => setConfirmMergeTarget(null)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-900 hover:bg-slate-100"
-            >
+              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-900 hover:bg-slate-100">
               <img src={closeblack} alt="" className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
-          <div className="border-t border-slate-200 pt-3 text-sm text-slate-600">
+          <div className="border-t border-slate-200 pt-3 text-[14px] text-slate-600">
             Do You Wish to Merge Ticket No {confirmMergeTarget?.ticketNo || ""} into Ticket No. {primaryTicketNo}?
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 mt-3">
             <Button onClick={() => setConfirmMergeTarget(null)}>No</Button>
             <Button
               type="primary"
               loading={busyTicketId === confirmMergeTarget?.ticketId}
+              disabled={busyTicketId !== null || mergeTicket.isPending}
               className="!border-emerald-500 !bg-emerald-500 hover:!border-emerald-600 hover:!bg-emerald-600"
               onClick={() => {
                 if (!confirmMergeTarget) return;

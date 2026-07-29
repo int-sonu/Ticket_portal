@@ -44,6 +44,7 @@ type PayModeDrawerProps = {
   onCancel: () => void;
   onSave: () => void;
   onSelectPayMode: (payMode: string) => void;
+  saving?: boolean;
 };
 
 type ModeFields = Record<string, Record<string, string>>;
@@ -56,6 +57,7 @@ const PayModeDrawer = ({
   onCancel,
   onSave,
   onSelectPayMode,
+  saving = false,
 }: PayModeDrawerProps) => {
   const [modeFields, setModeFields] = useState<ModeFields>({});
   const [splitStep, setSplitStep] = useState<"choose" | "details">("choose");
@@ -339,7 +341,7 @@ const PayModeDrawer = ({
       footer={
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white px-5 py-3">
           <Button onClick={onCancel}>Cancel</Button>
-          <Button type="primary" onClick={onSave}>
+          <Button type="primary" onClick={onSave} loading={saving} disabled={saving}>
             Save
           </Button>
         </div>

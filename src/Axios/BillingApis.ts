@@ -257,6 +257,15 @@ export const billingApis = {
     return response.data;
   },
 
+  receiptSave: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Receipt/ReceiptSave",
+      payload,
+    );
+
+    return response.data;
+  },
+
   companyDetails: async (payload: any) => {
     const response = await axiosInstance.post(
       "/Api/V1/Configuration/GetCompanyDetails",

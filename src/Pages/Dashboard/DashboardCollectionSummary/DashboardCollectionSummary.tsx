@@ -4,18 +4,20 @@ import { useNavigate } from 'react-router-dom';
 interface DashboardCollectionSummaryProps {
   amount?: string;
   className?: string;
+  onClick?: () => void;
 }
 
 const DashboardCollectionSummary: FC<DashboardCollectionSummaryProps> = ({
   amount = 'Rs. 0.00',
   className = '',
+  onClick,
 }) => {
   const navigate = useNavigate();
 
   return (
     <button
       type="button"
-      onClick={() => navigate('/more/collectionsummary')}
+      onClick={onClick ?? (() => navigate('/more/collectionsummary'))}
       className={`w-full bg-white rounded-xl border border-slate-100 p-5 flex flex-col gap-5 min-h-[240px] shadow-sm text-left transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-md ${className}`}
     >
       <div className="flex items-center justify-between">

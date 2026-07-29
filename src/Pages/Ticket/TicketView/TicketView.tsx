@@ -68,6 +68,7 @@ type TicketViewState = {
   activeTab?: "details" | "history" | "files";
   mergeBanner?: {
     text?: string;
+    mergeId?: number;
     primaryTicketId?: number;
     mergedTicketId?: number;
     primaryTicketNo?: number;
@@ -1061,12 +1062,111 @@ const getMergedTicketBanner = (
     ]) || 0,
   );
 
+  const mergeId = Number(
+    getFieldValue(mergeHistoryItem, [
+      "nMergeId",
+      "MergeId",
+      "mergeId",
+      "nTicketMergeId",
+      "TicketMergeId",
+      "ticketMergeId",
+      "nMergeDataId",
+      "MergeDataId",
+    ]) || 0,
+  );
+
   return {
     text: mergedText,
+    mergeId,
     primaryTicketId,
     mergedTicketId,
     primaryTicketNo: Number(primaryTicketNo || currentTicketNo || currentTicketId || 0),
     mergedTicketNo: Number(mergedTicketNo || 0),
+  };
+};
+
+const getMergedTicketBannerFromRecord = (
+  record: Record<string, any>,
+  currentTicketId: number,
+  currentTicketNo: string,
+) => {
+  const primaryTicketId = Number(
+    findDeepFieldValue(record, [
+      "nPrimaryTicketId",
+      "PrimaryTicketId",
+      "primaryTicketId",
+    ]) || currentTicketId || 0,
+  );
+  const mergedTicketId = Number(
+    findDeepFieldValue(record, [
+      "nMergedTicketId",
+      "MergedTicketId",
+      "mergedTicketId",
+      "nMergeTicketId",
+      "MergeTicketId",
+      "mergeTicketId",
+    ]) || 0,
+  );
+  const mergeId = Number(
+    findDeepFieldValue(record, [
+      "nMergeId",
+      "MergeId",
+      "mergeId",
+      "nTicketMergeId",
+      "TicketMergeId",
+      "ticketMergeId",
+      "nMergeDataId",
+      "MergeDataId",
+    ]) || 0,
+  );
+
+  if (
+    !primaryTicketId ||
+    !mergedTicketId ||
+    primaryTicketId === mergedTicketId
+  ) {
+    return null;
+  }
+
+  const primaryTicketNo = Number(
+    findDeepFieldValue(record, [
+      "nPrimaryTicketNo",
+      "PrimaryTicketNo",
+      "primaryTicketNo",
+    ]) || currentTicketNo || currentTicketId || 0,
+  );
+  const mergedTicketNo = Number(
+    findDeepFieldValue(record, [
+      "nMergedTicketNo",
+      "MergedTicketNo",
+      "mergedTicketNo",
+      "nMergeTicketNo",
+      "MergeTicketNo",
+      "mergeTicketNo",
+    ]) || 0,
+  );
+  const apiText = formatDisplayValue(
+    findDeepFieldValue(record, [
+      "cMergeMessage",
+      "MergeMessage",
+      "mergeMessage",
+      "cMergeSummary",
+      "MergeSummary",
+      "mergeSummary",
+    ]),
+  );
+
+  return {
+    text:
+      apiText ||
+      `Merged : Ticket No. ${mergedTicketNo || mergedTicketId} Into Ticket No. ${
+        primaryTicketNo || primaryTicketId
+      }`,
+    mergeId,
+    primaryTicketId,
+    mergedTicketId,
+    primaryTicketNo,
+    mergedTicketNo,
   };
 };
 
@@ -1321,11 +1421,15 @@ const TicketView = () => {
 
     try {
       const parsed = JSON.parse(raw);
-      setSessionMergeBanner(parsed);
+      const storedPrimaryTicketId = Number(parsed?.primaryTicketId ?? 0);
+
+      setSessionMergeBanner(
+        !storedPrimaryTicketId || storedPrimaryTicketId === ticketId
+          ? parsed
+          : null,
+      );
     } catch {
       setSessionMergeBanner(null);
-    } finally {
-      sessionStorage.removeItem(MERGE_BANNER_STORAGE_KEY);
     }
   }, [ticketId]);
   const supportSessionPayload = useMemo(() => getRequestPayload(), []);
@@ -2593,14 +2697,41 @@ const TicketView = () => {
 
   const detailPreviousCallReport =
     previousCallReportFromTicket || latestCallReport || null;
-  const mergedBanner = useMemo(
-    () =>
-      hideMergedBanner
-        ? null
-        : state.mergeBanner ??
-          sessionMergeBanner ??
-          getMergedTicketBanner(historyItems, ticketId, ticketNo),
-    [hideMergedBanner, historyItems, sessionMergeBanner, state.mergeBanner, ticketId, ticketNo],
+  const mergedBanner = useMemo(() => {
+    if (hideMergedBanner) return null;
+
+    const candidates = [
+      state.mergeBanner,
+      sessionMergeBanner,
+      getMergedTicketBannerFromRecord(resolvedRecord, ticketId, ticketNo),
+      getMergedTicketBanner(historyItems, ticketId, ticketNo),
+    ].filter(Boolean) as NonNullable<TicketViewState["mergeBanner"]>[];
+
+    if (!candidates.length) return null;
+
+    const firstNumber = (
+      key: "mergeId" | "primaryTicketId" | "mergedTicketId" | "primaryTicketNo" | "mergedTicketNo",
+    ) =>
+      Number(candidates.find((candidate) => Number(candidate?.[key] ?? 0) > 0)?.[key] ?? 0);
+
+    return {
+      text: candidates.find((candidate) => candidate.text)?.text ?? "",
+      mergeId: firstNumber("mergeId"),
+      primaryTicketId: firstNumber("primaryTicketId"),
+      mergedTicketId: firstNumber("mergedTicketId"),
+      primaryTicketNo: firstNumber("primaryTicketNo"),
+      mergedTicketNo: firstNumber("mergedTicketNo"),
+    };
+  },
+    [
+      hideMergedBanner,
+      historyItems,
+      resolvedRecord,
+      sessionMergeBanner,
+      state.mergeBanner,
+      ticketId,
+      ticketNo,
+    ],
   );
 
   const billTicketSummary = useMemo(() => {
@@ -2660,7 +2791,11 @@ const TicketView = () => {
   const handleSplitMerge = () => {
     if (!mergedBanner) return;
 
-    if (!mergedBanner.primaryTicketId || !mergedBanner.mergedTicketId) {
+    if (
+      !mergedBanner.mergeId ||
+      !mergedBanner.primaryTicketId ||
+      !mergedBanner.mergedTicketId
+    ) {
       message.error("Unable to resolve merge details");
       return;
     }
@@ -2669,29 +2804,29 @@ const TicketView = () => {
       cDbName: supportSessionPayload.cDbName,
       cSchemaName: supportSessionPayload.cSchemaName,
       nCompanyId: supportSessionPayload.nCompanyId,
-      nMergedBy: Number(
+      nMergeId: mergedBanner.mergeId,
+      nAgentId: Number(
         supportSessionPayload.nAgentId ?? supportSessionPayload.id ?? 0,
       ),
       nPrimaryTicketId: mergedBanner.primaryTicketId,
       nMergedTicketId: mergedBanner.mergedTicketId,
-      nPrimaryTicketNo: mergedBanner.primaryTicketNo,
-      nMergedTicketNo: mergedBanner.mergedTicketNo,
     };
 
     unMergeTicket.mutate(payload as any, {
       onSuccess: () => {
-        message.success("Ticket split successfully");
+        message.success("Ticket Unmerged Successfully");
         setHideMergedBanner(true);
         setSessionMergeBanner(null);
         sessionStorage.removeItem(MERGE_BANNER_STORAGE_KEY);
         queryClient.invalidateQueries({ queryKey: ["ticket-view"] });
         queryClient.invalidateQueries({ queryKey: ["ticket-history"] });
+        queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
       },
       onError: (error: any) => {
         message.error(
-          error?.response?.data?.message ||
+            error?.response?.data?.message ||
             error?.message ||
-            "Unable to split ticket",
+            "Unable to unmerge ticket",
         );
       },
     });
@@ -3741,21 +3876,22 @@ const TicketView = () => {
       ) : null}
 
       {isSharedTicket ? (
-        <div className="mx-2 mt-3 w-170  my-5 rounded-md bg-teal-600/10 px-3 py-2">
+        <div className="mx-2 mt-3 rounded-md bg-teal-600/10 px-3 py-2">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm text-slate-900 h-5">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-emerald-500 ">
-                <img src={sendIcon} alt="not found" className="w-5 h-5 "/>
+            <div className="flex min-w-0 items-center gap-2 text-sm text-slate-900">
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-500">
+                <img src={sendIcon} alt="" className="h-5 w-5" aria-hidden="true" />
               </span>
-              <span className="px-2 w-20">
-                Share to : {sharedAgentName || `Agent ${resolvedSharedRecordId || ""}`}
+              <span className="truncate">
+                Shared : Ticket No. {ticketNo} To{" "}
+                {sharedAgentName || `Agent ${resolvedSharedRecordId || ""}`}
               </span>
             </div>
             <Button
               type="primary"
               loading={unShareTicket.isPending}
               onClick={handleUnShare}
-              className="!border-emerald-500 !bg-white !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600 ml-106 "
+              className="!border-emerald-500 !bg-white !text-emerald-500 hover:!border-emerald-600 hover:!text-emerald-600"
             >
               UnShare
             </Button>

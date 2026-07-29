@@ -22,6 +22,10 @@ interface DashboardMainContentProps {
   collectionSummaryAmount: string;
   agents: DashboardChartAgent[];
   onAgentClick: () => void;
+  onCreatedTicketClick: () => void;
+  onCallReportClick: () => void;
+  onPostponedClick: () => void;
+  onCollectionSummaryClick: () => void;
   onRefresh: () => void;
 }
 
@@ -35,6 +39,10 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
   collectionSummaryAmount,
   agents,
   onAgentClick,
+  onCreatedTicketClick,
+  onCallReportClick,
+  onPostponedClick,
+  onCollectionSummaryClick,
 }) => {
   return (
     <div className="flex w-full flex-col gap-3.5 text-[15px]">
@@ -76,6 +84,7 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
             value={stats.createdTicket}
             icon={createdTicketIcon}
             iconBg="bg-emerald-500"
+            onClick={onCreatedTicketClick}
           />
         </div>
         <div className="h-[80px] sm:col-span-2">
@@ -84,6 +93,7 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
             value={stats.callReport}
             icon={callReportIcon}
             iconBg="bg-rose-400"
+            onClick={onCallReportClick}
           />
         </div>
         <div className="h-[80px] sm:col-span-2">
@@ -92,6 +102,7 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
             value={stats.postponed}
             icon={postponedIcon}
             iconBg="bg-indigo-500"
+            onClick={onPostponedClick}
           />
         </div>
 
@@ -123,7 +134,10 @@ const DashboardMainContent: FC<DashboardMainContentProps> = ({
         </div>
 
         <div className="sm:col-span-6">
-          <DashboardCollectionSummary amount={collectionSummaryAmount} />
+          <DashboardCollectionSummary
+            amount={collectionSummaryAmount}
+            onClick={onCollectionSummaryClick}
+          />
         </div>
       </div>
     </div>

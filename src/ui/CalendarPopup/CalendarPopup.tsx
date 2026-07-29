@@ -57,7 +57,9 @@ const buildCalendarGrid = (monthValue: Date) => {
     });
   }
 
-  const totalCells = daysGrid.length > 35 ? 42 : 35;
+  // Keep a consistent six-week calendar so the popup never collapses or
+  // leaves an oversized empty section in shorter months.
+  const totalCells = 42;
   const nextDaysCount = totalCells - daysGrid.length;
 
   for (let i = 1; i <= nextDaysCount; i++) {
@@ -138,9 +140,16 @@ const CalendarPopup = ({
 
   const isSelectedDay = (day: number, currentMonth: boolean) =>
     currentMonth &&
-    normalizedSelectedDate.getDate() === day &&
-    normalizedSelectedDate.getMonth() === displayMonth.getMonth() &&
-    normalizedSelectedDate.getFullYear() === displayMonth.getFullYear();
+    (normalizedRangeStart || normalizedRangeEnd
+      ? [normalizedRangeStart, normalizedRangeEnd]
+      : [normalizedSelectedDate])
+      .filter((date): date is Date => Boolean(date))
+      .some(
+        (date) =>
+          date.getDate() === day &&
+          date.getMonth() === displayMonth.getMonth() &&
+          date.getFullYear() === displayMonth.getFullYear(),
+      );
 
   const isToday = (day: number, currentMonth: boolean) => {
     const today = new Date();
@@ -165,8 +174,8 @@ const CalendarPopup = ({
 
   return (
     <div
-      className={`z-50 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] ${
-        inline ? "static w-full shadow-none" : "absolute right-0 top-0 mt-12 w-[340px]"
+      className={`z-50 rounded-2xl border gap-5 border-slate-100 bg-white p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)] ${
+        inline ? "static w-full shadow-none" : "absolute right-0 top-0 mt-12 w-[300px] "
       } ${className}`.trim()}
     >
       {showTitle ? <div className="mb-3 text-sm font-semibold text-slate-800">{title}</div> : null}
@@ -213,7 +222,7 @@ const CalendarPopup = ({
       </div>
 
       <div className="flex flex-col">
-        <div className="mb-2 grid grid-cols-7 text-center text-xs font-semibold text-slate-600">
+        <div className="mb-2 grid grid-cols-7 border-b border-slate-200 pb-2 border-t pt-2 text-center text-sm font-semibold text-gray-900">
           {weekDays.map((weekDay) => (
             <div key={weekDay} className="flex h-6 items-center justify-center">
               {weekDay}
@@ -221,7 +230,7 @@ const CalendarPopup = ({
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-y-1">
+        <div className="grid grid-cols-7 gap-y-3">
           {calendarDays.map(({ day, currentMonth }, index) => {
             const selected = isSelectedDay(day, currentMonth);
             const activeToday = isToday(day, currentMonth);
@@ -248,12 +257,12 @@ const CalendarPopup = ({
                 }}
                 type="button"
                 disabled={!currentMonth || !inAllowedRange}
-                className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-colors
+                className={`mx-auto flex h-9 w-9 items-center justify-center text-xs font-medium transition-colors
                   ${
                     selected
                       ? "bg-[#2cd5a9] font-bold text-white"
                       : isInRange(day, currentMonth)
-                        ? "bg-teal-50 text-slate-800"
+                        ? "bg-blue-400/25 text-slate-800"
                       : currentMonth
                         ? activeToday
                           ? "border border-[#2cd5a9] text-[#2cd5a9]"
@@ -271,18 +280,18 @@ const CalendarPopup = ({
       </div>
 
       {showActions ? (
-        <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="mt-2 flex items-center justify-end gap-4 border-t border-slate-100 pt-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg border border-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-[#2cd5a9] transition-colors hover:bg-teal-50"
+            className="rounded-lg border border-[#2cd5a9] px-5 py-1.5 text-[13px] font-semibold text-[#2cd5a9] transition-colors hover:bg-teal-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onApply}
-            className="rounded-lg bg-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#25bfa4]"
+            className="rounded-lg bg-[#2cd5a9] px-6 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#25bfa4]"
           >
             Apply
           </button>
