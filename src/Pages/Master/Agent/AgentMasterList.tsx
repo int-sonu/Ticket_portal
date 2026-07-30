@@ -27,8 +27,10 @@ import {
   uniqueOptions,
 } from './Utils';
 import type { AgentRow } from './Utils';
+import { usePermissions } from '../../../common/sidebar/PermissionContext';
 
 const AgentMasterList: React.FC = () => {
+  const { can } = usePermissions();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -149,6 +151,13 @@ const AgentMasterList: React.FC = () => {
 
   const openDrawer = (agent?: AgentRow, readonly = false) => {
     if (agent && deletedAgentIds.includes(agent.id)) return;
+    const action = !agent ? 'add-new' : readonly ? 'view' : 'edit';
+    if (!can(`master.agent.${action}`)) {
+      message.error(
+        `You don't have permission to ${action === 'add-new' ? 'add' : action} agent.`,
+      );
+      return;
+    }
 
     setSelectedAgent(agent ?? null);
     setViewMode(readonly);
@@ -162,6 +171,11 @@ const AgentMasterList: React.FC = () => {
   };
 
   const handleAgentActiveChange = (checked: boolean, record: AgentRow) => {
+    if (!can('master.agent.edit')) {
+      message.error("You don't have permission to edit agent.");
+      return;
+    }
+
     const overrideKey = String(record.id);
     const previousActive = record.active;
 
@@ -196,6 +210,14 @@ const AgentMasterList: React.FC = () => {
   };
 
   const handleAgentSave = (values: any) => {
+    const action = selectedAgent ? 'edit' : 'add-new';
+    if (!can(`master.agent.${action}`)) {
+      message.error(
+        `You don't have permission to ${action === 'add-new' ? 'add' : action} agent.`,
+      );
+      return;
+    }
+
     const duplicateShortName = allAgentRows.find((agent) =>
       normalizeCompareText(agent.id) !== normalizeCompareText(selectedAgent?.id) &&
       normalizeCompareText(agent.shortName) === normalizeCompareText(values.agentShortName),
@@ -230,6 +252,18 @@ const AgentMasterList: React.FC = () => {
     }
 
     handleSave(values);
+  };
+
+  const handlePermissionDelete = (
+    event: React.MouseEvent,
+    record: AgentRow,
+  ) => {
+    event.stopPropagation();
+    if (!can('master.agent.delete')) {
+      message.error("You don't have permission to delete agent.");
+      return;
+    }
+    handleDelete(event, record);
   };
 
   const columns = [
@@ -272,7 +306,7 @@ const AgentMasterList: React.FC = () => {
       key: 'delete',
       width: 64,
       render: (_: unknown, record: AgentRow) => (
-        <Button type="text" danger icon={<DeleteOutlined />} onClick={(event) => handleDelete(event, record)} />
+        <Button type="text" danger icon={<DeleteOutlined />} onClick={(event) => handlePermissionDelete(event, record)} />
       ),
     },
   ];
@@ -313,8 +347,11 @@ const AgentMasterList: React.FC = () => {
         userTypeOptions={userTypeOptions}
         groupOptions={groupOptions}
         onClose={closeDrawer}
-        onEdit={() => setViewMode(false)}
-        onDelete={handleDelete}
+        onEdit={() => {
+          if (!selectedAgent) return;
+          openDrawer(selectedAgent, false);
+        }}
+        onDelete={handlePermissionDelete}
         onSave={handleAgentSave}
       />
     </div>

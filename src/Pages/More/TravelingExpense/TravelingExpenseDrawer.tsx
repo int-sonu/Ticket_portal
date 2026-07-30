@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, DatePicker, Drawer, Image, Input, Upload, message } from "antd";
-import { CalendarOutlined, LeftOutlined, RightOutlined, UploadOutlined } from "@ant-design/icons";
+import { Button, Drawer, Image, Input, Upload, message } from "antd";
+import { LeftOutlined, RightOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 
 import deleteImage from "../../../assets/icons/delete-white.svg";
 import { billingApis } from "../../../Axios/BillingApis";
 import { getRequestPayload } from "../../../Utils/requestPayload";
+import MasterDateField from "../../Master/Common/MasterDateField";
 
 type ExpenseAttachment = { id: string; file: File; url: string };
 
@@ -164,12 +165,9 @@ const TravelingExpenseDrawer = ({
           <div className="grid grid-cols-2 gap-6">
             <div>
               <div className="mb-2 text-sm text-slate-600">Select Date</div>
-              <DatePicker
-                className="w-full"
+              <MasterDateField
                 value={expenseDate}
                 onChange={(value) => setExpenseDate(value ?? dayjs())}
-                format="DD/MM/YYYY"
-                suffixIcon={<CalendarOutlined className="text-slate-400" />}
               />
             </div>
             <div>

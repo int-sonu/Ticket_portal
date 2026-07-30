@@ -20,6 +20,7 @@ import { settingsApis } from "../../Axios/SettingsApi";
 import arrowIcon from "../../assets/icons/arrow.svg";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { getApiMessage } from "../Master/Common/SimpleMasterUtils";
+import { usePermissions } from "../../common/sidebar/PermissionContext";
 
 type ApiRecord = Record<string, any>;
 type AgentOption = { value: number; label: string; department: string };
@@ -30,6 +31,32 @@ const roleNode = (
   children: TreeDataNode[] = [],
 ): TreeDataNode => ({ key, title, children });
 
+const masterRoleNode = (key: string, title: string): TreeDataNode =>
+  roleNode(key, title, [
+    roleNode(`${key}.view`, "View"),
+    roleNode(`${key}.add-new`, "Add-New"),
+    roleNode(`${key}.edit`, "Edit"),
+    roleNode(`${key}.delete`, "Delete"),
+  ]);
+
+const moduleRoleNode = (
+  key: string,
+  title: string,
+  actions: Array<{ key: string; title: string }>,
+): TreeDataNode =>
+  roleNode(
+    key,
+    title,
+    actions.map((action) => roleNode(`${key}.${action.key}`, action.title)),
+  );
+
+const CRUD_ACTIONS = [
+  { key: "view", title: "View" },
+  { key: "edit", title: "Edit" },
+  { key: "add-new", title: "Add New" },
+  { key: "delete", title: "Delete" },
+];
+
 const defaultMenuTree: TreeDataNode[] = [
   roleNode("dashboard", "Dashboard", [
     roleNode("dashboard.dashboard", "Dashboard"),
@@ -37,22 +64,23 @@ const defaultMenuTree: TreeDataNode[] = [
     roleNode("dashboard.agent-activity-graph", "Agent Activity Graph"),
   ]),
   roleNode("master", "Master", [
-    roleNode("master.agent-group", "Agent Group"),
-    roleNode("master.agent", "Agent"),
-    roleNode("master.trip-mode", "Trip Mode"),
-    roleNode("master.financial-year", "Financial Year"),
-    roleNode("master.tax", "Tax"),
-    roleNode("master.ticket-status", "Ticket Status"),
-    roleNode("master.parts", "Parts"),
-    roleNode("master.customer", "Customer"),
-    roleNode("master.service-type", "Service Type"),
-    roleNode("master.currency", "Currency"),
-    roleNode("master.department", "Department"),
-    roleNode("master.brand", "Brand"),
-    roleNode("master.issue-summary", "Issue Summary"),
-    roleNode("master.follow-up-mode", "Follow Up Mode"),
-    roleNode("master.ticket-source", "Ticket Source"),
-    roleNode("master.vendor-master", "Vendor Master"),
+    masterRoleNode("master.agent-group", "Agent Group"),
+    masterRoleNode("master.agent", "Agent"),
+    masterRoleNode("master.trip-mode", "Trip Mode"),
+    masterRoleNode("master.follow-up-mode", "Follow Up Mode"),
+    masterRoleNode("master.financial-year", "Financial Year"),
+    masterRoleNode("master.tax", "Tax"),
+    masterRoleNode("master.status", "Status"),
+    masterRoleNode("master.parts", "Parts"),
+    masterRoleNode("master.customer", "Customer"),
+    masterRoleNode("master.service-type", "Service Type"),
+    masterRoleNode("master.currency", "Currency"),
+    masterRoleNode("master.department", "Department"),
+    masterRoleNode("master.brand", "Brand"),
+    masterRoleNode("master.asset-master", "Asset Master"),
+    masterRoleNode("master.issue-summary", "Issue Summary"),
+    masterRoleNode("master.ticket-source", "Ticket Source"),
+    masterRoleNode("master.vendor-master", "Vendor Master"),
   ]),
   roleNode("ticket", "Ticket", [
     roleNode("ticket.create", "Create"),
@@ -79,20 +107,31 @@ const defaultMenuTree: TreeDataNode[] = [
     roleNode("unbilled-call-report.view", "View"),
   ]),
   roleNode("bills-and-receipts", "Bills & Receipts", [
-    roleNode("bills-and-receipts.bills", "Bills"),
-    roleNode("bills-and-receipts.receipts", "Receipts"),
+    moduleRoleNode("bills-and-receipts.bills", "Bills", CRUD_ACTIONS),
+    moduleRoleNode("bills-and-receipts.receipts", "Receipts", CRUD_ACTIONS),
   ]),
   roleNode("item-repair", "Item Repair", [
     roleNode("item-repair.assign", "Assign Item for Repair"),
     roleNode("item-repair.assigned", "Assigned Items"),
   ]),
   roleNode("more", "More", [
-    roleNode("more.customer-details", "Customer Details"),
-    roleNode("more.collection-summary", "Collection Summary"),
-    roleNode("more.punch-in-out", "Punch In & Punch Out"),
-    roleNode("more.leave-application", "Leave Application"),
-    roleNode("more.leave-approval", "Leave Approval"),
-    roleNode("more.traveling-expense", "Traveling Expense"),
+    moduleRoleNode("more.customer-details", "Customer Details", [
+      { key: "view", title: "View" },
+    ]),
+    moduleRoleNode("more.collection-summary", "Collection Summary", [
+      { key: "view", title: "View" },
+    ]),
+    moduleRoleNode("more.punch-in-out", "Punch In & Punch Out", [
+      { key: "punch-in", title: "Punch In" },
+      { key: "attendance-summary", title: "Attendance Summary" },
+    ]),
+    moduleRoleNode("more.leave-application", "Leave Application", CRUD_ACTIONS),
+    moduleRoleNode("more.leave-approval", "Leave Approval", [
+      { key: "view", title: "View" },
+      { key: "reject", title: "Reject" },
+      { key: "approve", title: "Approve" },
+    ]),
+    moduleRoleNode("more.traveling-expense", "Traveling Expense", CRUD_ACTIONS),
     roleNode("more.travel-log", "Travel Log"),
     roleNode("more.work-summary", "Work Summary"),
     roleNode("more.task-calendar", "Task Calendar"),
@@ -350,6 +389,7 @@ const flattenKeys = (nodes: TreeDataNode[]): Key[] =>
 
 const UserRolesPage = () => {
   const requestPayload = useMemo(() => getRequestPayload(), []);
+  const { refreshPermissions } = usePermissions();
   const loggedInAgentId = Number(requestPayload.nAgentId ?? requestPayload.id ?? 0);
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [agentId, setAgentId] = useState<number | undefined>(
@@ -452,6 +492,9 @@ const UserRolesPage = () => {
       });
       message.success("User roles saved successfully.");
       await loadRights(agentId);
+      if (agentId === loggedInAgentId) {
+        await refreshPermissions();
+      }
     } catch (saveError) {
       message.error(getApiMessage(saveError, "Unable to save user roles."));
     } finally {

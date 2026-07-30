@@ -9,7 +9,6 @@ import {
 import {
   Button,
   Checkbox,
-  DatePicker as AntDatePicker,
   Drawer,
   Form,
   Input,
@@ -20,6 +19,7 @@ import {
   Tabs,
   Upload,
 } from "antd";
+import MasterDateField from "../../Master/Common/MasterDateField";
 import type { UploadFile } from "antd";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -4330,11 +4330,7 @@ const TicketForm = ({
               label="Expiry Date"
               className="mb-0"
             >
-              <AntDatePicker
-                className="w-full"
-                format="DD/MM/YYYY"
-                popupClassName="modern-ticket-calendar"
-              />
+              <MasterDateField />
             </Form.Item>
           </div>
         </Form>

@@ -1,9 +1,11 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type CalendarCell = {
   day: number;
   currentMonth: boolean;
 };
+const FIRST_YEAR = 1976;
+const LAST_YEAR = new Date().getFullYear() + 100;
 
 type CalendarPopupProps = {
   open: boolean;
@@ -99,6 +101,17 @@ const CalendarPopup = ({
   onApply,
   onCancel,
 }: CalendarPopupProps) => {
+  const [pickerView, setPickerView] = useState<"days" | "years" | "months">("days");
+  const yearListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pickerView === "years") {
+      yearListRef.current
+        ?.querySelector<HTMLElement>('[data-selected-year="true"]')
+        ?.scrollIntoView({ block: "center" });
+    }
+  }, [pickerView]);
+
   if (!open) {
     return null;
   }
@@ -164,11 +177,13 @@ const CalendarPopup = ({
 
   const moveMonth = (offset: number) => {
     const nextMonth = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + offset, 1);
+    if (nextMonth.getFullYear() < FIRST_YEAR || nextMonth.getFullYear() > LAST_YEAR) return;
     onMonthChange(nextMonth);
   };
 
   const moveYear = (offset: number) => {
     const nextMonth = new Date(displayMonth.getFullYear() + offset, displayMonth.getMonth(), 1);
+    if (nextMonth.getFullYear() < FIRST_YEAR || nextMonth.getFullYear() > LAST_YEAR) return;
     onYearChange(nextMonth);
   };
 
@@ -183,18 +198,24 @@ const CalendarPopup = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => moveYear(-1)}
+            disabled={displayMonth.getFullYear() <= FIRST_YEAR}
             type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
           >
             &lt;
           </button>
-          <span className="w-10 text-center text-[13px] font-bold text-slate-700">
+          <button
+            type="button"
+            onClick={() => setPickerView((view) => view === "years" ? "days" : "years")}
+            className="w-10 cursor-pointer text-center text-[13px] font-bold text-slate-700 hover:text-sky-500"
+          >
             {displayMonth.getFullYear()}
-          </span>
+          </button>
           <button
             onClick={() => moveYear(1)}
+            disabled={displayMonth.getFullYear() >= LAST_YEAR}
             type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
           >
             &gt;
           </button>
@@ -203,25 +224,76 @@ const CalendarPopup = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => moveMonth(-1)}
+            disabled={displayMonth.getFullYear() <= FIRST_YEAR && displayMonth.getMonth() === 0}
             type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
           >
             &lt;
           </button>
-          <span className="w-16 text-center text-[13px] font-bold text-slate-700">
+          <button
+            type="button"
+            onClick={() => setPickerView((view) => view === "months" ? "days" : "months")}
+            className="w-16 cursor-pointer text-center text-[13px] font-bold text-slate-700 hover:text-sky-500"
+          >
             {displayMonth.toLocaleString("en-US", { month: "long" })}
-          </span>
+          </button>
           <button
             onClick={() => moveMonth(1)}
+            disabled={displayMonth.getFullYear() >= LAST_YEAR && displayMonth.getMonth() === 11}
             type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
           >
             &gt;
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col">
+      <div className="relative flex min-h-[265px] flex-col">
+        {pickerView === "years" ? (
+          <div ref={yearListRef} className="absolute inset-y-0 left-0 z-10 w-[145px] overflow-y-auto rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+            {Array.from({ length: LAST_YEAR - FIRST_YEAR + 1 }, (_, index) => FIRST_YEAR + index).map((year) => (
+              <button
+                key={year}
+                type="button"
+                data-selected-year={year === displayMonth.getFullYear()}
+                onClick={() => {
+                  onYearChange(new Date(year, displayMonth.getMonth(), 1));
+                  setPickerView("days");
+                }}
+                className={`mb-1 block w-full rounded border px-2 py-1.5 text-sm ${
+                  year === displayMonth.getFullYear()
+                    ? "border-sky-400 bg-sky-50 text-sky-600"
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {pickerView === "months" ? (
+          <div className="absolute inset-x-0 top-0 z-10 grid grid-cols-3 gap-2 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+            {Array.from({ length: 12 }, (_, monthIndex) => (
+              <button
+                key={monthIndex}
+                type="button"
+                onClick={() => {
+                  onMonthChange(new Date(displayMonth.getFullYear(), monthIndex, 1));
+                  setPickerView("days");
+                }}
+                className={`rounded border py-1.5 text-sm ${
+                  monthIndex === displayMonth.getMonth()
+                    ? "border-sky-500 bg-sky-500 text-white"
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {new Date(2000, monthIndex, 1).toLocaleString("en-US", { month: "short" })}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <div className="mb-2 grid grid-cols-7 border-b border-slate-200 pb-2 border-t pt-2 text-center text-sm font-semibold text-gray-900">
           {weekDays.map((weekDay) => (
             <div key={weekDay} className="flex h-6 items-center justify-center">
@@ -260,9 +332,9 @@ const CalendarPopup = ({
                 className={`mx-auto flex h-9 w-9 items-center justify-center text-xs font-medium transition-colors
                   ${
                     selected
-                      ? "bg-[#2cd5a9] font-bold text-white"
+                      ? "rounded-full bg-[#2cd5a9] font-bold text-white"
                       : isInRange(day, currentMonth)
-                        ? "bg-blue-400/25 text-slate-800"
+                        ? "bg-blue-100 text-slate-800"
                       : currentMonth
                         ? activeToday
                           ? "border border-[#2cd5a9] text-[#2cd5a9]"

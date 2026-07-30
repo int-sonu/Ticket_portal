@@ -1,8 +1,9 @@
-import { Button, Card, DatePicker, Form, Input, message } from "antd";
+import { Button, Card, Form, Input, message } from "antd";
 import { useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useTicketMutations } from "../../../Hooks/Ticket/useTicketMutations";
+import MasterDateField from "../../Master/Common/MasterDateField";
 
 const { TextArea } = Input;
 
@@ -67,7 +68,7 @@ const TicketFollowUp = ({ ticketId }: Props) => {
             },
           ]}
         >
-          <DatePicker style={{ width: "100%" }} />
+          <MasterDateField />
         </Form.Item>
 
         <Form.Item

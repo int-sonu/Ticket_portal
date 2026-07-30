@@ -7,10 +7,12 @@ import { getRequestPayload } from "../../../Utils/requestPayload";
 import { useApproveOrRejectLeave, useLeaveApprovalDetails } from "./Hooks";
 import { extractDetails, formatDate, getValue, statusText, text } from "./utils";
 import type { LeaveApprovalRecord } from "./utils";
+import { usePermissions } from "../../../common/sidebar/PermissionContext";
 
 type LocationState = { leaveId?: number; leave?: LeaveApprovalRecord } | null;
 
 const LeaveApprovalViewPage = () => {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as LocationState;
@@ -40,6 +42,11 @@ const LeaveApprovalViewPage = () => {
   const initials = agentName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
   const updateApproval = async (status: 1 | 2) => {
+    const permission = status === 1 ? "approve" : "reject";
+    if (!can(`more.leave-approval.${permission}`)) {
+      message.error(`You don't have permission to ${permission} leave applications.`);
+      return;
+    }
     const requestPayload = getRequestPayload();
     try {
       await approvalMutation.mutateAsync({

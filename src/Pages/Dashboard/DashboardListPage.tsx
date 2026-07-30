@@ -4,7 +4,7 @@ import { CloseOutlined, SearchOutlined, SwapOutlined } from "@ant-design/icons";
 import { Empty, Input, Popover, Spin, Table } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { dashboardApis } from "../../Axios/DashboardApis";
 import { agentApis } from "../../Axios/MasterApis";
 import { itemRepairApis } from "../../Axios/ItemRepairApis";
@@ -26,7 +26,10 @@ type PageKind =
   | "ongoing"
   | "overdue"
   | "unassigned"
-  | "upcoming";
+  | "upcoming"
+  | "closed"
+  | "receipts"
+  | "bills";
 type Props = { page: PageKind };
 
 const getValue = (row: Row, keys: string[], fallback: any = "") => {
@@ -64,6 +67,14 @@ const getRows = (response: any): Row[] => {
     "AgentUnderSupervisorList",
     "agentList",
     "AgentList",
+    "closedResolvedTicketList",
+    "ClosedResolvedTicketList",
+    "closedUnResolvedTicketList",
+    "ClosedUnResolvedTicketList",
+    "receiptList",
+    "ReceiptList",
+    "billList",
+    "BillList",
   ];
   for (const container of containers) {
     for (const key of keys) {
@@ -133,11 +144,15 @@ const titles: Record<PageKind, string> = {
   overdue: "Overdue",
   unassigned: "Unassigned",
   upcoming: "Upcoming",
+  closed: "Closed",
+  receipts: "Receipts",
+  bills: "Bills",
 };
 
 const DashboardListPage = ({ page }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const state = (location.state as Row | null) ?? {};
   const base = useMemo(() => getRequestPayload(), []);
   const user = useMemo(() => getUser(), []);
@@ -160,6 +175,15 @@ const DashboardListPage = ({ page }: Props) => {
     const parsed = dayjs(state.selectedDate);
     return parsed.isValid() ? parsed : dayjs();
   }, [state.selectedDate]);
+  const selectedFromDate = useMemo(() => {
+    const parsed = dayjs(state.selectedFromDate);
+    return parsed.isValid() ? parsed : selectedDate;
+  }, [selectedDate, state.selectedFromDate]);
+  const selectedToDate = useMemo(() => {
+    const parsed = dayjs(state.selectedToDate);
+    return parsed.isValid() ? parsed : selectedDate;
+  }, [selectedDate, state.selectedToDate]);
+  const closedStatus = searchParams.get("status") ?? "resolved";
 
   const payload = useMemo(
     () => ({
@@ -172,12 +196,12 @@ const DashboardListPage = ({ page }: Props) => {
       nPageNo: 1,
       nPageSize: 1000,
       dDate: selectedDate.format("YYYY-MM-DD"),
-      dFromDate: selectedDate.startOf("month").format("YYYY-MM-DD"),
-      dToDate: selectedDate.endOf("month").format("YYYY-MM-DD"),
-      cFromDate: selectedDate.startOf("month").format("YYYY-MM-DD"),
-      cToDate: selectedDate.endOf("month").format("YYYY-MM-DD"),
+      dFromDate: selectedFromDate.format("YYYY-MM-DD"),
+      dToDate: selectedToDate.format("YYYY-MM-DD"),
+      cFromDate: selectedFromDate.format("YYYY-MM-DD"),
+      cToDate: selectedToDate.format("YYYY-MM-DD"),
     }),
-    [base, selectedAgent.queryAgentId, selectedAgent.value, selectedDate],
+    [base, selectedAgent.queryAgentId, selectedAgent.value, selectedDate, selectedFromDate, selectedToDate],
   );
   const agentPayload = useMemo(
     () => ({
@@ -208,6 +232,14 @@ const DashboardListPage = ({ page }: Props) => {
           return dashboardApis.unAssignedTicketList(payload);
         case "upcoming":
           return dashboardApis.upcomingTicketList(payload);
+        case "closed":
+          if (closedStatus === "unresolved") return dashboardApis.closedUnResolvedTicketList(payload);
+          if (closedStatus === "closed") return dashboardApis.closedTicketListWithStatus(payload);
+          return dashboardApis.closedResolvedTicketList(payload);
+        case "receipts":
+          return dashboardApis.receiptList(payload);
+        case "bills":
+          return dashboardApis.billList(payload);
       }
     },
     enabled: Boolean(payload.nCompanyId),
@@ -217,7 +249,7 @@ const DashboardListPage = ({ page }: Props) => {
     queryKey: ["dashboard-postponed-repair-activity", payload],
     queryFn: () => itemRepairApis.repairItemActivityDropDown(payload),
     enabled:
-      ["postponed", "ongoing", "overdue", "unassigned", "upcoming"].includes(
+      ["postponed", "ongoing", "overdue", "unassigned", "upcoming", "closed"].includes(
         page,
       ) && Boolean(payload.nCompanyId),
   });
@@ -330,6 +362,8 @@ const DashboardListPage = ({ page }: Props) => {
     (safePage - 1) * pageSize,
     safePage * pageSize,
   );
+  const renderSerialNumber = (_: unknown, __: Row, index: number) =>
+    (safePage - 1) * pageSize + index + 1;
   const callSummary = useMemo(() => {
     const customers = new Set(
       rows
@@ -393,7 +427,7 @@ const DashboardListPage = ({ page }: Props) => {
   }, [rows]);
 
   const callColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "Call Report Id", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketId"], "-") },
     { title: "Call Report Date", width: 120, render: (_: any, row: Row) => formatDate(getValue(row, ["dCallReportDate",])) },
     { title: "Ticket No.", width: 95, render: (_: any, row: Row) => getValue(row, ["nTicketNo"]) },
@@ -403,7 +437,7 @@ const DashboardListPage = ({ page }: Props) => {
     { title: "Status", width: 90, render: (_: any, row: Row) => getValue(row, ["cPriority"]) },
   ];
   const collectionColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "No", width: 75, render: (_: any, row: Row) => getValue(row, ["nNo"]) },
     { title: "Payment Type", width: 120, render: (_: any, row: Row) => getValue(row, ["cType"]) },
     { title: "Date", width: 110, render: (_: any, row: Row) => formatDate(getValue(row, ["dDate", "Date", "dReceiptDate"])) },
@@ -412,7 +446,7 @@ const DashboardListPage = ({ page }: Props) => {
     { title: "Paymode", width: 120, render: (_: any, row: Row) => getValue(row, ["cPaymodeName"]) },
   ];
   const postponedColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "Ticket No.", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketNo"]) },
     { title: "Created Date & Time", width: 160, render: (_: any, row: Row) => formatDate(getValue(row, ["dCreatedDate"])) },
     { title: "Assigned To", width: 120, render: (_: any, row: Row) => getValue(row, ["cAssignedTo"]) },
@@ -422,7 +456,7 @@ const DashboardListPage = ({ page }: Props) => {
     { title: "Status", width: 90, render: (_: any, row: Row) => getValue(row, ["cStatus"]) },
   ];
   const ongoingColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "Ticket No.", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketNo", "TicketNo"], "-") },
     { title: "Created Date & Time", width: 260, render: (_: any, row: Row) => renderTicketDate(row, ["dCreatedDate", "CreatedDate"]) },
     { title: "Customer Name", width: 150, render: (_: any, row: Row) => getValue(row, ["cCustomerName", "CustomerName"], "-") },
@@ -430,7 +464,7 @@ const DashboardListPage = ({ page }: Props) => {
     { title: "Ticket Summary", render: (_: any, row: Row) => getValue(row, ["cTicketSummary", "TicketSummary"], "-") },
   ];
   const overdueColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "Ticket No.", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketNo", "TicketNo"], "-") },
     { title: "Schedule Date", width: 270, render: (_: any, row: Row) => renderTicketDate(row, ["dScheduleDate", "ScheduleDate", "dCreatedDate"]) },
     { title: "Overdue Date", width: 160, render: (_: any, row: Row) => getValue(row, ["cOverdueDate", "OverdueDate", "cAge"], "-") },
@@ -438,7 +472,7 @@ const DashboardListPage = ({ page }: Props) => {
     { title: "Customer Name", render: (_: any, row: Row) => getValue(row, ["cCustomerName", "CustomerName"], "-") },
   ];
   const unassignedColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "Ticket No.", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketNo", "TicketNo"], "-") },
     { title: "Created Date & Time", width: 280, render: (_: any, row: Row) => renderTicketDate(row, ["dCreatedDate", "CreatedDate"]) },
     { title: "Agent Name", width: 140, render: (_: any, row: Row) => getValue(row, ["cAgentName", "AgentName", "cCreatedBy"], "-") },
@@ -446,12 +480,40 @@ const DashboardListPage = ({ page }: Props) => {
     { title: "Created By", render: (_: any, row: Row) => getValue(row, ["cCreatedBy", "CreatedBy", "cViewSummary"], "-") },
   ];
   const upcomingColumns = [
-    { title: "Srl", width: 55, render: (_: any, __: any, index: number) => index + 1 },
+    { title: "Srl", width: 55, render: renderSerialNumber },
     { title: "Scheduled on", width: 250, render: (_: any, row: Row) => renderTicketDate(row, ["dScheduledOn", "ScheduledOn", "dScheduleDate"]) },
     { title: "Ticket No.", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketNo", "TicketNo"], "-") },
     { title: "Agent Name", width: 140, render: (_: any, row: Row) => getValue(row, ["cAgentName", "AgentName", "cAssignedTo"], "-") },
     { title: "Customer Name", width: 150, render: (_: any, row: Row) => getValue(row, ["cCustomerName", "CustomerName"], "-") },
     { title: "Ticket Summary", render: (_: any, row: Row) => getValue(row, ["cTicketSummary", "TicketSummary"], "-") },
+  ];
+  const closedColumns = [
+    { title: "Srl", width: 55, render: renderSerialNumber },
+    { title: "Ticket No.", width: 100, render: (_: any, row: Row) => getValue(row, ["nTicketNo", "TicketNo"], "-") },
+    { title: "Closed Date", width: 150, render: (_: any, row: Row) => formatDate(getValue(row, ["dClosedDate", "ClosedDate", "dResolvedDate"])) },
+    { title: "Agent Name", width: 150, render: (_: any, row: Row) => getValue(row, ["cAgentName", "AgentName", "cAssignedTo"], "-") },
+    { title: "Customer Name", width: 170, render: (_: any, row: Row) => getValue(row, ["cCustomerName", "CustomerName"], "-") },
+    { title: "Ticket Summary", render: (_: any, row: Row) => getValue(row, ["cTicketSummary", "TicketSummary"], "-") },
+  ];
+  const receiptColumns = [
+    { title: "Srl", width: 55, render: renderSerialNumber },
+    { title: "Receipt No", width: 110, render: (_: any, row: Row) => getValue(row, ["nRecNo"], "-") },
+    { title: "Date", width: 130, render: (_: any, row: Row) => formatDate(getValue(row, ["dRecDate"])) },
+    { title: "Customer Name", render: (_: any, row: Row) => getValue(row, ["cCustomerName", "CustomerName"], "-") },
+    { title: "Amount", width: 120, render: (_: any, row: Row) => Number(getValue(row, ["nAmount", "Amount"], 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 }) },
+    { title: "Pay Mode", width: 130, render: (_: any, row: Row) => getValue(row, ["cPaymodeName", "cPayMode", "PayMode"], "-") },
+    { title: "Edit", width: 60, render: () => null },
+    { title: "Delete", width: 65, render: () => null },
+  ];
+  const billColumns = [
+    { title: "Srl", width: 55, render: renderSerialNumber },
+    { title: "Bill No", width: 110, render: (_: any, row: Row) => getValue(row, ["nBillNo", "cBillNo", "BillNo"], "-") },
+    { title: "Date", width: 130, render: (_: any, row: Row) => formatDate(getValue(row, ["dBillDate", "dDate", "Date"])) },
+    { title: "Customer Name", render: (_: any, row: Row) => getValue(row, ["cCustomerName", "CustomerName"], "-") },
+    { title: "Amount", width: 120, render: (_: any, row: Row) => Number(getValue(row, ["nAmount", "nBillAmount", "Amount"], 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 }) },
+    { title: "Pay Mode", width: 130, render: (_: any, row: Row) => getValue(row, ["cPaymodeName", "cPayMode", "PayMode"], "-") },
+    { title: "Edit", width: 60, render: () => null },
+    { title: "Delete", width: 65, render: () => null },
   ];
   const columns =
     page === "call-report"
@@ -466,10 +528,16 @@ const DashboardListPage = ({ page }: Props) => {
               ? overdueColumns
               : page === "unassigned"
                 ? unassignedColumns
-                : upcomingColumns;
+                : page === "closed"
+                  ? closedColumns
+                  : page === "receipts"
+                    ? receiptColumns
+                    : page === "bills"
+                      ? billColumns
+                      : upcomingColumns;
 
   return (
-    <div className="dashboard-drilldown-page flex h-full min-h-0 flex-col overflow-hidden bg-white py-1">
+    <div className="dashboard-drilldown-page relative flex h-full min-h-0 flex-col overflow-hidden bg-white px-5 py-1 pb-[58px] pt-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-800">{titles[page]}</h1>
         <div className="flex items-center gap-3">
@@ -485,12 +553,12 @@ const DashboardListPage = ({ page }: Props) => {
         </div>
       </div>
       {page !== "unassigned" ? (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => setAgentOpen(true)} className="flex min-w-[190px] items-center gap-3 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-left">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-200 font-medium">
+        <div className="mt-4 flex items-center justify-between gap-3 ">
+          <button type="button" onClick={() => setAgentOpen(true)} className="flex min-w-[200px] items-center gap-3 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-left">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-200 font-medium ">
               {selectedAgent.avatarText || (selectedAgent.label[0] || "S").toUpperCase()}
             </span>
-            <span className="min-w-0 flex-1">
+            <span className="min-w-0 flex-1 ">
               <span className="block truncate text-sm font-medium text-slate-700">
                 {selectedAgent.label} {selectedAgent.role ? <span className="font-normal text-slate-500">({selectedAgent.role})</span> : null}
               </span>
@@ -560,7 +628,7 @@ const DashboardListPage = ({ page }: Props) => {
           </div>
         </div>
       ) : null}
-      {!["collection-summary", "overdue"].includes(page) ? (
+      {!["collection-summary", "overdue", "receipts", "bills"].includes(page) ? (
         <div className="mt-4 flex min-h-[58px] items-center justify-between rounded-sm bg-sky-50 px-4 py-2">
           <div>
             <div className="text-xs font-semibold text-slate-800">
@@ -572,6 +640,8 @@ const DashboardListPage = ({ page }: Props) => {
                     ? `Ongoing Summary (Total Tickets : ${ongoingSummary.total})`
                     : page === "unassigned"
                       ? `Unassigned Summary (Total Tickets : ${rows.length})`
+                      : page === "closed"
+                        ? `Closed Summary ${rows.length}`
                       : `Upcoming Summary ${rows.length}`}
             </div>
             <div className="mt-1 text-xs text-slate-600">
@@ -583,6 +653,8 @@ const DashboardListPage = ({ page }: Props) => {
                 <>Current ticket :<b>{String(ongoingSummary.current).padStart(2, "0")}</b>, Old ticket :<b>{String(ongoingSummary.old).padStart(2, "0")}</b>, Overdue :<b>{String(ongoingSummary.overdue).padStart(2, "0")}</b></>
               ) : page === "unassigned" ? (
                 <>Tickets Handled :<b>{String(rows.length).padStart(2, "0")}</b>, Customers Handled :<b>{String(callSummary.customers).padStart(2, "0")}</b>, Current Tickets :<b>{String(callSummary.current).padStart(2, "0")}</b>, Old Tickets :<b>{String(callSummary.old).padStart(2, "0")}</b></>
+              ) : page === "closed" ? (
+                <>Tickets handled :<b>{String(rows.length).padStart(2, "0")}</b>, Customers handled :<b>{String(callSummary.customers).padStart(2, "0")}</b>, Current tickets :<b>{String(callSummary.current).padStart(2, "0")}</b>, Old tickets :<b>{String(callSummary.old).padStart(2, "0")}</b></>
               ) : (
                 <>Pending :<b>{String(postponedSummary.pending).padStart(2, "0")}</b>, OnHold :<b>{String(postponedSummary.onHold).padStart(2, "0")}</b></>
               )}
@@ -597,18 +669,12 @@ const DashboardListPage = ({ page }: Props) => {
             className="created-tickets-table dashboard-drilldown-table"
             rowKey={(row, index) => String(getValue(row, ["nCallReportId", "nTicketId", "TicketId", "nReceiptId", "id"], index))}
             columns={columns}
-            dataSource={
-              ["ongoing", "overdue", "unassigned", "upcoming"].includes(page)
-                ? pagedRows
-                : displayRows
-            }
+            dataSource={pagedRows}
             pagination={false}
             size="small"
             scroll={{
               x: 1000,
-              y: ["ongoing", "overdue", "unassigned", "upcoming"].includes(page)
-                ? "calc(100vh - 390px)"
-                : "calc(100vh - 300px)",
+              y: "calc(100vh - 295px)",
             }}
             locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No data" /> }}
             onRow={(row) => ({
@@ -640,26 +706,23 @@ const DashboardListPage = ({ page }: Props) => {
           />
         </Spin>
       </div>
-      {["ongoing", "overdue", "unassigned", "upcoming"].includes(page) &&
-      displayRows.length ? (
-        <div className="dashboard-drilldown-pagination mt-auto shrink-0 pt-2">
-          <TicketModulePagination
-            current={safePage}
-            pageSize={pageSize}
-            total={displayRows.length}
-            onChange={(nextPage, nextPageSize) => {
-              setCurrentPage(nextPage);
-              setPageSize(nextPageSize);
-            }}
-            onShowSizeChange={(_, nextPageSize) => {
-              setCurrentPage(1);
-              setPageSize(nextPageSize);
-            }}
-            showSizeChanger
-            elevated={false}
-          />
-        </div>
-      ) : null}
+      <div className="dashboard-drilldown-pagination absolute bottom-1 left-5 right-5">
+        <TicketModulePagination
+          current={safePage}
+          pageSize={pageSize}
+          total={displayRows.length}
+          onChange={(nextPage, nextPageSize) => {
+            setCurrentPage(nextPage);
+            setPageSize(nextPageSize);
+          }}
+          onShowSizeChange={(_, nextPageSize) => {
+            setCurrentPage(1);
+            setPageSize(nextPageSize);
+          }}
+          showSizeChanger
+          elevated={false}
+        />
+      </div>
       <AgentSelectorModal
         open={agentOpen}
         loading={agentQuery.isFetching}

@@ -1,15 +1,13 @@
 import {
   Button,
   Col,
-  DatePicker,
   Form,
   Input,
   Row,
   Select,
   Space,
 } from "antd";
-
-const { RangePicker } = DatePicker;
+import DateRangeField from "../../../ui/CalendarPopup/DateRangeField";
 
 interface TicketFilterProps {
   onSearch: (values: any) => void;
@@ -101,11 +99,7 @@ const TicketFilter = ({
             label="Date Range"
             name="DateRange"
           >
-            <RangePicker
-              style={{
-                width: "100%",
-              }}
-            />
+            <DateRangeField />
           </Form.Item>
         </Col>
 

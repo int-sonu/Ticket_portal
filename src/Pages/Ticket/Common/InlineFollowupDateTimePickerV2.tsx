@@ -11,6 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 
 dayjs.extend(customParseFormat);
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const FIRST_YEAR = 1976;
+const LAST_YEAR = dayjs().year() + 100;
 
 type Props = {
   value?: Dayjs | string | null;
@@ -34,6 +36,7 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
   const selectedValue = useMemo(() => parseValue(value), [value]);
   const [draftValue, setDraftValue] = useState<Dayjs | null>(selectedValue);
   const [viewDate, setViewDate] = useState<Dayjs>(selectedValue ?? dayjs());
+  const [pickerView, setPickerView] = useState<"days" | "years" | "months">("days");
 
   useEffect(() => {
     setDraftValue(selectedValue ?? null);
@@ -64,11 +67,17 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
   };
 
   const handleMonthChange = (delta: number) => {
-    setViewDate((current) => current.add(delta, "month"));
+    setViewDate((current) => {
+      const next = current.add(delta, "month");
+      return next.year() < FIRST_YEAR || next.year() > LAST_YEAR ? current : next;
+    });
   };
 
   const handleYearChange = (delta: number) => {
-    setViewDate((current) => current.add(delta, "year"));
+    setViewDate((current) => {
+      const next = current.add(delta, "year");
+      return next.year() < FIRST_YEAR || next.year() > LAST_YEAR ? current : next;
+    });
   };
 
   const setTime = (
@@ -116,7 +125,9 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
             <button type="button" className="followup-nav-btn" onClick={() => handleYearChange(-1)}>
               <LeftOutlined />
             </button>
-            <span className="font-semibold text-slate-800">{viewDate.year()}</span>
+            <button type="button" className="font-semibold text-slate-800 hover:text-sky-500" onClick={() => setPickerView((view) => view === "years" ? "days" : "years")}>
+              {viewDate.year()}
+            </button>
             <button type="button" className="followup-nav-btn" onClick={() => handleYearChange(1)}>
               <RightOutlined />
             </button>
@@ -125,13 +136,54 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
             <button type="button" className="followup-nav-btn" onClick={() => handleMonthChange(-1)}>
               <LeftOutlined />
             </button>
-            <span className="font-semibold text-slate-800">{viewDate.format("MMMM")}</span>
+            <button type="button" className="font-semibold text-slate-800 hover:text-sky-500" onClick={() => setPickerView((view) => view === "months" ? "days" : "months")}>
+              {viewDate.format("MMMM")}
+            </button>
             <button type="button" className="followup-nav-btn" onClick={() => handleMonthChange(1)}>
               <RightOutlined />
             </button>
           </div>
         </div>
 
+        <div className="relative">
+          {pickerView === "years" ? (
+            <div className="absolute left-0 top-0 z-10 h-[255px] w-[145px] overflow-y-auto rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+              {Array.from({ length: LAST_YEAR - FIRST_YEAR + 1 }, (_, index) => FIRST_YEAR + index).map((year) => (
+                <button
+                  key={year}
+                  type="button"
+                  onClick={() => {
+                    setViewDate((date) => date.year(year));
+                    setPickerView("days");
+                  }}
+                  className={`mb-1 block w-full rounded border px-2 py-1.5 text-sm ${
+                    year === viewDate.year() ? "border-sky-400 bg-sky-50 text-sky-600" : "border-slate-200 text-slate-700"
+                  }`}
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {pickerView === "months" ? (
+            <div className="absolute inset-x-0 top-0 z-10 grid grid-cols-3 gap-2 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+              {Array.from({ length: 12 }, (_, month) => (
+                <button
+                  key={month}
+                  type="button"
+                  onClick={() => {
+                    setViewDate((date) => date.month(month));
+                    setPickerView("days");
+                  }}
+                  className={`rounded border py-1.5 text-sm ${
+                    month === viewDate.month() ? "border-sky-500 bg-sky-500 text-white" : "border-slate-200 text-slate-700"
+                  }`}
+                >
+                  {dayjs().month(month).format("MMM")}
+                </button>
+              ))}
+            </div>
+          ) : null}
         <div className="mt-2.5 grid grid-cols-7 gap-1 px-1 text-center text-xs font-medium text-slate-500">
           {WEEKDAYS.map((day) => (
             <span key={day}>{day}</span>
@@ -160,6 +212,7 @@ const InlineFollowupDateTimePickerV2 = ({ value, onChange }: Props) => {
               </button>
             );
           })}
+        </div>
         </div>
       </div>
 

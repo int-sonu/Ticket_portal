@@ -1,3 +1,47 @@
+.created-tickets-page .ant-input,
+.created-tickets-page .ant-input::placeholder,
+.created-tickets-page .ant-input-prefix {
+  font-size: 12px;
+}
+
+.created-tickets-table .ant-table {
+  font-size: 10px;
+}
+
+.created-tickets-table .ant-table-thead > tr > th {
+  padding: 12px 8px;
+  background: #fff;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.created-tickets-table .ant-table-tbody > tr > td {
+  padding: 16px 8px;
+  color: #111827;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.created-tickets-table .ant-table-container {
+  border: 1px solid #f1f5f9;
+  border-radius: 0;
+}
+
+.created-tickets-pagination {
+  font-size: 10px;
+}
+
+.created-tickets-pagination > div > div > div {
+  border-color: #bae6fd;
+  border-radius: 8px;
+}
+
+.created-tickets-pagination .ant-btn,
+.created-tickets-pagination .ant-select-selection-item {
+  font-size: 10px;
+}
+
 .created-tickets-table .ant-table-body {
   scrollbar-color: #aeb7c2 #f1f3f5;
   scrollbar-width: thin;
@@ -54,7 +98,14 @@
 }
 
 .dashboard-drilldown-pagination {
+  width: 100%;
   font-size: 10px;
+}
+
+.dashboard-drilldown-pagination > div > div > div {
+  width: 100%;
+  border-color: #bae6fd;
+  border-radius: 8px;
 }
 
 .dashboard-drilldown-pagination button,

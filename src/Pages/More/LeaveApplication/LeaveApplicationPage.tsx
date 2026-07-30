@@ -1,5 +1,5 @@
 import { CloseOutlined, DeleteOutlined, EditOutlined, LeftOutlined, RightOutlined, SearchOutlined, UploadOutlined } from "@ant-design/icons";
-import { Button, DatePicker, Drawer, Empty, Form, Image, Input, Modal, Radio, Spin, Upload, message } from "antd";
+import { Button, Drawer, Empty, Form, Image, Input, Modal, Radio, Spin, Upload, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,6 +9,8 @@ import { getApiImageBaseUrl } from "../../../Axios/config";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../../Ticket/Common/TicketModulePagination";
+import { usePermissions } from "../../../common/sidebar/PermissionContext";
+import MasterDateField from "../../Master/Common/MasterDateField";
 import {
   useAgentwiseLeaveList,
   useLeaveDetailsView,
@@ -192,6 +194,7 @@ const canModifyLeave = (record: LeaveRecord) => {
 };
 
 const LeaveApplicationPage = () => {
+  const { can } = usePermissions();
   const [applyForm] = Form.useForm<LeaveApplicationValues>();
   const [editForm] = Form.useForm<LeaveApplicationValues>();
   const [search, setSearch] = useState("");
@@ -281,6 +284,11 @@ const LeaveApplicationPage = () => {
   };
 
   const openLeaveDetails = (row: LeaveRecord, editing = false) => {
+    const action = editing ? "edit" : "view";
+    if (!can(`more.leave-application.${action}`)) {
+      message.error(`You don't have permission to ${action} leave applications.`);
+      return;
+    }
     setSelectedLeave(row);
     setEditMode(editing);
     setAppliedAt(dayjs());
@@ -289,6 +297,10 @@ const LeaveApplicationPage = () => {
   };
 
   const saveEditedLeave = async () => {
+    if (!can("more.leave-application.edit")) {
+      message.error("You don't have permission to edit leave applications.");
+      return;
+    }
     const values = await editForm.validateFields();
     const requestPayload = getRequestPayload();
     const periodNumber = values.period === "full" ? 1 : values.period === "forenoon" ? 2 : 3;
@@ -343,6 +355,11 @@ const LeaveApplicationPage = () => {
   };
 
   const confirmDeleteLeave = async () => {
+    if (!can("more.leave-application.delete")) {
+      message.error("You don't have permission to delete leave applications.");
+      setDeleteTarget(null);
+      return;
+    }
     if (!deleteTarget) return;
     const targetLeaveId = Number(getValue(deleteTarget, ["nLeaveId", "LeaveId", "leaveId", "id"])) || 0;
     const requestPayload = getRequestPayload();
@@ -366,6 +383,10 @@ const LeaveApplicationPage = () => {
   };
 
   const openApplyLeave = () => {
+    if (!can("more.leave-application.add-new")) {
+      message.error("You don't have permission to add leave applications.");
+      return;
+    }
     const today = dayjs();
     setAppliedAt(today);
     setAttachmentPreviews([]);
@@ -381,6 +402,10 @@ const LeaveApplicationPage = () => {
   };
 
   const submitLeave = async () => {
+    if (!can("more.leave-application.add-new")) {
+      message.error("You don't have permission to add leave applications.");
+      return;
+    }
     const values = await applyForm.validateFields();
     const requestPayload = getRequestPayload();
     const periodNumber = values.period === "full" ? 1 : values.period === "forenoon" ? 2 : 3;
@@ -493,6 +518,10 @@ const LeaveApplicationPage = () => {
               className="flex h-8 w-8 items-center justify-center bg-transparent"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!can("more.leave-application.edit")) {
+                  message.error("You don't have permission to edit leave applications.");
+                  return;
+                }
                 openLeaveDetails(row, canModifyLeave(row));
               }}
             >
@@ -504,6 +533,10 @@ const LeaveApplicationPage = () => {
               className="flex h-8 w-8 items-center justify-center bg-transparent text-red-500"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!can("more.leave-application.delete")) {
+                  message.error("You don't have permission to delete leave applications.");
+                  return;
+                }
                 setDeleteTarget(row);
               }}
             >
@@ -585,6 +618,10 @@ const LeaveApplicationPage = () => {
                   aria-label="Edit leave"
                   icon={<img src={editImage} alt="" className="h-4 w-4" />}
                   onClick={() => {
+                    if (!can("more.leave-application.edit")) {
+                      message.error("You don't have permission to edit leave applications.");
+                      return;
+                    }
                     setAppliedAt(dayjs());
                     setEditMode(true);
                   }}
@@ -596,7 +633,13 @@ const LeaveApplicationPage = () => {
                   style={{ backgroundColor: "#ff3333", borderColor: "#ff3333" }}
                   aria-label="Delete leave"
                   icon={<img src={deleteImage} alt="" className="h-4 w-4" />}
-                  onClick={() => setDeleteTarget(selectedLeave)}
+                  onClick={() => {
+                    if (!can("more.leave-application.delete")) {
+                      message.error("You don't have permission to delete leave applications.");
+                      return;
+                    }
+                    setDeleteTarget(selectedLeave);
+                  }}
                 />
               </>
             )}
@@ -636,10 +679,10 @@ const LeaveApplicationPage = () => {
               </Form.Item>
               <div className="grid grid-cols-2 gap-4">
                 <Form.Item name="leaveFrom" label="Leave From" className="mb-3" rules={[{ required: true }]}>
-                  <DatePicker className="w-full" format="DD/MM/YYYY" />
+                  <MasterDateField />
                 </Form.Item>
                 <Form.Item name="leaveTo" label="Leave To" className="mb-3" rules={[{ required: true }]}>
-                  <DatePicker className="w-full" format="DD/MM/YYYY" />
+                  <MasterDateField />
                 </Form.Item>
               </div>
             </Form>
@@ -820,7 +863,7 @@ const LeaveApplicationPage = () => {
               label="Leave From"
               rules={[{ required: true, message: "Please select leave from date" }]}
             >
-              <DatePicker className="w-full" format="DD/MM/YYYY" />
+              <MasterDateField />
             </Form.Item>
             <Form.Item
               name="leaveTo"
@@ -838,7 +881,7 @@ const LeaveApplicationPage = () => {
                 }),
               ]}
             >
-              <DatePicker className="w-full" format="DD/MM/YYYY" />
+              <MasterDateField />
             </Form.Item>
           </div>
 

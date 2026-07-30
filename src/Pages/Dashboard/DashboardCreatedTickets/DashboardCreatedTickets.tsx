@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import {
   CloseOutlined,
   SearchOutlined,
-  SwapOutlined,
 } from "@ant-design/icons";
 import { Empty, Input, Popover, Spin, Table } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -14,12 +13,15 @@ import { dashboardApis } from "../../../Axios/DashboardApis";
 import { agentApis } from "../../../Axios/MasterApis";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import searchFilterIcon from "../../../assets/icons/searchFilterIcon.svg";
+import profileSwitch from "../../../assets/icons/profile-switch.svg";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
+import TicketModulePagination from "../../Ticket/Common/TicketModulePagination";
 import AgentSelectorModal, {
   type SharedAgentOption,
 } from "../../More/Common/AgentSelectorModal";
 import "./DashboardCreatedTickets.css";
 
+import dashboardBanner from "../../../assets/icons/dashboard-banner.svg";
 type RecordLike = Record<string, any>;
 
 const valueOf = (row: RecordLike, keys: string[], fallback: any = "") => {
@@ -104,6 +106,21 @@ const formatDateTime = (value: unknown) => {
   return parsed.isValid() ? parsed.format("DD/MM/YYYY hh:mm A") : String(value);
 };
 
+const formatTicketAge = (value: unknown) => {
+  const created = dayjs(String(value ?? ""));
+  if (!created.isValid()) return "";
+
+  const minutes = Math.max(0, dayjs().diff(created, "minute"));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const remainingMinutes = minutes % 60;
+  const parts = [];
+  if (days) parts.push(`${days}D`);
+  if (hours || days) parts.push(`${hours}h`);
+  parts.push(`${remainingMinutes}m`);
+  return parts.join(" ");
+};
+
 const DashboardCreatedTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,11 +142,21 @@ const DashboardCreatedTickets = () => {
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const effectiveDate = useMemo(() => {
     const selectedDate = dayjs(routeState.selectedDate);
     return selectedDate.isValid() ? selectedDate : dayjs();
   }, [routeState.selectedDate]);
+  const effectiveFromDate = useMemo(() => {
+    const selectedFromDate = dayjs(routeState.selectedFromDate);
+    return selectedFromDate.isValid() ? selectedFromDate : effectiveDate;
+  }, [effectiveDate, routeState.selectedFromDate]);
+  const effectiveToDate = useMemo(() => {
+    const selectedToDate = dayjs(routeState.selectedToDate);
+    return selectedToDate.isValid() ? selectedToDate : effectiveDate;
+  }, [effectiveDate, routeState.selectedToDate]);
 
   const agentPayload = useMemo(
     () => ({
@@ -158,14 +185,16 @@ const DashboardCreatedTickets = () => {
       nPageNo: 1,
       nPageSize: 1000,
       dDate: effectiveDate.format("YYYY-MM-DD"),
-      dFromDate: effectiveDate.startOf("month").format("YYYY-MM-DD"),
-      dToDate: effectiveDate.endOf("month").format("YYYY-MM-DD"),
-      cFromDate: effectiveDate.startOf("month").format("YYYY-MM-DD"),
-      cToDate: effectiveDate.endOf("month").format("YYYY-MM-DD"),
+      dFromDate: effectiveFromDate.format("YYYY-MM-DD"),
+      dToDate: effectiveToDate.format("YYYY-MM-DD"),
+      cFromDate: effectiveFromDate.format("YYYY-MM-DD"),
+      cToDate: effectiveToDate.format("YYYY-MM-DD"),
     }),
     [
       basePayload,
       effectiveDate,
+      effectiveFromDate,
+      effectiveToDate,
       selectedAgent.queryAgentId,
       selectedAgent.value,
     ],
@@ -339,6 +368,16 @@ const DashboardCreatedTickets = () => {
       return searchMatches && statusMatches;
     });
   }, [search, statusFilter, ticketRows]);
+  const maxPage = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(currentPage, maxPage);
+  const pagedRows = useMemo(
+    () =>
+      filteredRows.slice(
+        (safePage - 1) * pageSize,
+        safePage * pageSize,
+      ),
+    [filteredRows, pageSize, safePage],
+  );
 
   const summary = useMemo(() => {
     const counts = { open: 0, pending: 0, onHold: 0, closed: 0, reopen: 0, inProgress: 0 };
@@ -359,26 +398,63 @@ const DashboardCreatedTickets = () => {
   const columns = [
     {
       title: "Srl",
-      width: 55,
-      render: (_: unknown, __: RecordLike, index: number) => index + 1,
+      width: 50,
+      render: (_: unknown, __: RecordLike, index: number) =>
+        (safePage - 1) * pageSize + index + 1,
     },
     {
       title: "Ticket No.",
-      width: 105,
+      width: 80,
       render: (_: unknown, row: RecordLike) =>
         valueOf(row, ["nTicketNo", "TicketNo", "cTicketNo"], "-"),
     },
     {
       title: "Created Date & Time",
-      width: 170,
-      render: (_: unknown, row: RecordLike) =>
-        formatDateTime(valueOf(row, ["dCreatedDate"])),
+      width: 250,
+      render: (_: unknown, row: RecordLike) => {
+        const createdDate = valueOf(row, ["dCreatedDate", "CreatedDate"]);
+        const providedAge = valueOf(
+          row,
+          ["cPeriod", "Period", "cAge", "TicketAge"],
+          "",
+        );
+        const mergeText = String(
+          valueOf(
+            row,
+            [
+              "cMergeMessage",
+              "MergeMessage",
+              "cMergeSummary",
+              "MergeSummary",
+              "cViewSummary",
+              "cRemarks",
+            ],
+            "",
+          ),
+        );
+
+        return (
+          <div className="leading-5">
+            <div>
+              {formatDateTime(createdDate)}{" "}
+              <span className="text-slate-400">
+                ({providedAge || formatTicketAge(createdDate)})
+              </span>
+            </div>
+            {mergeText.toLowerCase().includes("merge") ? (
+              <div className="max-w-[240px] whitespace-normal text-[10px] leading-4 text-blue-500">
+                {mergeText}
+              </div>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       title: "Assigned To",
       width: 130,
       render: (_: unknown, row: RecordLike) =>
-        valueOf(row, ["cAssignedTo"], "-"),
+        valueOf(row, ["cAssignedTo", "cAgentName", "AgentName"], "-"),
     },
     {
       title: "Customer Name",
@@ -390,18 +466,6 @@ const DashboardCreatedTickets = () => {
       title: "Ticket Summary",
       render: (_: unknown, row: RecordLike) =>
         valueOf(row, ["cTicketSummary"]),
-    },
-    {
-      title: "Priority",
-      width: 90,
-      render: (_: unknown, row: RecordLike) =>
-        valueOf(row, ["cPriority"]),
-    },
-    {
-      title: "Status",
-      width: 100,
-      render: (_: unknown, row: RecordLike) =>
-        valueOf(row, ["cStatus"]),
     },
   ];
 
@@ -423,26 +487,26 @@ const DashboardCreatedTickets = () => {
   ];
 
   return (
-    <div className="-m-6 flex h-[calc(100vh-64px)] min-h-0 flex-col bg-white p-5">
+    <div className="created-tickets-page relative -m-6 flex h-[calc(100vh-64px)] min-h-0 flex-col bg-white p-5 pb-[72px] text-xs">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-800">Created Tickets</h1>
+        <h1 className="px-4 pt-3 text-base font-semibold text-slate-800">Created Tickets</h1>
         <button type="button" onClick={() => navigate("/dashboard")} aria-label="Close created tickets">
-          <CloseOutlined className="text-xl text-slate-800" />
+          <CloseOutlined className="text-lg text-slate-800" />
         </button>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-4 flex items-center justify-between px-4  gap-3">
         <button
           type="button"
           onClick={() => setAgentModalOpen(true)}
-          className="flex min-w-[170px] items-center gap-3 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-left"
+          className="flex h-10 w-[267px] max-w-full items-center gap-2.5 rounded-md border border-[#83ccff] bg-[#d8eefc] px-3 text-left"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-200 font-medium">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#8eccf7] text-xs font-medium text-[#173d59]">
             {selectedAgent.avatarText ||
               (selectedAgent.label[0] || "S").toUpperCase()}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-slate-700">
+            <span className="block truncate text-xs font-medium text-slate-700">
               {selectedAgent.label}{" "}
               {selectedAgent.role ? (
                 <span className="font-normal text-slate-500">
@@ -451,12 +515,14 @@ const DashboardCreatedTickets = () => {
               ) : null}
             </span>
             {selectedAgent.detail ? (
-              <span className="block text-xs text-slate-500">
+              <span className="block text-[10px] text-slate-500">
                 ({selectedAgent.detail})
               </span>
             ) : null}
           </span>
-          <SwapOutlined className="rounded-md bg-sky-500 p-1.5 text-white" />
+          <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[7px] bg-[#0797e5]">
+            <img src={profileSwitch} alt="" className="h-[18px] w-[17px]" />
+          </span>
         </button>
         <div className="flex items-center gap-2">
           <Popover
@@ -473,9 +539,10 @@ const DashboardCreatedTickets = () => {
                     type="button"
                     onClick={() => {
                       setStatusFilter(status);
+                      setCurrentPage(1);
                       setFilterOpen(false);
                     }}
-                    className={`h-[35px] px-4 text-left text-xs hover:bg-slate-50 ${
+                    className={`h-[35px] px-4 text-left text-[11px] hover:bg-slate-50 ${
                       statusFilter === status
                         ? "font-medium text-sky-600"
                         : "text-slate-600"
@@ -488,9 +555,10 @@ const DashboardCreatedTickets = () => {
                   type="button"
                   onClick={() => {
                     setStatusFilter("");
+                    setCurrentPage(1);
                     setFilterOpen(false);
                   }}
-                  className="h-[38px] border-t border-slate-100 px-4 text-left text-xs text-red-500 hover:bg-red-50"
+                  className="h-[38px] border-t border-slate-100 px-4 text-left text-[11px] text-red-500 hover:bg-red-50"
                 >
                   Clear Filter
                 </button>
@@ -511,7 +579,10 @@ const DashboardCreatedTickets = () => {
           </Popover>
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setCurrentPage(1);
+            }}
             prefix={<SearchOutlined />}
             placeholder="Search"
             allowClear
@@ -520,15 +591,32 @@ const DashboardCreatedTickets = () => {
         </div>
       </div>
 
-      <div className="mt-4 rounded-sm bg-sky-50 px-4 py-3">
-        <div className="text-xs font-semibold text-slate-800">Created Tickets Summary</div>
-        <div className="mt-1 flex flex-wrap text-xs text-slate-600">
-          {summaryItems.map(([label, count], index) => (
-            <span key={String(label)}>
-              {index ? ", " : ""}{label} : <b className="text-sky-600">{String(count).padStart(2, "0")}</b>
+      <div className="ml-4 mr-4 mt-4 flex min-h-[60px] items-center justify-between rounded-sm bg-sky-50 px-4 py-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold text-slate-800">
+            Created Tickets Summary{" "}
+            <span className="font-normal text-slate-500">
+              (Total Tickets : {String(ticketRows.length).padStart(2, "0")})
             </span>
-          ))}
+          </div>
+
+          <div className="mt-1 flex flex-wrap text-[11px] text-slate-600">
+            {summaryItems.map(([label, count], index) => (
+              <span key={String(label)}>
+                {index ? ", " : ""}
+                {label} :{" "}
+                <b className="text-slate-900">
+                  {String(count).padStart(2, "0")}
+                </b>
+              </span>
+            ))}
+          </div>
         </div>
+        <img
+          src={dashboardBanner}
+          alt=""
+          className="h-12 w-20 shrink-0 object-contain"
+        />
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden">
@@ -537,20 +625,38 @@ const DashboardCreatedTickets = () => {
             className="created-tickets-table"
             rowKey={(row) => String(valueOf(row, ["nTicketId", "TicketId", "nTicketNo", "TicketNo"]))}
             columns={columns}
-            dataSource={filteredRows}
+             size="small"
+            dataSource={pagedRows}
             pagination={false}
-            size="small"
-            scroll={{ x: 1000, y: "calc(100vh - 300px)" }}
+            scroll={{ x: 900, y: "calc(100vh - 295px)" }}
             locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No data" /> }}
             onRow={(row) => ({
               onClick: () => {
-                const id = Number(valueOf(row, ["nTicketId", "TicketId"], 0));
+                const id = Number(valueOf(row,["nTicketId", "TicketId"],0));
                 if (id) navigate(`/tickets/view/${id}`, { state: { selectedRow: row, isFrom: "created" } });
               },
               style: { cursor: "pointer" },
             })}
           />
         </Spin>
+      </div>
+
+      <div className="dashboard-drilldown-pagination absolute pt-135 pl-4px; ">
+        <TicketModulePagination
+          current={safePage}
+          pageSize={pageSize}
+          total={filteredRows.length}
+          onChange={(nextPage, nextPageSize) => {
+            setCurrentPage(nextPage);
+            setPageSize(nextPageSize);
+          }}
+          onShowSizeChange={(_, nextPageSize) => {
+            setCurrentPage(1);
+            setPageSize(nextPageSize);
+          }}
+          showSizeChanger
+          elevated={false}
+        />
       </div>
 
       <AgentSelectorModal

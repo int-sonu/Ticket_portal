@@ -146,7 +146,7 @@ const DashboardDatePicker: React.FC<DashboardDatePickerProps> = ({
       {/* Date Trigger Input */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2.5 rounded-lg border border-sky-200 bg-white px-3.5 py-1.5 font-medium text-slate-700 shadow-sm transition-all hover:border-sky-300 hover:bg-slate-50 cursor-pointer"
+        className="flex items-center gap-2.5 rounded-lg border  border-sky-200 bg-white px-4 py-1.5 font-medium text-slate-700 shadow-sm transition-all hover:border-sky-300 hover:bg-slate-50 cursor-pointer"
         type="button"
       >
         <img

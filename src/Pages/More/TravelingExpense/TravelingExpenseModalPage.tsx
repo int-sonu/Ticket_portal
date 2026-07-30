@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
-  DatePicker,
   Drawer,
   Empty,
   Image,
@@ -11,7 +10,6 @@ import {
   message,
 } from "antd";
 import {
-  CalendarOutlined,
   DownOutlined,
   LeftOutlined,
   RightOutlined,
@@ -23,12 +21,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { billingApis } from "../../../Axios/BillingApis";
 import { agentApis } from "../../../Axios/MasterApis";
+import MasterDateField from "../../Master/Common/MasterDateField";
 import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import { getRequestPayload } from "../../../Utils/requestPayload";
 import DateFilterIconPopover from "../../../ui/CalendarPopup/DateFilterIconPopover";
 import year from "../../../assets/icons/year.svg";
 import deleteImage from "../../../assets/icons/delete-white.svg";
 import AgentSelectorModal from "../Common/AgentSelectorModal";
+import { usePermissions } from "../../../common/sidebar/PermissionContext";
 
 type RecordLike = Record<string, any>;
 
@@ -204,6 +204,7 @@ const getCurrentUser = () => {
 };
 
 const TravelingExpenseModalPage = () => {
+  const { can } = usePermissions();
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = (location.state ?? {}) as Record<string, any>;
@@ -425,6 +426,10 @@ const TravelingExpenseModalPage = () => {
   const headerAgentInitial = (headerAgentLabel.slice(0, 1) || currentUser.shortName || "S").toUpperCase();
 
   const openDrawer = () => {
+    if (!can("more.traveling-expense.add-new")) {
+      message.error("You don't have permission to add traveling expenses.");
+      return;
+    }
     setSelectedDate(dayjs());
     setDrawerOpen(true);
     void Promise.all([
@@ -489,6 +494,10 @@ const TravelingExpenseModalPage = () => {
   };
 
   const handleSave = async () => {
+    if (!can("more.traveling-expense.add-new")) {
+      message.error("You don't have permission to add traveling expenses.");
+      return;
+    }
     if (!selectedItem?.trim()) {
       message.warning("Enter an expense item.");
       return;
@@ -590,6 +599,10 @@ const TravelingExpenseModalPage = () => {
   };
 
   const handleRowClick = (row: RecordLike) => {
+    if (!can("more.traveling-expense.view")) {
+      message.error("You don't have permission to view traveling expenses.");
+      return;
+    }
     const rowDate = parseExpenseDate(
       getValue(row, ["dCreatedDate", "CreatedDate", "dDate", "Date", "cDate"]),
     );
@@ -767,12 +780,9 @@ const TravelingExpenseModalPage = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="mb-2 text-sm text-slate-600">Select Date</div>
-              <DatePicker
-                className="w-35"
+              <MasterDateField
                 value={selectedDate}
                 onChange={(value) => setSelectedDate(value ?? dayjs())}
-                format="DD/MM/YYYY"
-                suffixIcon={<CalendarOutlined className="text-slate-400" />}
               />
             </div>
           <div>

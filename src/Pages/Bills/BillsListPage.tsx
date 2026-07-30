@@ -12,6 +12,7 @@ import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
 import CustomerPickerModal from "../Ticket/TicketCreate/CustomerPickerModal";
 import editIcon from "../../assets/icons/edit-black.svg";
 import deleteRed from "../../assets/icons/delete-red.svg";
+import { usePermissions } from "../../common/sidebar/PermissionContext";
 
 type BillRow = Record<string, any>;
 
@@ -166,6 +167,7 @@ const getSearchText = (row: BillRow) =>
     .join(" ");
 
 const BillsListPage = () => {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const payload = useMemo(
@@ -233,6 +235,10 @@ const BillsListPage = () => {
   );
 
   const handleEditBill = (row: (typeof tableRows)[number]) => {
+    if (!can("bills-and-receipts.bills.edit")) {
+      message.error("You don't have permission to edit bills.");
+      return;
+    }
     navigate("/billsandreceipts/bills/edit", {
       state: {
         billId: row.billId,
@@ -260,6 +266,10 @@ const BillsListPage = () => {
   };
 
   const handleDeleteBill = async (row: (typeof tableRows)[number]) => {
+    if (!can("bills-and-receipts.bills.delete")) {
+      message.error("You don't have permission to delete bills.");
+      return;
+    }
     const billId = row.billId;
     if (!billId) {
       message.warning("Bill id not found.");

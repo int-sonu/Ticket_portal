@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type React from 'react';
+import { useLocation } from 'react-router-dom';
 
 import {
   Button,
@@ -22,6 +23,7 @@ import type { UseMutateFunction } from '@tanstack/react-query';
 import AntTable from '../../../ui/Table/AntTable';
 
 import SimpleMasterDrawer from './SimpleMasterDrawer';
+import { usePermissions } from '../../../common/sidebar/PermissionContext';
 
 import { useSimpleMasterCrud } from './useSimpleMasterCrud';
 
@@ -39,6 +41,22 @@ import {
 } from './SimpleMasterUtils';
 
 import type { SimpleMasterRow } from './SimpleMasterUtils';
+
+const masterRouteAliases: Record<string, string> = {
+  tripmode: 'trip-mode',
+  'followup-mode': 'follow-up-mode',
+  servicetype: 'service-type',
+  ticketsource: 'ticket-source',
+  vendor: 'vendor-master',
+  vendormaster: 'vendor-master',
+  assetmaster: 'asset-master',
+  issuesummary: 'issue-summary',
+};
+
+const masterPermissionKeyFromPath = (pathname: string) => {
+  const routeName = pathname.toLowerCase().split('/')[2] ?? '';
+  return `master.${masterRouteAliases[routeName] ?? routeName}`;
+};
 
 type SimpleMasterListProps = {
   title: string;
@@ -248,6 +266,9 @@ const SimpleMasterList = ({
   addButtonClassName = "h-9 !border-emerald-500 !bg-emerald-500 px-5 font-medium hover:!border-emerald-600 hover:!bg-emerald-600 ",
   showAddButtonIcon = false,
 }: SimpleMasterListProps) => {
+  const location = useLocation();
+  const { can } = usePermissions();
+  const permissionKey = masterPermissionKeyFromPath(location.pathname);
 
 
 
@@ -649,6 +670,14 @@ const SimpleMasterList = ({
     row?: SimpleMasterRow,
     readonly = false
   ) => {
+    const action = !row ? 'add-new' : readonly ? 'view' : 'edit';
+    if (!can(`${permissionKey}.${action}`)) {
+      message.error(
+        `You don't have permission to ${action === 'add-new' ? 'add' : action} ${entityName.toLowerCase()}.`
+      );
+      return;
+    }
+
     if (
       row &&
       deletedRowIds.includes(row.id)
@@ -701,6 +730,31 @@ const SimpleMasterList = ({
     }
 
     message.error(text);
+  };
+
+  const handlePermissionDelete = (
+    event: React.MouseEvent,
+    record: SimpleMasterRow
+  ) => {
+    event.stopPropagation();
+    if (!can(`${permissionKey}.delete`)) {
+      message.error(
+        `You don't have permission to delete ${entityName.toLowerCase()}.`
+      );
+      return;
+    }
+    handleDelete(event, record);
+  };
+
+  const handlePermissionSave = async (values: any) => {
+    const action = selectedRow ? 'edit' : 'add-new';
+    if (!can(`${permissionKey}.${action}`)) {
+      message.error(
+        `You don't have permission to ${action === 'add-new' ? 'add' : action} ${entityName.toLowerCase()}.`
+      );
+      return;
+    }
+    await handleSave(values);
   };
 
   const handleTableChange = (
@@ -797,6 +851,13 @@ const SimpleMasterList = ({
           ) => {
 
             event.stopPropagation();
+
+            if (!can(`${permissionKey}.edit`)) {
+              message.error(
+                `You don't have permission to edit ${entityName.toLowerCase()}.`
+              );
+              return;
+            }
 
             if (disableToggle?.(record)) {
               showRestrictedMessage();
@@ -902,10 +963,7 @@ const SimpleMasterList = ({
               return;
             }
 
-            handleDelete(
-              event,
-              record
-            );
+            handlePermissionDelete(event, record);
           }}
         />
       ),
@@ -1110,9 +1168,12 @@ const SimpleMasterList = ({
         selectedRow={selectedRow}
         isSaving={isSaving}
         onClose={closeDrawer}
-        onEdit={() => setViewMode(false)}
-        onDelete={handleDelete}
-        onSave={handleSave}
+        onEdit={() => {
+          if (!selectedRow) return;
+          void openDrawer(selectedRow, false);
+        }}
+        onDelete={handlePermissionDelete}
+        onSave={handlePermissionSave}
         hasShortName={hasShortName}
         showNameField={showNameField}
         showDescription={showDescription}

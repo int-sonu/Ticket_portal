@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FC } from "react";
-import dayjs, { type Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import { useQuery } from "@tanstack/react-query";
 import { Spin } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -10,11 +10,13 @@ import { dashboardApis } from "../../Axios/DashboardApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
 import { extractList } from "../../Pages/Master/Common/SimpleMasterUtils";
 import DashboardMainContent from "../../Components/Dashboard/DashboardMainContent/DashboardMainContent";
+import type { DashboardDateRange } from "../../Components/Dashboard/DashboardDatePicker/DashboardDateRangePicker";
 import DashboardRightSidebar from "../../Components/Dashboard/DashboardRightSidebar/DashboardRightSidebar";
 import AgentSelectorModal, { type SharedAgentOption } from "../../Pages/More/Common/AgentSelectorModal";
 import type { DashboardChartAgent, DashboardStats, SidePanelStats } from "../../Types/dashboard.types";
 
 type RecordLike = Record<string, any>;
+const DASHBOARD_DATE_RANGE_STORAGE_KEY = "dashboardSelectedDateRange";
 
 type RequestPayload = Record<string, any> & {
   nCompanyId?: number | string;
@@ -125,11 +127,34 @@ const getAgentOptionValue = (row: RecordLike, index: number) =>
 const getAgentOptionLabel = (row: RecordLike, index: number) =>
   text(getValue(row, ["cAgentName", "AgentName", "cUserName", "cName", "Name"], `Agent ${index + 1}`));
 
+const getStoredDateRange = (): DashboardDateRange => {
+  try {
+    const storedRange = JSON.parse(
+      sessionStorage.getItem(DASHBOARD_DATE_RANGE_STORAGE_KEY) ?? "{}",
+    );
+    const start = dayjs(storedRange.start);
+    const end = dayjs(storedRange.end);
+
+    if (start.isValid() && end.isValid()) {
+      return start.isAfter(end, "day")
+        ? { start: end.startOf("day"), end: start.startOf("day") }
+        : { start: start.startOf("day"), end: end.startOf("day") };
+    }
+  } catch {
+    // Ignore an invalid stored dashboard date range.
+  }
+
+  const today = dayjs().startOf("day");
+  return { start: today, end: today };
+};
+
 const Dashboard: FC = () => {
   const navigate = useNavigate();
   const basePayload = useMemo(() => getRequestPayload() as RequestPayload, []);
   const currentUser = useMemo(() => getCurrentUser(), []);
-  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const [selectedDateRange, setSelectedDateRange] =
+    useState<DashboardDateRange>(getStoredDateRange);
+  const selectedDate = selectedDateRange.end;
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   const [agentSearch, setAgentSearch] = useState("");
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
@@ -169,13 +194,15 @@ const Dashboard: FC = () => {
       nAgentId: Number(selectedAgent.value || basePayload.nAgentId || basePayload.id || 0),
       cAgentId: selectedAgent.value || String(basePayload.nAgentId ?? basePayload.id ?? ""),
       agentId: selectedAgent.value || String(basePayload.nAgentId ?? basePayload.id ?? ""),
+      nMode: 4,
+      dMode: 4,
       dDate: selectedDate.format("YYYY-MM-DD"),
-      dFromDate: selectedDate.startOf("month").format("YYYY-MM-DD"),
-      dToDate: selectedDate.endOf("month").format("YYYY-MM-DD"),
-      cFromDate: selectedDate.startOf("month").format("YYYY-MM-DD"),
-      cToDate: selectedDate.endOf("month").format("YYYY-MM-DD"),
+      dFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+      dToDate: selectedDateRange.end.format("YYYY-MM-DD"),
+      cFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+      cToDate: selectedDateRange.end.format("YYYY-MM-DD"),
     }),
-    [basePayload, companyPayload, selectedAgent.value, selectedDate],
+    [basePayload, companyPayload, selectedAgent.value, selectedDate, selectedDateRange],
   );
 
   const {
@@ -423,25 +450,44 @@ const Dashboard: FC = () => {
     ]);
   };
 
+  const handleDateRangeChange = (range: DashboardDateRange) => {
+    const appliedRange = {
+      start: range.start.startOf("day"),
+      end: range.end.startOf("day"),
+    };
+
+    sessionStorage.setItem(
+      DASHBOARD_DATE_RANGE_STORAGE_KEY,
+      JSON.stringify({
+        start: appliedRange.start.format("YYYY-MM-DD"),
+        end: appliedRange.end.format("YYYY-MM-DD"),
+      }),
+    );
+    setSelectedDateRange(appliedRange);
+  };
+
   return (
-    <div className="-m-6 grid h-full min-h-0 grid-cols-[minmax(0,1fr)_280px] overflow-hidden ">
-      <div className="dashboard-scroll min-w-0 overflow-y-auto overflow-x-hidden p-4 pr-3 transition-all duration-300 mt-5 scroll-width: thin">
+    <div className="-m-6 grid h-full min-h-0 grid-cols-[minmax(0,1fr)_348px] overflow-hidden">
+      <div className="dashboard-scroll mt-5 min-w-0 overflow-y-auto overflow-x-hidden p-4 pr-3 transition-all duration-300[scrollbar-width:thin] [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
         <div className="w-full origin-top-left scale-[1.02]">
           <Spin spinning={isLoading}>
             <DashboardMainContent
               stats={stats}
               agentLabel={selectedAgent.label}
               agentRole={selectedAgent.role ?? currentUser.role}
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
+              selectedDateRange={selectedDateRange}
+              onDateRangeChange={handleDateRangeChange}
               formatAmount={formatAmount}
-              collectionSummaryAmount={`Rs. ${formatAmount(collectionSummaryAmount)}`}
+              collectionSummaryAmount={`₹ ${collectionSummaryAmount.toFixed(2)}`}
+              collectionSummaryData={collectionRows}
               agents={agents}
               onAgentClick={() => setAgentModalOpen(true)}
               onCreatedTicketClick={() =>
                 navigate("/dashboard/createdtickets", {
                   state: {
                     selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                     selectedAgent,
                   },
                 })
@@ -450,6 +496,8 @@ const Dashboard: FC = () => {
                 navigate("/dashboard/callreport", {
                   state: {
                     selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                     selectedAgent,
                   },
                 })
@@ -458,6 +506,8 @@ const Dashboard: FC = () => {
                 navigate("/dashboard/postponed", {
                   state: {
                     selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                     selectedAgent,
                   },
                 })
@@ -466,6 +516,38 @@ const Dashboard: FC = () => {
                 navigate("/dashboard/collectionsummary", {
                   state: {
                     selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
+              onReceiptClick={() =>
+                navigate("/dashboard/receipts", {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
+              onBillClick={() =>
+                navigate("/dashboard/bills", {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
+                    selectedAgent,
+                  },
+                })
+              }
+              onClosedClick={(status) =>
+                navigate(`/dashboard/closedtickets?status=${status}`, {
+                  state: {
+                    selectedDate: selectedDate.format("YYYY-MM-DD"),
+                    selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                    selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                     selectedAgent,
                   },
                 })
@@ -476,7 +558,7 @@ const Dashboard: FC = () => {
         </div>
       </div>
 
-      <div className="min-w-0  border-sky-100 bg-white px-3 py-4 mt-7">
+      <div className="mt-7 min-w-0 border-sky-100 bg-white py-4 pl-5 pr-7">
         <div className="sticky top-4 w-full">
         <DashboardRightSidebar
           sideStats={sideStats}
@@ -484,6 +566,8 @@ const Dashboard: FC = () => {
             navigate("/dashboard/ongoingtickets", {
               state: {
                 selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                 selectedAgent,
               },
             })
@@ -492,6 +576,8 @@ const Dashboard: FC = () => {
             navigate("/dashboard/overdue", {
               state: {
                 selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                 selectedAgent,
               },
             })
@@ -500,6 +586,8 @@ const Dashboard: FC = () => {
             navigate("/dashboard/unassigned", {
               state: {
                 selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                 selectedAgent,
               },
             })
@@ -508,6 +596,8 @@ const Dashboard: FC = () => {
             navigate("/dashboard/upcomingtickets", {
               state: {
                 selectedDate: selectedDate.format("YYYY-MM-DD"),
+                selectedFromDate: selectedDateRange.start.format("YYYY-MM-DD"),
+                selectedToDate: selectedDateRange.end.format("YYYY-MM-DD"),
                 selectedAgent,
               },
             })

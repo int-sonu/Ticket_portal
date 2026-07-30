@@ -22,7 +22,7 @@ const DashboardRightSidebar: FC<DashboardRightSidebarProps> = ({
   onUpcomingClick,
 }) => {
   return (
-    <aside className="flex w-full flex-col gap-4">
+    <aside className="flex w-full flex-col gap-5">
       <SideStatCard label="Ongoing" value={sideStats.ongoing} image={ongoingImg} onClick={onOngoingClick} />
       <SideStatCard label="Overdue" value={sideStats.overdue} image={overdueImg} onClick={onOverdueClick} />
       <SideStatCard

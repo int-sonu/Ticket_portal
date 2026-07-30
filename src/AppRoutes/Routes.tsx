@@ -257,6 +257,18 @@ const Routes: React.FC = () => {
               path="/dashboard/upcomingtickets"
               element={<DashboardListPage page="upcoming" />}
             />
+            <Route
+              path="/dashboard/closedtickets"
+              element={<DashboardListPage page="closed" />}
+            />
+            <Route
+              path="/dashboard/receipts"
+              element={<DashboardListPage page="receipts" />}
+            />
+            <Route
+              path="/dashboard/bills"
+              element={<DashboardListPage page="bills" />}
+            />
 
             <Route path="/tickets/create" element={<TicketCreate />} />
 

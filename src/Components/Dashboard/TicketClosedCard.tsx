@@ -1,13 +1,12 @@
 import resolvedIcon from '../../assets/icons/resolved.svg';
 import unresolvedIcon from '../../assets/icons/unresolved.svg';
-import closedTicketIcon from '../../assets/icons/closedTicketIcon.svg';
 
 interface TicketClosedCardProps {
   closed: number;
   resolved: number;
   unresolved: number;
   className?: string;
-  onClick?: () => void;
+  onClick?: (status: 'closed' | 'resolved' | 'unresolved') => void;
 }
 
 const TicketClosedCard: React.FC<TicketClosedCardProps> = ({
@@ -18,52 +17,57 @@ const TicketClosedCard: React.FC<TicketClosedCardProps> = ({
   onClick,
 }) => {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative flex h-full w-full min-h-[88px] items-stretch overflow-hidden rounded-lg border border-[#B3E9EA] bg-white text-left shadow-sm transition-shadow hover:shadow-md ${className}`}
+    <div
+      className={`relative flex h-full w-full min-h-[80px] items-stretch rounded-md border border-[#B7E5F7] bg-white text-left ${className}`}
     >
-      {/* Left: Closed label + count */}
-      <div className="relative flex w-[32%] min-w-[110px] max-w-[150px] flex-col justify-center border-r border-[#d4e8ea] px-4 py-3">
-        <span
-          className="pointer-events-none absolute left-0 top-1/2 h-3 w-1.5 -translate-y-1/2 border-y-[6px] border-l-[6px] border-y-transparent border-l-[#B3E9EA]"
-          aria-hidden
-        />
-        <div className="flex items-center gap-2">
-          <img src={closedTicketIcon} alt="" className="h-4 w-4 shrink-0" />
-          <p className="text-xs font-medium text-[#4A6B6B]">Closed</p>
-        </div>
-        <p className="mt-1 text-3xl font-semibold leading-none text-slate-900">
-          {String(closed ?? 0).padStart(2, '0')}
-        </p>
-      </div>
-
-      {/* Right: Resolved / Unresolved rows */}
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <div className="flex items-center justify-between gap-2 border-b border-[#e2e8f0] px-4 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <img src={resolvedIcon} alt="" className="h-5 w-5 shrink-0" />
-            <span className="text-sm font-medium text-[#5A7A7A]">Resolved</span>
-          </div>
-          <span className="shrink-0 text-base font-semibold text-slate-800">
-            {String(resolved ?? 0).padStart(2, '0')}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-2 px-4 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <img src={unresolvedIcon} alt="" className="h-5 w-5 shrink-0" />
-            <span className="text-sm font-medium text-[#5A7A7A]">Unresolved</span>
-          </div>
-          <span className="shrink-0 text-base font-semibold text-slate-800">
-            {String(unresolved ?? 0).padStart(2, '0')}
-          </span>
-        </div>
-      </div>
       <span
-        className="pointer-events-none absolute right-0 top-1/2 h-3 w-1.5 -translate-y-1/2 border-y-[6px] border-r-[6px] border-y-transparent border-r-[#B3E9EA]"
+        className="pointer-events-none absolute -left-[7px] top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 rotate-45 border-r border-t border-[#B7E5F7] bg-white"
         aria-hidden
       />
-    </button>
+      <button
+        type="button"
+        onClick={() => onClick?.('closed')}
+        className="relative flex w-1/2 min-w-0 flex-col justify-center border-r border-[#edf1f5] px-7 py-2 text-left transition-colors hover:bg-slate-50"
+      >
+        <p className="text-sm font-medium leading-none text-[#364d6f]">Closed</p>
+        <p className="mt-1.5 text-[26px] font-medium leading-none text-black">
+          {String(closed ?? 0).padStart(2, '0')}
+        </p>
+      </button>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
+        <button
+          type="button"
+          onClick={() => onClick?.('resolved')}
+          className="flex min-h-0 flex-1 items-center justify-between gap-2 border-b border-[#e6ebf1] px-2.5 py-1 text-left transition-colors hover:bg-slate-50"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <img src={resolvedIcon} alt="" className="h-[23px] w-[23px] shrink-0" />
+            <span className="text-[13px] font-medium text-[#60719d]">Resolved</span>
+          </div>
+          <span className="shrink-0 pr-4 text-base font-medium text-black">
+            {String(resolved ?? 0).padStart(2, '0')}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onClick?.('unresolved')}
+          className="flex min-h-0 flex-1 items-center justify-between gap-2 px-2.5 py-1 text-left transition-colors hover:bg-slate-50"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <img src={unresolvedIcon} alt="" className="h-[23px] w-[23px] shrink-0" />
+            <span className="text-[13px] font-medium text-[#60719d]">Unresolved</span>
+          </div>
+          <span className="shrink-0 pr-4 text-base font-medium text-black">
+            {String(unresolved ?? 0).padStart(2, '0')}
+          </span>
+        </button>
+      </div>
+      <span
+        className="pointer-events-none absolute -right-[7px] top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 rotate-45 border-b border-l border-[#B7E5F7] bg-white"
+        aria-hidden
+      />
+    </div>
   );
 };
 

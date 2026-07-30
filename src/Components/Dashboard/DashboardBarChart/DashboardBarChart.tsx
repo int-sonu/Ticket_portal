@@ -15,11 +15,12 @@ import type { DashboardChartAgent } from '../../../Types/dashboard.types';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-const CALL_REPORT_COLOR = '#6478F0';
-const CREATED_TICKET_COLOR = '#5CE0E6';
-const GRID_COLOR = '#d1d5db';
-const GRID_DASH = [5, 5] as const;
-const BADGE_COLOR = '#4B8DF8';
+const CALL_REPORT_COLOR = '#7488ff';
+const CREATED_TICKET_COLOR = '#45d6d5';
+const GRID_COLOR = '#d1d1d1';
+const GRID_DASH = [3, 3] as const;
+const BADGE_COLOR = '#2f78ff';
+const AXIS_COLOR = '#8a8a8a';
 
 interface DashboardBarChartProps {
   agents?: DashboardChartAgent[];
@@ -33,10 +34,9 @@ const defaultAgents: DashboardChartAgent[] = [
   { name: 'Testing Team', callReport: 0.2, createdTicket: 0.1 },
 ];
 
-/** Draw dashed horizontal & vertical grid lines */
 const dashedGridPlugin: Plugin<'bar'> = {
   id: 'dashedGrid',
-  beforeDatasetsDraw(chart) {
+  beforeDraw(chart) {
     const { ctx, chartArea, scales } = chart;
     const yScale = scales.y;
     const xScale = scales.x;
@@ -44,12 +44,11 @@ const dashedGridPlugin: Plugin<'bar'> = {
 
     ctx.save();
     ctx.strokeStyle = GRID_COLOR;
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = 1;
     ctx.setLineDash([...GRID_DASH]);
 
-    // Horizontal dashed lines
     const yTickCount = yScale.ticks.length;
-    for (let i = 0; i < yTickCount; i++) {
+    for (let i = 1; i < yTickCount; i++) {
       const y = yScale.getPixelForTick(i);
       ctx.beginPath();
       ctx.moveTo(chartArea.left, y);
@@ -57,21 +56,24 @@ const dashedGridPlugin: Plugin<'bar'> = {
       ctx.stroke();
     }
 
-    // Vertical dashed lines
+    const verticalLines: number[] = [];
     const xTickCount = xScale.ticks.length;
     for (let i = 0; i < xTickCount; i++) {
-      const x = xScale.getPixelForTick(i);
+      verticalLines.push(xScale.getPixelForTick(i));
+    }
+    verticalLines.push(chartArea.right);
+
+    verticalLines.forEach((x) => {
       ctx.beginPath();
       ctx.moveTo(x, chartArea.top);
       ctx.lineTo(x, chartArea.bottom);
       ctx.stroke();
-    }
+    });
 
     ctx.restore();
   },
 };
 
-/** Draw agent initial badges at the bottom, just above the x-axis labels */
 const badgePlugin: Plugin<'bar'> = {
   id: 'agentBadge',
   afterDatasetsDraw(chart) {
@@ -83,24 +85,21 @@ const badgePlugin: Plugin<'bar'> = {
       const name = String(label);
       const letter = name.charAt(0).toUpperCase();
       const x = xScale.getPixelForValue(index);
-      // Position badge just above the bottom of the chart area (above x-axis labels)
-      const y = chartArea.bottom + 16;
+      const y = chartArea.bottom - 21;
 
       ctx.save();
 
-      // Draw rounded badge background
       ctx.fillStyle = BADGE_COLOR;
-      const size = 22;
-      const radius = 5;
+      const size = 24;
+      const radius = 6;
       const bx = x - size / 2;
       const by = y - size / 2;
       ctx.beginPath();
       ctx.roundRect(bx, by, size, size, radius);
       ctx.fill();
 
-      // Draw badge letter
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = '600 13px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(letter, x, y);
@@ -148,20 +147,19 @@ const DashboardBarChart: FC<DashboardBarChartProps> = ({
       responsive: true,
       maintainAspectRatio: false,
       layout: {
-        padding: { top: 8, bottom: 4 },
+        padding: { top: 4, right: 12, bottom: 0, left: 2 },
       },
       plugins: {
         legend: {
           position: 'top',
           align: 'end',
           labels: {
-            usePointStyle: true,
-            pointStyle: 'rectRounded',
-            boxWidth: 10,
-            boxHeight: 10,
-            padding: 16,
-            font: { size: 11, weight: 500 },
-            color: '#64748b',
+            usePointStyle: false,
+            boxWidth: 16,
+            boxHeight: 16,
+            padding: 8,
+            font: { size: 13, weight: 400 },
+            color: '#3e4665',
           },
         },
         tooltip: {
@@ -176,24 +174,25 @@ const DashboardBarChart: FC<DashboardBarChartProps> = ({
       scales: {
         x: {
           grid: { display: false },
-          border: { display: false },
+          border: { display: true, color: AXIS_COLOR, width: 1 },
           ticks: {
-            color: '#64748b',
-            font: { size: 10 },
+            color: '#526d79',
+            font: { size: 13 },
             maxRotation: 45,
             minRotation: 45,
-            padding: 24, // Leave space for badge between axis and labels
+            padding: 8,
           },
         },
         y: {
           min: 0,
           suggestedMax: maxDataValue,
           grid: { display: false },
-          border: { display: false },
+          border: { display: true, color: AXIS_COLOR, width: 1 },
           ticks: {
             stepSize: 1,
-            color: '#94a3b8',
-            font: { size: 11 },
+            color: '#666666',
+            font: { size: 16 },
+            padding: 7,
           },
         },
       },
@@ -203,7 +202,7 @@ const DashboardBarChart: FC<DashboardBarChartProps> = ({
 
   return (
     <div
-      className={`h-[300px] w-full rounded-xl border border-slate-100 bg-white p-4 ${className}`}
+      className={`h-[410px] w-full bg-white px-3 pb-1 pt-2 ${className}`}
     >
       <Bar
         data={chartData}
