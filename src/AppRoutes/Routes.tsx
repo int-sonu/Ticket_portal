@@ -340,6 +340,10 @@ const Routes: React.FC = () => {
             <Route path="/bills" element={<BillsListPage />} />
             <Route path="/receipts" element={<ReceiptsListPage />} />
             <Route path="/receipts/add" element={<ReceiptCreatePage />} />
+            <Route
+              path="/billsandreceipts/receipts/edit"
+              element={<ReceiptCreatePage />}
+            />
             <Route path="/bills/add" element={<BillPreviewPage />} />
             <Route path="/bills/edit" element={<BillViewPage editMode />} />
             <Route path="/item-repair/assign" element={<AssignedItemRepairPage />} />

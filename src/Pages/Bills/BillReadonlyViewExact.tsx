@@ -24,6 +24,7 @@ type BillReadonlyViewExactProps = {
   billViewData?: Record<string, any>;
   loading?: boolean;
   editMode?: boolean;
+  hideEditDeleteActions?: boolean;
 };
 
 type BillItemRow = {
@@ -455,6 +456,7 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
   billViewData = {},
   loading = false,
   editMode = false,
+  hideEditDeleteActions = false,
 }) => {
   const navigate = useNavigate();
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1066,7 +1068,7 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
         </div>
       </div>
 
-      <div className="sticky bottom-0 left-0 mt-57 border-t border-slate-200 bg-[#f3f3f3] px-2 py-5">
+      <div className="shrink-0 border-t border-slate-200 bg-[#f3f3f3] px-2 py-3">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2 text-[13px] text-slate-700">
             <div className="flex min-w-[210px] justify-between gap-10">
@@ -1109,7 +1111,7 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               {editMode ? (
                 <>
                   <button
@@ -1176,47 +1178,53 @@ const BillReadonlyViewExact: React.FC<BillReadonlyViewExactProps> = ({
                   className="h-9 w-9  rounded-md border border-black/25"
                 />
               </button>
-              <button
-                type="button"
-                className="flex h-9 w-9 items-center justify-center  hover:bg-slate-50"
-                aria-label="Edit bill"
-                onClick={() =>
-                  navigate("/billsandreceipts/bills/edit", {
-                    state: {
-                      ...fallbackState,
-                      billId,
-                      nBillId: billId,
-                      billNo,
-                      billData: bestBillRecord,
-                      sessionPayload: {
-                        ...sessionPayload,
-                        ...companyDetailsPayload,
-                      },
-                      isEditMode: true,
-                      sourcePage: "bills",
-                    },
-                  })
-                }
-              >
-                <img
-                  src={editIcon}
-                  alt=""
-                  className="h-9 w-9  rounded-md border border-black/25"
-                />
-              </button>
-              <button
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-md border border-[#ff4d4f] bg-[#ff4d4f] hover:opacity-90"
-                aria-label="Delete bill"
-                disabled={isDeleting}
-                onClick={handleDeleteBill}
-              >
-                <img
-                  src={deleteRed}
-                  alt=""
-                  className="h-4 w-4 brightness-0 invert"
-                />
-              </button>
+              {!hideEditDeleteActions ? (
+                <>
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center hover:bg-slate-50"
+                    aria-label="Edit bill"
+                    title="Edit bill"
+                    onClick={() =>
+                      navigate("/billsandreceipts/bills/edit", {
+                        state: {
+                          ...fallbackState,
+                          billId,
+                          nBillId: billId,
+                          billNo,
+                          billData: bestBillRecord,
+                          sessionPayload: {
+                            ...sessionPayload,
+                            ...companyDetailsPayload,
+                          },
+                          isEditMode: true,
+                          sourcePage: "bills",
+                        },
+                      })
+                    }
+                  >
+                    <img
+                      src={editIcon}
+                      alt=""
+                      className="h-9 w-9 rounded-md border border-black/25"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-[#ff4d4f] bg-[#ff4d4f] hover:opacity-90"
+                    aria-label="Delete bill"
+                    title="Delete bill"
+                    disabled={isDeleting}
+                    onClick={handleDeleteBill}
+                  >
+                    <img
+                      src={deleteRed}
+                      alt=""
+                      className="h-4 w-4 brightness-0 invert"
+                    />
+                  </button>
+                </>
+              ) : null}
                 </>
               )}
             </div>

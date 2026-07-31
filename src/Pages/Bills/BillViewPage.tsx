@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Empty, Spin } from "antd";
+import { useMemo, useState } from "react";
+import { Empty, Modal, Spin, message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { billingApis } from "../../Axios/BillingApis";
 import BillReadonlyViewExact from "./BillReadonlyViewExact";
 import { getRequestPayload } from "../../Utils/requestPayload";
+import editIcon from "../../assets/Bills/EditIcon.png";
+import deleteRed from "../../assets/icons/delete-red.svg";
 
 type BillViewState = Record<string, any>;
 
@@ -17,6 +19,7 @@ type BillViewPageProps = {
 const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isDeleting, setIsDeleting] = useState(false);
   const billState = (location.state ?? {}) as BillViewState;
 
   const requestPayload = useMemo(
@@ -61,6 +64,58 @@ const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
     navigate("/billsandreceipts/bills", { replace: true });
   };
 
+  const editBill = () => {
+    navigate("/billsandreceipts/bills/edit", {
+      state: {
+        ...billState,
+        billId,
+        nBillId: billId,
+        sessionPayload: requestPayload,
+        isEditMode: true,
+        sourcePage: "bills",
+      },
+    });
+  };
+
+  const deleteBill = () => {
+    if (!billId || isDeleting) return;
+
+    Modal.confirm({
+      title: "Delete Bill",
+      content: `Are you sure you want to delete bill ${billState.billNo ?? billId}?`,
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      cancelText: "Cancel",
+      onOk: async () => {
+        setIsDeleting(true);
+        try {
+          const response = await billingApis.billDelete({
+            ...requestPayload,
+            nBillId: billId,
+            nCreatedby: Number(
+              requestPayload.nUserId ??
+                requestPayload.nAgentId ??
+                requestPayload.nCreatedBy ??
+                requestPayload.id ??
+                0,
+            ),
+          });
+          message.success(response?.message || "Bill deleted successfully.");
+          closeBillView();
+        } catch (error: any) {
+          message.error(
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to delete bill.",
+          );
+          throw error;
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+    });
+  };
+
   const { data: billViewResponse, isLoading: isBillViewLoading } = useQuery({
     queryKey: ["bill-view-page", billRequestPayload],
     queryFn: () => billingApis.billView(billRequestPayload),
@@ -82,18 +137,44 @@ const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex h-full min-h-0 flex-col bg-white">
       {!editMode ? (
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
           <div className="text-[18px] font-medium text-slate-900">Bill View</div>
-          <button
-            type="button"
-            aria-label="Close bill view"
-            onClick={closeBillView}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-          >
-            <CloseOutlined />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Edit bill"
+              title="Edit bill"
+              onClick={editBill}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white hover:bg-slate-50"
+            >
+              <img src={editIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Delete bill"
+              title="Delete bill"
+              disabled={isDeleting}
+              onClick={deleteBill}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-500 bg-red-500 hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <img
+                src={deleteRed}
+                alt=""
+                aria-hidden="true"
+                className="h-4 w-4 brightness-0 invert"
+              />
+            </button>
+            <button
+              type="button"
+              aria-label="Close bill view"
+              onClick={closeBillView}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            >
+              <CloseOutlined />
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -106,6 +187,7 @@ const BillViewPage = ({ editMode = false }: BillViewPageProps) => {
               billViewData={billViewResponse}
               loading={isBillViewLoading}
               editMode={editMode}
+              hideEditDeleteActions={!editMode}
             />
           </div>
         </Spin>

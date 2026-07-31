@@ -15,6 +15,11 @@ type ReceiptState = {
   CustomerName?: string;
   sessionPayload?: Record<string, any>;
   sourcePage?: string;
+  receiptId?: string | number;
+  nReceiptId?: string | number;
+  receiptNo?: string | number;
+  receiptDetails?: Record<string, any>;
+  isEditMode?: boolean;
 };
 
 type OutstandingBillRow = Record<string, any>;
@@ -112,26 +117,12 @@ const normalizeReceiptNumber = (response: any) => {
   return (
     formatDisplayValue(
       getFirstValue(record, [
-        "nReceiptNo",
-        "ReceiptNo",
-        "receiptNo",
-        "cReceiptNo",
-        "ReceiptNumber",
-        "nLastReceiptNo",
-        "LastReceiptNo",
+        "nRecNo",
       ]),
     ) ||
     formatDisplayValue(
       getFirstValue(data, [
-        "nReceiptNo",
-        "ReceiptNo",
-        "receiptNo",
-        "cReceiptNo",
-        "ReceiptNumber",
-        "nLastReceiptNo",
-        "LastReceiptNo",
-        "message",
-        "result",
+        "nRecNo",
       ]),
     ) ||
     "1"
@@ -165,6 +156,48 @@ const normalizeOutstandingRows = (response: any) => {
   return [] as OutstandingBillRow[];
 };
 
+const normalizeReceiptDetailRows = (response: any) => {
+  const candidates = [
+    response?.data?.data?.receiptDetails,
+    response?.data?.data?.ReceiptDetails,
+    response?.data?.receiptDetails,
+    response?.data?.ReceiptDetails,
+    response?.receiptDetails,
+    response?.ReceiptDetails,
+    response?.data?.data?.billDetails,
+    response?.data?.billDetails,
+    response?.billDetails,
+  ];
+
+  for (const candidate of candidates) {
+    const rows = extractList(candidate);
+    if (rows.length > 0) return rows as OutstandingBillRow[];
+  }
+
+  return normalizeOutstandingRows(response);
+};
+
+const normalizeReceiptSummary = (response: any) => {
+  const candidates = [
+    response?.data?.data?.receiptSummary,
+    response?.data?.data?.ReceiptSummary,
+    response?.data?.receiptSummary,
+    response?.data?.ReceiptSummary,
+    response?.receiptSummary,
+    response?.ReceiptSummary,
+    response?.data?.data,
+    response?.data,
+    response,
+  ];
+
+  for (const candidate of candidates) {
+    const record = normalizeSingleRecord(candidate);
+    if (Object.keys(record).length > 0) return record;
+  }
+
+  return {} as Record<string, any>;
+};
+
 const getOutstandingRowKey = (row: OutstandingBillRow, index: number) =>
   String(
     getFirstValue(row, ["nBillId", "BillId", "billId", "nInvoiceId", "Id"]) ||
@@ -190,6 +223,10 @@ const ReceiptCreatePage = () => {
 
   const sessionPayload: Record<string, any> =
     receiptState.sessionPayload ?? getRequestPayload();
+  const receiptId = Number(
+    receiptState.receiptId ?? receiptState.nReceiptId ?? 0,
+  ) || 0;
+  const isEditMode = Boolean(receiptState.isEditMode && receiptId);
   const customerId = Number(
     receiptState.customerId ?? receiptState.nCustomerId ?? 0,
   ) || 0;
@@ -229,21 +266,63 @@ const ReceiptCreatePage = () => {
       setIsError(false);
 
       try {
-        const [receiptResponse, outstandingResponse] = await Promise.all([
+        const [receiptResponse, detailResponse] = await Promise.all([
           billingApis.lastReceiptNumber(sessionPayload),
-          billingApis.outstandingBillListCustomerWise({
-            ...sessionPayload,
-            nCustomerId: customerId,
-            customerId,
-            CustomerId: customerId,
-          }),
+          isEditMode
+            ? billingApis.receiptDetailsView({
+                ...sessionPayload,
+                nReceiptId: receiptId,
+                nRecId: receiptId,
+              })
+            : billingApis.outstandingBillListCustomerWise({
+                ...sessionPayload,
+                nCustomerId: customerId,
+                customerId,
+                CustomerId: customerId,
+              }),
         ]);
 
         if (!alive) return;
 
-        setReceiptNo(normalizeReceiptNumber(receiptResponse));
-        const rows = normalizeOutstandingRows(outstandingResponse);
+        const summary = isEditMode ? normalizeReceiptSummary(detailResponse) : {};
+        setReceiptNo(
+          formatDisplayValue(
+            getFirstValue(summary, ["nRecNo", "ReceiptNo", "nReceiptNo"]),
+          ) ||
+            formatDisplayValue(receiptState.receiptNo) ||
+            normalizeReceiptNumber(receiptResponse),
+        );
+        const rows = isEditMode
+          ? normalizeReceiptDetailRows(detailResponse)
+          : normalizeOutstandingRows(detailResponse);
         setOutstandingRows(rows);
+
+        if (isEditMode) {
+          setNarration(
+            formatDisplayValue(
+              getFirstValue(summary, ["cNarration", "Narration", "narration"]),
+            ),
+          );
+          setPayMode(
+            formatDisplayValue(
+              getFirstValue(summary, [
+                "cPaymodeName",
+                "cPayMode",
+                "PayMode",
+                "PayModeName",
+              ]),
+            ) || "Cash",
+          );
+          const existingAmount = Number(
+            getFirstValue(summary, [
+              "nAmount",
+              "nPaidAmount",
+              "AmountPaid",
+              "nReceiptAmount",
+            ]) || 0,
+          );
+          setAmountPaid(Number.isFinite(existingAmount) ? existingAmount : 0);
+        }
 
         setBillAllocations((previous) => {
           const next: Record<string, number> = {};
@@ -251,15 +330,25 @@ const ReceiptCreatePage = () => {
           rows.forEach((row, index) => {
             const key = getOutstandingRowKey(row, index);
             const rowAmount = Number(
-              getFirstValue(row, [
-                "outstandingAmt",
-                "nOutstandingAmount",
-                "OutstandingAmount",
-                "nBalanceAmount",
-                "BalanceAmount",
-                "Amount",
-                "amount",
-              ]) ||
+              getFirstValue(
+                row,
+                isEditMode
+                  ? [
+                      "nPayedAmount",
+                      "nPaidAmount",
+                      "AmountPaid",
+                      "nReceiptAmount",
+                    ]
+                  : [
+                      "outstandingAmt",
+                      "nOutstandingAmount",
+                      "OutstandingAmount",
+                      "nBalanceAmount",
+                      "BalanceAmount",
+                      "Amount",
+                      "amount",
+                    ],
+              ) ||
                 0,
             );
 
@@ -284,7 +373,7 @@ const ReceiptCreatePage = () => {
     return () => {
       alive = false;
     };
-  }, [customerId, sessionPayload]);
+  }, [customerId, isEditMode, receiptId, receiptState.receiptNo, sessionPayload]);
 
   useEffect(() => {
     try {
@@ -354,11 +443,9 @@ const ReceiptCreatePage = () => {
         );
         const billAmount = Number(
           getFirstValue(row, [
+            "nAmount",
             "nBillAmount",
             "BillAmount",
-            "nTotalAmount",
-            "TotalAmount",
-            "Amount",
           ]) || 0,
         );
 
@@ -397,6 +484,8 @@ const ReceiptCreatePage = () => {
 
     const payload = {
       ...sessionPayload,
+      nReceiptId: receiptId,
+      nRecId: receiptId,
       nCustomerId: customerId,
       nPaymode: payModeId,
       nAmount: paidAmount,
@@ -412,12 +501,19 @@ const ReceiptCreatePage = () => {
 
     setIsSaving(true);
     try {
-      const response = await billingApis.receiptSave(payload);
+      const response = isEditMode
+        ? await billingApis.receiptUpdate(payload)
+        : await billingApis.receiptSave(payload);
       if (Number(response?.statusCode ?? 200) >= 400) {
         throw new Error(response?.message || "Unable to save receipt.");
       }
 
-      message.success(response?.message || "Receipt saved successfully.");
+      message.success(
+        response?.message ||
+          (isEditMode
+            ? "Receipt payment mode updated successfully."
+            : "Receipt saved successfully."),
+      );
       setPayModeOpen(false);
       sessionStorage.removeItem(RECEIPT_CREATE_STORAGE_KEY);
       navigate("/receipts", { replace: true });
@@ -450,7 +546,9 @@ const ReceiptCreatePage = () => {
         nBillId: billId,
         billData: row,
         sessionPayload,
-        returnTo: "/receipts/add",
+        returnTo: isEditMode
+          ? "/billsandreceipts/receipts/edit"
+          : "/receipts/add",
         returnState: receiptState,
       },
     });
@@ -513,15 +611,13 @@ const ReceiptCreatePage = () => {
                     getFirstValue(row, ["nBillNo", "BillNo", "billNo", "cBillNo"]),
                   ) || "-";
                   const billDate = formatDateValue(
-                    getFirstValue(row, ["dBillDate", "BillDate", "Date"]),
+                    getFirstValue(row, ["dBillDate", "BillDate", "dRecDate"]),
                   );
                   const billAmount = Number(
                     getFirstValue(row, [
+                      "nAmount",
                       "nBillAmount",
                       "BillAmount",
-                      "nTotalAmount",
-                      "TotalAmount",
-                      "Amount",
                     ]) ||
                       0,
                   );
@@ -551,6 +647,7 @@ const ReceiptCreatePage = () => {
                         <InputNumber
                           min={0}
                           value={paidValue}
+                          disabled={isEditMode}
                           onChange={(value) => updateBillAllocation(rowKey, Number(value ?? 0))}
                           className="w-full"
                         />
@@ -583,6 +680,7 @@ const ReceiptCreatePage = () => {
           <Input.TextArea
             value={narration}
             onChange={(event) => setNarration(event.target.value)}
+            disabled={isEditMode}
             rows={3}
             className="!resize-none"
           />
@@ -599,17 +697,28 @@ const ReceiptCreatePage = () => {
               min={0}
               value={amountPaid ?? totalAllocated}
               onChange={(value) => setAmountPaid(Number(value ?? 0))}
+              disabled={isEditMode}
               className="w-[110px]"
             />
           </div>
-          <div className="mt-4 flex items-center justify-end">
+          <div className="mt-4 flex items-center justify-end gap-3">
             <Button
               type="primary"
               onClick={() => setPayModeOpen(true)}
               className="min-w-[120px] !bg-emerald-500"
             >
-              Paymode
+              {isEditMode ? "Change Pay Mode" : "Paymode"}
             </Button>
+            {isEditMode ? (
+              <Button
+                type="primary"
+                loading={isSaving}
+                onClick={() => void handleSaveReceipt()}
+                className="min-w-[74px] !bg-emerald-500"
+              >
+                Save
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

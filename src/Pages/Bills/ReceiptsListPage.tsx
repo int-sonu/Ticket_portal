@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Empty, Input, Spin } from "antd";
+import { Empty, Input, Spin, message } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { billingApis } from "../../Axios/BillingApis";
 import { getRequestPayload } from "../../Utils/requestPayload";
@@ -12,6 +12,8 @@ import { useGetCustomerDropDown } from "../Master/CustomerMaster/Hooks";
 import CustomerPickerModal from "../Ticket/TicketCreate/CustomerPickerModal";
 import DateFilterIconPopover from "../../ui/CalendarPopup/DateFilterIconPopover";
 import filterIcon from "../../assets/icons/filterdetails.svg";
+import editIcon from "../../assets/Bills/EditIcon.png";
+import deleteRed from "../../assets/icons/delete-red.svg";
 
 type ReceiptRow = Record<string, any>;
 
@@ -145,7 +147,19 @@ const formatAmount = (value: any) => {
 
 const getReceiptNo = (row: ReceiptRow) =>
   formatDisplayValue(
-    getFieldValue(row, ["nReceiptNo", "ReceiptNo", "receiptNo", "cReceiptNo", "ReceiptNumber"]),
+    getFieldValue(row, ["nRecNo"]),
+  );
+
+const getReceiptId = (row: ReceiptRow) =>
+  Number(
+    getFieldValue(row, [
+      "nReceiptId",
+      "ReceiptId",
+      "receiptId",
+      "nRecId",
+      "RecId",
+      "id",
+    ]) || 0,
   );
 
 const getCustomerName = (row: ReceiptRow) =>
@@ -154,7 +168,7 @@ const getCustomerName = (row: ReceiptRow) =>
   );
 
 const getReceiptAmount = (row: ReceiptRow) =>
-  getFieldValue(row, ["nTotalAmount", "TotalAmount", "Amount", "ReceiptAmount"]);
+  getFieldValue(row, ["nAmount"]);
 
 const getPayMode = (row: ReceiptRow) =>
   formatDisplayValue(
@@ -164,7 +178,7 @@ const getPayMode = (row: ReceiptRow) =>
 const getSearchText = (row: ReceiptRow) =>
   [
     getReceiptNo(row),
-    getFieldValue(row, ["dReceiptDate", "ReceiptDate", "Date"]),
+    getFieldValue(row, ["dRecDate"]),
     getCustomerName(row),
     getReceiptAmount(row),
     getPayMode(row),
@@ -174,6 +188,7 @@ const getSearchText = (row: ReceiptRow) =>
 
 const ReceiptsListPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const sessionPayload = useMemo(() => getRequestPayload(), []);
 
   const [search, setSearch] = useState("");
@@ -329,14 +344,82 @@ const ReceiptsListPage = () => {
       paginatedRows.map((row, index) => ({
         raw: row,
         srl: (currentPage - 1) * pageSize + index + 1,
+        receiptId: getReceiptId(row),
         receiptNo: getReceiptNo(row) || "-",
-        receiptDate: formatDateValue(getFieldValue(row, ["dReceiptDate", "ReceiptDate", "Date"])),
+        receiptDate: formatDateValue(getFieldValue(row, ["dRecDate"])),
         customerName: getCustomerName(row) || "-",
         amount: formatAmount(getReceiptAmount(row)),
         payMode: getPayMode(row) || "-",
       })),
     [currentPage, pageSize, paginatedRows],
   );
+
+  const handleEditReceipt = async (row: (typeof tableRows)[number]) => {
+    if (!row.receiptId) {
+      message.warning("Receipt id not found.");
+      return;
+    }
+
+    try {
+      const receiptDetails = await billingApis.receiptDetailsView({
+        ...payload,
+        nReceiptId: row.receiptId,
+        nRecId: row.receiptId,
+      });
+
+      navigate("/billsandreceipts/receipts/edit", {
+        state: {
+          ...row.raw,
+          receiptId: row.receiptId,
+          nReceiptId: row.receiptId,
+          receiptNo: row.receiptNo,
+          receiptDetails,
+          customerName: row.customerName,
+          sessionPayload: payload,
+          isEditMode: true,
+          sourcePage: "receipts",
+        },
+      });
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load receipt details.",
+      );
+    }
+  };
+
+  const handleDeleteReceipt = async (row: (typeof tableRows)[number]) => {
+    if (!row.receiptId) {
+      message.warning("Receipt id not found.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete receipt ${row.receiptNo}?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await billingApis.receiptDelete({
+        ...payload,
+        nReceiptId: row.receiptId,
+        nRecId: row.receiptId,
+        nCreatedby:
+          sessionPayload.nUserId ??
+          sessionPayload.nAgentId ??
+          sessionPayload.nCreatedBy ??
+          sessionPayload.id ??
+          0,
+      });
+      message.success(response?.message || "Receipt deleted successfully.");
+      await queryClient.invalidateQueries({ queryKey: ["receipt-list"] });
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to delete receipt.",
+      );
+    }
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-white px-4 py-7">
@@ -381,13 +464,15 @@ const ReceiptsListPage = () => {
         </div>
 
         <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-          <div className="grid grid-cols-[48px_84px_1fr_1fr_120px_100px] gap-1 border-b border-slate-200 bg-white px-2 py-3 text-[12px] font-medium text-slate-900">
+          <div className="grid grid-cols-[48px_84px_1fr_1fr_120px_100px_60px_60px] gap-1 border-b border-slate-200 bg-white px-2 py-3 text-[12px] font-medium text-slate-900">
             <div>Srl</div>
             <div>Receipt No</div>
             <div>Date</div>
             <div>Customer Name</div>
             <div>Amount</div>
             <div>Pay Mode</div>
+            <div className="text-center">Edit</div>
+            <div className="text-center">Delete</div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-hidden p-3">
@@ -401,7 +486,7 @@ const ReceiptsListPage = () => {
                   {tableRows.map((row) => (
                     <div
                       key={`${row.receiptNo}-${row.srl}`}
-                      className="grid grid-cols-[48px_84px_1fr_1fr_120px_100px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700 hover:bg-sky-50"
+                      className="grid grid-cols-[48px_84px_1fr_1fr_120px_100px_60px_60px] items-center gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700 hover:bg-sky-50"
                     >
                       <div>{row.srl}</div>
                       <div>{row.receiptNo}</div>
@@ -409,6 +494,22 @@ const ReceiptsListPage = () => {
                       <div>{row.customerName}</div>
                       <div>{row.amount}</div>
                       <div>{row.payMode}</div>
+                      <button
+                        type="button"
+                        className="flex items-center justify-center rounded-sm hover:bg-sky-100"
+                        aria-label={`Edit receipt ${row.receiptNo}`}
+                        onClick={() => void handleEditReceipt(row)}
+                      >
+                        <img src={editIcon} alt="" aria-hidden="true" className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center justify-center rounded-sm hover:bg-rose-100"
+                        aria-label={`Delete receipt ${row.receiptNo}`}
+                        onClick={() => void handleDeleteReceipt(row)}
+                      >
+                        <img src={deleteRed} alt="" aria-hidden="true" className="h-4 w-4" />
+                      </button>
                     </div>
                   ))}
                 </div>

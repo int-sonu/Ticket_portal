@@ -76,6 +76,43 @@ const normalizeBillDeletePayload = (payload: Record<string, any> = {}) => {
   };
 };
 
+const normalizeReceiptPayload = (payload: Record<string, any> = {}) => {
+  const receiptId =
+    payload?.nReceiptId ??
+    payload?.ReceiptId ??
+    payload?.receiptId ??
+    payload?.nRecId ??
+    payload?.RecId ??
+    payload?.id ??
+    0;
+
+  return {
+    ...payload,
+    nReceiptId: Number(receiptId) || 0,
+    nRecId: Number(receiptId) || 0,
+  };
+};
+
+const normalizeReceiptDeletePayload = (payload: Record<string, any> = {}) => {
+  const normalized = normalizeReceiptPayload(payload);
+  const createdBy =
+    payload?.nCreatedby ??
+    payload?.nCreatedBy ??
+    payload?.nUserId ??
+    payload?.nAgentId ??
+    payload?.id ??
+    0;
+
+  return {
+    cDbName: payload?.cDbName,
+    cSchemaName: payload?.cSchemaName,
+    nCompanyId: payload?.nCompanyId,
+    nReceiptId: normalized.nReceiptId,
+    nRecId: normalized.nRecId,
+    nCreatedby: Number(createdBy) || 0,
+  };
+};
+
 export const billingApis = {
   billView: async (payload: any) => {
     const response = await axiosInstance.post(
@@ -119,6 +156,26 @@ export const billingApis = {
     const response = await axiosInstance.post(
       "/Api/V1/Receipt/ReceiptList",
       normalizeReceiptListPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  receiptDetailsView: async (payload: any) => {
+    const response = await axiosInstance.post(
+      "/Api/V1/Receipt/ReceiptDetailsView",
+      normalizeReceiptPayload(payload),
+    );
+
+    return response.data;
+  },
+
+  receiptDelete: async (payload: any) => {
+    const response = await axiosInstance.delete(
+      "/Api/V1/Receipt/ReceiptDelete",
+      {
+        data: normalizeReceiptDeletePayload(payload),
+      },
     );
 
     return response.data;
@@ -261,6 +318,15 @@ export const billingApis = {
     const response = await axiosInstance.post(
       "/Api/V1/Receipt/ReceiptSave",
       payload,
+    );
+
+    return response.data;
+  },
+
+  receiptUpdate: async (payload: any) => {
+    const response = await axiosInstance.put(
+      "/Api/V1/Receipt/ReceiptUpdate",
+      normalizeReceiptPayload(payload),
     );
 
     return response.data;
