@@ -15,6 +15,16 @@ import filterIcon from "../../assets/icons/filterdetails.svg";
 
 type ReceiptRow = Record<string, any>;
 
+const normalizeFilterDate = (value: Date) =>
+  new Date(value.getFullYear(), value.getMonth(), value.getDate());
+
+const formatFilterDate = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const getFieldValue = (record: ReceiptRow, keys: string[]) => {
   for (const key of keys) {
     if (
@@ -164,20 +174,39 @@ const getSearchText = (row: ReceiptRow) =>
 
 const ReceiptsListPage = () => {
   const navigate = useNavigate();
-  const payload = useMemo(
-    () => ({
-      ...getRequestPayload(),
-    }),
-    [],
-  );
+  const sessionPayload = useMemo(() => getRequestPayload(), []);
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isAddReceiptModalOpen, setIsAddReceiptModalOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [draftDate, setDraftDate] = useState(new Date());
-  const [receiptDateFilter, setReceiptDateFilter] = useState<Date | null>(null);
+  const [fromDate, setFromDate] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const [toDate, setToDate] = useState(() => normalizeFilterDate(new Date()));
+  const [draftCalendarMonth, setDraftCalendarMonth] = useState(
+    () => normalizeFilterDate(new Date()),
+  );
+  const [draftSelectedDate, setDraftSelectedDate] = useState(
+    () => normalizeFilterDate(new Date()),
+  );
+  const [draftFromDate, setDraftFromDate] = useState<Date | undefined>(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const [draftToDate, setDraftToDate] = useState<Date | undefined>(
+    () => normalizeFilterDate(new Date()),
+  );
+  const payload = useMemo(
+    () => ({
+      ...sessionPayload,
+      dFromDate: formatFilterDate(fromDate),
+      dToDate: formatFilterDate(toDate),
+      cFromDate: formatFilterDate(fromDate),
+      cToDate: formatFilterDate(toDate),
+    }),
+    [fromDate, sessionPayload, toDate],
+  );
   const { data: customerDropdownData } = useGetCustomerDropDown({
     ...payload,
     pageNumber: 1,
@@ -195,26 +224,64 @@ const ReceiptsListPage = () => {
 
   const sourceRows = useMemo(() => extractReceiptRows(data), [data]);
 
+  const handleToggleDateFilter = () => {
+    setDraftCalendarMonth(normalizeFilterDate(toDate));
+    setDraftSelectedDate(normalizeFilterDate(toDate));
+    setDraftFromDate(normalizeFilterDate(fromDate));
+    setDraftToDate(normalizeFilterDate(toDate));
+    setCalendarOpen((current) => !current);
+  };
+
+  const handleSelectRangeDate = (date: Date) => {
+    const selected = normalizeFilterDate(date);
+    setDraftSelectedDate(selected);
+
+    if (!draftFromDate || draftToDate) {
+      setDraftFromDate(selected);
+      setDraftToDate(undefined);
+      return;
+    }
+
+    const start = normalizeFilterDate(draftFromDate);
+    if (selected < start) {
+      setDraftFromDate(selected);
+      setDraftToDate(start);
+      return;
+    }
+
+    setDraftToDate(selected);
+  };
+
+  const handleApplyDateFilter = () => {
+    if (!draftFromDate) return;
+    const start = normalizeFilterDate(draftFromDate);
+    const end = normalizeFilterDate(draftToDate ?? draftFromDate);
+    setFromDate(start <= end ? start : end);
+    setToDate(start <= end ? end : start);
+    setCurrentPage(1);
+    setCalendarOpen(false);
+  };
+
+  const handleCancelDateFilter = () => {
+    setDraftCalendarMonth(normalizeFilterDate(toDate));
+    setDraftSelectedDate(normalizeFilterDate(toDate));
+    setDraftFromDate(normalizeFilterDate(fromDate));
+    setDraftToDate(normalizeFilterDate(toDate));
+    setCalendarOpen(false);
+  };
+
   const displayedRows = useMemo(() => {
     const searchTerm = normalizeText(search);
-    return sourceRows.filter((row) => {
-      const matchesSearch = !searchTerm || getSearchText(row).includes(searchTerm);
-      if (!matchesSearch || !receiptDateFilter) return matchesSearch;
-      const rowDate = parseDateValue(
-        getFieldValue(row, ["dReceiptDate", "ReceiptDate", "Date"]),
-      );
-      return !!rowDate &&
-        rowDate.getFullYear() === receiptDateFilter.getFullYear() &&
-        rowDate.getMonth() === receiptDateFilter.getMonth() &&
-        rowDate.getDate() === receiptDateFilter.getDate();
-    });
-  }, [receiptDateFilter, search, sourceRows]);
+    return sourceRows.filter(
+      (row) => !searchTerm || getSearchText(row).includes(searchTerm),
+    );
+  }, [search, sourceRows]);
 
   const totalRows = displayedRows.length;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [receiptDateFilter, search]);
+  }, [search]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(totalRows / pageSize));
@@ -289,32 +356,20 @@ const ReceiptsListPage = () => {
             <DateFilterIconPopover
               open={calendarOpen}
               iconSrc={filterIcon}
-              ariaLabel="Filter receipts by date"
+              ariaLabel="Filter receipts by date range"
               title="Filter"
-              month={draftDate}
-              selectedDate={draftDate}
-              onOpenToggle={() => {
-                setDraftDate(receiptDateFilter ?? new Date());
-                setCalendarOpen((current) => !current);
-              }}
-              onMonthChange={setDraftDate}
-              onYearChange={setDraftDate}
-              onSelectDate={setDraftDate}
-              onApply={() => {
-                setReceiptDateFilter(draftDate);
-                setCalendarOpen(false);
-              }}
-              onCancel={() => setCalendarOpen(false)}
+              month={draftCalendarMonth}
+              selectedDate={draftSelectedDate}
+              selectedFromDate={draftFromDate}
+              selectedToDate={draftToDate}
+              onOpenToggle={handleToggleDateFilter}
+              onMonthChange={setDraftCalendarMonth}
+              onYearChange={setDraftCalendarMonth}
+              onSelectDate={setDraftSelectedDate}
+              onSelectRangeDate={handleSelectRangeDate}
+              onApply={handleApplyDateFilter}
+              onCancel={handleCancelDateFilter}
             />
-            {receiptDateFilter ? (
-              <button
-                type="button"
-                onClick={() => setReceiptDateFilter(null)}
-                className="text-xs font-medium text-sky-600 hover:text-sky-700"
-              >
-                Clear
-              </button>
-            ) : null}
             <button
               type="button"
               onClick={() => setIsAddReceiptModalOpen(true)}

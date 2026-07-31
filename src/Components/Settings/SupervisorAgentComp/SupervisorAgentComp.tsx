@@ -388,7 +388,7 @@ const SupervisorAgentComp = () => {
         <h1 className="m-0 text-[20px] font-medium text-slate-950">Supervisor Agent Linking</h1>
         <div className="flex items-center gap-2">
           <Input allowClear prefix={<SearchOutlined />} placeholder="Search" value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} className="w-[225px]" />
-          <Button type="primary" className="bg-emerald-500" onClick={() => openDrawer()}>Add New</Button>
+          <Button type="primary" className="!bg-emerald-500" onClick={() => openDrawer()}>Add New</Button>
         </div>
       </div>
 
@@ -447,7 +447,7 @@ const SupervisorAgentComp = () => {
                   <Button danger type="primary" icon={<DeleteOutlined />} />
                 </Popconfirm>
               </>
-            ) : <Button type="primary" loading={isSaving} className="min-w-[72px] bg-emerald-500" onClick={() => void saveLinking()}>Save</Button>}
+            ) : <Button type="primary" loading={isSaving} className="apps-save-button min-w-[72px] hover:!bg-[#0f9f6e]" onClick={() => void saveLinking()}>Save</Button>}
           </div>
         </div>
       </Modal>

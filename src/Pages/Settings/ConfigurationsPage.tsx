@@ -202,8 +202,7 @@ const ConfigurationsPage = () => {
             {activeTab === 3 ? <>
             <div role="button" tabIndex={0} onClick={() => fileRef.current?.click()} onKeyDown={(event) => { if (event.key === "Enter") fileRef.current?.click(); }} className="relative flex h-[120px] cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-slate-400 hover:border-sky-300">{values.image ? <><img src={values.image} alt="Header banner" className="h-full w-full object-contain" /><Button danger type="primary" size="small" icon={<DeleteOutlined />} className="absolute bottom-2 right-2" onClick={(event) => { event.stopPropagation(); setValue("image", ""); setImageFile(null); }} /></> : <div className="text-center"><UploadOutlined className="text-3xl text-emerald-500" /><p className="mt-2 text-xs font-medium">Drop your image here <span className="font-normal text-slate-400">(555px × 86px), PNG, JPG or WEBP, max 8 MB</span></p><Button size="small" type="primary" className="bg-slate-950">Upload</Button></div>}<input ref={fileRef} hidden type="file" accept=".jpeg,.jpg,.png,.webp" onChange={(event) => selectImage(event.target.files?.[0])} /></div><label className="mt-3 block"><span className="mb-1 block text-xs text-slate-600">Bill Declaration</span><Input value={values.cDeclaration} onChange={(event) => setValue("cDeclaration", event.target.value)} /></label></> : null}
           </div>
-
-          <Button type="primary" loading={isSaving} className="absolute bottom-4 right-4 min-w-[74px] bg-emerald-500" onClick={() => void save()}>Save</Button>
+          <Button type="primary" loading={isSaving} className="app-save-button absolute  right-4 min-w-[74px]" onClick={() => void save()}>Save</Button>
         </section>
       </Spin>
     </div>

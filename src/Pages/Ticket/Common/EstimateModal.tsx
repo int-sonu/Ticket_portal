@@ -1204,7 +1204,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
                 <div className="flex justify-end">
                   <Button
                     type="primary"
-                    style={{ backgroundColor: 'black', borderColor: 'black', color: 'white' }}
+                    className="app-save-button"
                     size="medium"
                     onClick={() => setOpenNarrationKey(null)}
                   >
@@ -1408,8 +1408,7 @@ const EstimateModal: React.FC<EstimateModalProps> = ({
         ) : (
           <Button
             type="primary"
-            style={{ backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' }}
-            className="min-w-[100px]"
+            className="app-save-button min-w-[100px]"
             size="large"
             loading={isSaving}
             onClick={handleSaveEstimate}

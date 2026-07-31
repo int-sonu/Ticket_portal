@@ -875,7 +875,7 @@ const TravelingExpenseModalPage = () => {
             <Button
               type="primary"
               loading={isSaving}
-              className="!border-emerald-500 !bg-emerald-500"
+              className="app-save-button"
               onClick={handleSave}
             >
               Save

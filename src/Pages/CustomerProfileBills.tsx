@@ -134,7 +134,7 @@ const CustomerProfileBills = ({ customerId, returnCustomer }: CustomerProfileBil
       <div className="flex flex-none items-center justify-between gap-3">
         <h2 className="m-0 text-lg font-medium">Bills</h2>
         <Input
-          className="w-[240px]"
+          className="h-[31px] w-[314px] max-w-[50%]"
           prefix={<SearchOutlined className="text-slate-400" />}
           placeholder="Search"
           allowClear

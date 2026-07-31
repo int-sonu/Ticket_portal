@@ -1,8 +1,9 @@
 import type React from 'react';
 import { Button, Drawer, Form, Input, Switch } from 'antd';
 import type { FormInstance } from 'antd';
-import { CloseOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { CloseOutlined, EditOutlined } from '@ant-design/icons';
 import type { SimpleMasterRow } from './SimpleMasterUtils';
+import deleteWhiteIcon from '../../../assets/icons/delete-white.svg';
 
 type SimpleMasterDrawerProps = {
   open: boolean;
@@ -92,7 +93,7 @@ const SimpleMasterDrawer = ({
   }
   destroyOnClose
     footer={
-      <div className="flex items-center justify-end gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <span className="text-sm font-medium text-slate-700">
           Active / Inactive
         </span>
@@ -119,7 +120,7 @@ const SimpleMasterDrawer = ({
                 danger
                 type="primary"
                 disabled={deleteDisabled}
-                icon={<DeleteOutlined />}
+                icon={<img src={deleteWhiteIcon} alt="" className="h-4 w-4" />}
                 onClick={(event) =>
                   onDelete(event, selectedRow)
                 }
@@ -132,7 +133,7 @@ const SimpleMasterDrawer = ({
             htmlType="submit"
             form="simple-master-form"
             loading={isSaving}
-            className="bg-emerald-500 border-emerald-500 px-6 hover:!bg-emerald-600"
+            className="app-save-button px-6"
           >
             Save
           </Button>
@@ -173,7 +174,7 @@ const SimpleMasterDrawer = ({
             <Form.Item
               name="name"
               label={nameLabel}
-              className="!mb-1 w-[469px] mt[-48px]"
+              className="!mb-3 w-full"
               rules={[
                 {
                   required: true,
@@ -184,14 +185,14 @@ const SimpleMasterDrawer = ({
                 },
               ]}
             >
-              <Input className="h-[27px] w-[469px]" />
+              <Input className="h-8 w-full" />
             </Form.Item>
 
             {hasShortName && (
               <Form.Item
                 name="shortName"
                 label={shortNameLabel}
-                className="!mb-2 w-[150px]"
+                className="!mb-3 w-full"
                 rules={[
                   {
                     required: true,
@@ -202,7 +203,7 @@ const SimpleMasterDrawer = ({
                   },
                 ]}
               >
-                <Input className="h-[27px] w-[150px]" />
+                <Input className="h-8 w-full" />
               </Form.Item>
             )}
           </>

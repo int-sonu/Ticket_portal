@@ -848,12 +848,12 @@ const TicketList = () => {
           />
         }
         style={{
-          height: 28,
+          height: 25,
           padding: "0 10px",
           borderRadius: 4,
           border: "1px solid",
-          borderColor: isActive ? "#2f80ed" : "#cbd5e1",
-          backgroundColor: isActive ? "#2f80ed" : "#f8fafc",
+          borderColor: isActive ? "#279FF5" : "#279FF5",
+          backgroundColor: isActive ? "#279FF5" : "#ffffff",
           color: isActive ? "#ffffff" : "#475569",
           fontSize: 10,
           fontWeight: 600,
@@ -919,8 +919,9 @@ const TicketList = () => {
               allowClear
               style={{
                 width: 280,
-                height: 28,
+                height:30,
                 borderRadius: 8,
+                borderColor:"#56A7C4",
               }}
               styles={{
                 input: {
@@ -934,22 +935,22 @@ const TicketList = () => {
                 type="button"
                 aria-label="Filter tickets"
                 onClick={() => handleOpenChange(!filterOpen)}
-                className={`flex h-8 w-9 items-center justify-center rounded-md border ${
+                className={`flex h-9 w-10 items-center justify-center rounded-md border ${
                   filterOpen || stageFilters.length > 0 ||
                   priorityFilters.length !== PRIORITY_FILTERS.length
-                    ? "border-sky-500 bg-sky-50"
-                    : "border-slate-300 bg-white"
+                    ? "border-black bg-sky-50"
+                    : "border-black bg-white"
                 }`}
               >
-                <img src={searchFilterIcon} alt="" className="h-4 w-4" />
+                <img src={searchFilterIcon} alt="" className="h-5 w-5" />
               </button>
 
               {filterOpen ? (
-                <div className="absolute right-0 top-10 z-[1000] w-[375px] max-w-[calc(100vw-32px)] rounded-xl bg-white p-5 shadow-[0_12px_38px_rgba(15,23,42,0.18)]">
+                <div className="absolute right-0 top-10 z-[1000] w-[385px] h-[540px] max-w-[calc(100vw-32px)] rounded-xl bg-white p-6 shadow-[0_12px_38px_rgba(15,23,42,0.18)] ">
                   <div className="text-sm font-medium text-slate-800">
                     Priority Level
                   </div>
-                  <div className="relative mt-5 grid grid-cols-5">
+                  <div className="relative -mx-4 mt-5 grid grid-cols-5">
                     <div className="absolute left-[10%] right-[10%] top-2.5 h-1 bg-sky-200" />
                     {PRIORITY_FILTERS.map((priority) => {
                       const selected = draftPriorityFilters.includes(priority);
@@ -975,10 +976,10 @@ const TicketList = () => {
                                 : PRIORITY_FILTERS;
                             })
                           }
-                          className="relative z-10 flex flex-col items-center gap-2 text-[11px] text-slate-600"
+                          className="relative z-10 flex flex-col items-center gap-2 text-[11px] text-slate-600 "
                         >
                           <span
-                            className={`h-5 w-5 rounded-full border-2 ${
+                            className={`h-7 w-6 rounded-full border-8 ${
                               selected
                                 ? "border-sky-300 bg-sky-300"
                                 : "border-slate-300 bg-white"
@@ -1028,7 +1029,7 @@ const TicketList = () => {
                     })}
                   </div>
 
-                  <div className="mt-12 flex justify-end gap-3">
+                  <div className="mt-75 flex justify-end gap-3">
                     <Button onClick={handleResetFilters}>Cancel</Button>
                     <Button
                       type="primary"
@@ -1044,7 +1045,7 @@ const TicketList = () => {
 
          <Button
   type="primary"
-  className="!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-600"
+  className="!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-500"
   onClick={() => navigate("/tickets/create")}
 >
   Create New Ticket

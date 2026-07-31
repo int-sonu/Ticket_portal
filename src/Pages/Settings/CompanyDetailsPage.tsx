@@ -5,7 +5,10 @@ import { Button, Input, Select, Spin, message } from "antd";
 import { settingsApis } from "../../Axios/SettingsApi";
 import { getApiImageBaseUrl } from "../../Axios/config";
 import { getRequestPayload } from "../../Utils/requestPayload";
-import { getApiMessage, isApiSuccess } from "../Master/Common/SimpleMasterUtils";
+import {
+  getApiMessage,
+  isApiSuccess,
+} from "../Master/Common/SimpleMasterUtils";
 
 type CompanyForm = {
   companyName: string;
@@ -28,9 +31,23 @@ type CompanyForm = {
 };
 
 const initialForm: CompanyForm = {
-  companyName: "", shortName: "", address: "", email: "", phone: "", state: "", website: "",
-  accountNumber: "", accountHolderName: "", ifscCode: "", bankName: "", branchName: "",
-  gstNo: "", fssaiNo: "", cin: "", msmeNo: "", logoUrl: "",
+  companyName: "",
+  shortName: "",
+  address: "",
+  email: "",
+  phone: "",
+  state: "",
+  website: "",
+  accountNumber: "",
+  accountHolderName: "",
+  ifscCode: "",
+  bankName: "",
+  branchName: "",
+  gstNo: "",
+  fssaiNo: "",
+  cin: "",
+  msmeNo: "",
+  logoUrl: "",
 };
 
 const fieldAliases: Record<keyof CompanyForm, string[]> = {
@@ -54,17 +71,38 @@ const fieldAliases: Record<keyof CompanyForm, string[]> = {
 };
 
 const getValue = (record: Record<string, any>, aliases: string[]) => {
-  const key = Object.keys(record || {}).find((item) => aliases.some((alias) => alias.toLowerCase() === item.toLowerCase()));
+  const key = Object.keys(record || {}).find((item) =>
+    aliases.some((alias) => alias.toLowerCase() === item.toLowerCase()),
+  );
   return key ? record[key] : "";
 };
 
 const unwrapRecord = (response: any): Record<string, any> => {
-  const candidates = [response?.data?.data, response?.data, response?.result, response?.companyDetails, response?.message, response];
+  const candidates = [
+    response?.data?.data,
+    response?.data,
+    response?.result,
+    response?.companyDetails,
+    response?.message,
+    response,
+  ];
   for (const candidate of candidates) {
-    if (Array.isArray(candidate) && candidate[0] && typeof candidate[0] === "object") return candidate[0];
-    if (candidate && !Array.isArray(candidate) && typeof candidate === "object") {
-      const nestedArray = Object.values(candidate).find(Array.isArray) as any[] | undefined;
-      if (nestedArray?.[0] && typeof nestedArray[0] === "object") return nestedArray[0];
+    if (
+      Array.isArray(candidate) &&
+      candidate[0] &&
+      typeof candidate[0] === "object"
+    )
+      return candidate[0];
+    if (
+      candidate &&
+      !Array.isArray(candidate) &&
+      typeof candidate === "object"
+    ) {
+      const nestedArray = Object.values(candidate).find(Array.isArray) as
+        | any[]
+        | undefined;
+      if (nestedArray?.[0] && typeof nestedArray[0] === "object")
+        return nestedArray[0];
       return candidate;
     }
   }
@@ -90,21 +128,66 @@ const imageUrl = (path: string) => {
 };
 
 const stateEntries: Array<[string, number]> = [
-  ["Jammu and Kashmir", 1], ["Himachal Pradesh", 2], ["Punjab", 3], ["Chandigarh", 4], ["Uttarakhand", 5],
-  ["Haryana", 6], ["Delhi", 7], ["Rajasthan", 8], ["Uttar Pradesh", 9], ["Bihar", 10], ["Sikkim", 11],
-  ["Arunachal Pradesh", 12], ["Nagaland", 13], ["Manipur", 14], ["Mizoram", 15], ["Tripura", 16],
-  ["Meghalaya", 17], ["Assam", 18], ["West Bengal", 19], ["Jharkhand", 20], ["Odisha", 21],
-  ["Chhattisgarh", 22], ["Madhya Pradesh", 23], ["Gujarat", 24],
-  ["Dadra and Nagar Haveli and Daman and Diu", 26], ["Maharashtra", 27], ["Karnataka", 29], ["Goa", 30],
-  ["Lakshadweep", 31], ["Kerala", 32], ["Tamil Nadu", 33], ["Puducherry", 34],
-  ["Andaman and Nicobar Islands", 35], ["Telangana", 36], ["Andhra Pradesh", 37], ["Ladakh", 38],
+  ["Jammu and Kashmir", 1],
+  ["Himachal Pradesh", 2],
+  ["Punjab", 3],
+  ["Chandigarh", 4],
+  ["Uttarakhand", 5],
+  ["Haryana", 6],
+  ["Delhi", 7],
+  ["Rajasthan", 8],
+  ["Uttar Pradesh", 9],
+  ["Bihar", 10],
+  ["Sikkim", 11],
+  ["Arunachal Pradesh", 12],
+  ["Nagaland", 13],
+  ["Manipur", 14],
+  ["Mizoram", 15],
+  ["Tripura", 16],
+  ["Meghalaya", 17],
+  ["Assam", 18],
+  ["West Bengal", 19],
+  ["Jharkhand", 20],
+  ["Odisha", 21],
+  ["Chhattisgarh", 22],
+  ["Madhya Pradesh", 23],
+  ["Gujarat", 24],
+  ["Dadra and Nagar Haveli and Daman and Diu", 26],
+  ["Maharashtra", 27],
+  ["Karnataka", 29],
+  ["Goa", 30],
+  ["Lakshadweep", 31],
+  ["Kerala", 32],
+  ["Tamil Nadu", 33],
+  ["Puducherry", 34],
+  ["Andaman and Nicobar Islands", 35],
+  ["Telangana", 36],
+  ["Andhra Pradesh", 37],
+  ["Ladakh", 38],
 ];
-const stateOptions = stateEntries.map(([state]) => ({ value: state, label: state }));
+const stateOptions = stateEntries.map(([state]) => ({
+  value: state,
+  label: state,
+}));
 
-const Field = ({ label, value, editing, onChange }: { label: string; value: string; editing: boolean; onChange: (value: string) => void }) => (
+const Field = ({
+  label,
+  value,
+  editing,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  editing: boolean;
+  onChange: (value: string) => void;
+}) => (
   <label className="block">
     <span className="mb-1 block text-[12px] text-slate-700">{label}</span>
-    <Input value={value} readOnly={!editing} onChange={(event) => onChange(event.target.value)} />
+    <Input
+      value={value}
+      readOnly={!editing}
+      onChange={(event) => onChange(event.target.value)}
+    />
   </label>
 );
 
@@ -133,12 +216,19 @@ const CompanyDetailsPage = () => {
         setForm(nextForm);
         setLogoPreview(imageUrl(nextForm.logoUrl));
       })
-      .catch((error) => message.error(getApiMessage(error, "Unable to load company details.")))
-      .finally(() => { if (active) setIsLoading(false); });
-    return () => { active = false; };
+      .catch((error) =>
+        message.error(getApiMessage(error, "Unable to load company details.")),
+      )
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [requestPayload]);
 
-  const updateField = (key: keyof CompanyForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const updateField = (key: keyof CompanyForm, value: string) =>
+    setForm((current) => ({ ...current, [key]: value }));
 
   const handleLogo = (file?: File) => {
     if (!file) return;
@@ -157,11 +247,18 @@ const CompanyDetailsPage = () => {
       return;
     }
     const loadedState = String(getValue(rawDetails, fieldAliases.state) ?? "");
-    const selectedStateCode = stateEntries.find(([name]) => name === form.state)?.[1] ?? 0;
+    const selectedStateCode =
+      stateEntries.find(([name]) => name === form.state)?.[1] ?? 0;
     const currentStateId = Number(getValue(rawDetails, ["nStateId"]) ?? 0);
     const currentStateCode = Number(getValue(rawDetails, ["nStateCode"]) ?? 0);
-    const stateId = form.state === loadedState && currentStateId ? currentStateId : selectedStateCode;
-    const stateCode = form.state === loadedState && currentStateCode ? currentStateCode : selectedStateCode;
+    const stateId =
+      form.state === loadedState && currentStateId
+        ? currentStateId
+        : selectedStateCode;
+    const stateCode =
+      form.state === loadedState && currentStateCode
+        ? currentStateCode
+        : selectedStateCode;
     const payload = new FormData();
     const fields: Record<string, string | number | boolean> = {
       nCompanyId: Number(requestPayload.nCompanyId ?? 0),
@@ -188,12 +285,17 @@ const CompanyDetailsPage = () => {
       cSchemaName: String(requestPayload.cSchemaName ?? ""),
       cDbName: String(requestPayload.cDbName ?? ""),
     };
-    Object.entries(fields).forEach(([key, value]) => payload.append(key, String(value)));
+    Object.entries(fields).forEach(([key, value]) =>
+      payload.append(key, String(value)),
+    );
     if (logoFile) payload.append("logo", logoFile, logoFile.name);
     setIsSaving(true);
     try {
       const response = await settingsApis.updateCompanyDetails(payload);
-      if (!isApiSuccess(response)) throw new Error(getApiMessage(response, "Unable to update company details."));
+      if (!isApiSuccess(response))
+        throw new Error(
+          getApiMessage(response, "Unable to update company details."),
+        );
       setRawDetails((current) => ({ ...current, ...fields }));
       setLogoFile(null);
       setEditing(false);
@@ -207,36 +309,185 @@ const CompanyDetailsPage = () => {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-92px)] min-h-0 w-full max-w-[1100px] flex-col overflow-hidden py-3">
-      <h1 className="mb-4 shrink-0 text-[20px] font-semibold text-slate-950">Company Details</h1>
+      <h1 className="mb-4 shrink-0 text-[20px] font-semibold text-slate-950">
+        Company Details
+      </h1>
       <div className="min-h-0 flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-white [&::-webkit-scrollbar-thumb]:bg-sky-300/50 [&::-webkit-scrollbar-thumb]:rounded-full">
         <Spin spinning={isLoading}>
           <section className="rounded-lg border border-sky-200 bg-white p-5">
             <div className="grid gap-4 lg:grid-cols-2 lg:gap-0">
               <div className="space-y-3 lg:border-r lg:border-slate-200 lg:pr-4">
-                <Field label="Company Name" value={form.companyName} editing={editing} onChange={(value) => updateField("companyName", value)} />
-                <Field label="Short Name" value={form.shortName} editing={editing} onChange={(value) => updateField("shortName", value)} />
-                <label className="block"><span className="mb-1 block text-[12px] text-slate-700">Address</span><Input.TextArea rows={3} value={form.address} readOnly={!editing} onChange={(event) => updateField("address", event.target.value)} /></label>
-                <Field label="Email" value={form.email} editing={editing} onChange={(value) => updateField("email", value)} />
+                <Field
+                  label="Company Name"
+                  value={form.companyName}
+                  editing={editing}
+                  onChange={(value) => updateField("companyName", value)}
+                />
+                <Field
+                  label="Short Name"
+                  value={form.shortName}
+                  editing={editing}
+                  onChange={(value) => updateField("shortName", value)}
+                />
+                <label className="block">
+                  <span className="mb-1 block text-[12px] text-slate-700">
+                    Address
+                  </span>
+                  <Input.TextArea
+                    rows={3}
+                    value={form.address}
+                    readOnly={!editing}
+                    onChange={(event) =>
+                      updateField("address", event.target.value)
+                    }
+                  />
+                </label>
+                <Field
+                  label="Email"
+                  value={form.email}
+                  editing={editing}
+                  onChange={(value) => updateField("email", value)}
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Phone Number" value={form.phone} editing={editing} onChange={(value) => updateField("phone", value)} />
-                  <label className="block"><span className="mb-1 block text-[12px] text-slate-700">State</span><Select showSearch optionFilterProp="label" value={form.state || undefined} disabled={!editing} options={stateOptions} onChange={(value) => updateField("state", value)} className="w-full" /></label>
+                  <Field
+                    label="Phone Number"
+                    value={form.phone}
+                    editing={editing}
+                    onChange={(value) => updateField("phone", value)}
+                  />
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] text-slate-700">
+                      State
+                    </span>
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      value={form.state || undefined}
+                      disabled={!editing}
+                      options={stateOptions}
+                      onChange={(value) => updateField("state", value)}
+                      className="w-full"
+                    />
+                  </label>
                 </div>
-                <Field label="Website" value={form.website} editing={editing} onChange={(value) => updateField("website", value)} />
-                <div><span className="mb-2 block text-[12px] text-slate-700">Logo</span><button type="button" disabled={!editing} onClick={() => fileInputRef.current?.click()} className="flex h-[125px] w-[125px] items-center justify-center overflow-hidden rounded-md border border-dashed border-slate-300 bg-white disabled:cursor-default">{logoPreview ? <img src={logoPreview} alt="Company logo" className="h-full w-full object-contain" /> : <span className="text-xs text-slate-400">Upload logo</span>}</button><input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleLogo(event.target.files?.[0])} /></div>
+                <Field
+                  label="Website"
+                  value={form.website}
+                  editing={editing}
+                  onChange={(value) => updateField("website", value)}
+                />
+                <div>
+                  <span className="mb-2 block text-[12px] text-slate-700">
+                    Logo
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!editing}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex h-[125px] w-[125px] items-center justify-center overflow-hidden rounded-md border border-dashed border-slate-300 bg-white disabled:cursor-default"
+                  >
+                    {logoPreview ? (
+                      <img
+                        src={logoPreview}
+                        alt="Company logo"
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        Upload logo
+                      </span>
+                    )}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => handleLogo(event.target.files?.[0])}
+                  />
+                </div>
               </div>
 
               <div className="space-y-3 lg:pl-4">
-                <Field label="Account Number" value={form.accountNumber} editing={editing} onChange={(value) => updateField("accountNumber", value)} />
-                <Field label="Account Holder Name" value={form.accountHolderName} editing={editing} onChange={(value) => updateField("accountHolderName", value)} />
-                <Field label="IFSC Code" value={form.ifscCode} editing={editing} onChange={(value) => updateField("ifscCode", value)} />
-                <Field label="Bank Name" value={form.bankName} editing={editing} onChange={(value) => updateField("bankName", value)} />
-                <Field label="Branch Name" value={form.branchName} editing={editing} onChange={(value) => updateField("branchName", value)} />
-                <div className="grid grid-cols-2 gap-4"><Field label="GST No" value={form.gstNo} editing={editing} onChange={(value) => updateField("gstNo", value)} /><Field label="FSSAI No" value={form.fssaiNo} editing={editing} onChange={(value) => updateField("fssaiNo", value)} /></div>
-                <div className="grid grid-cols-2 gap-4"><Field label="CIN" value={form.cin} editing={editing} onChange={(value) => updateField("cin", value)} /><Field label="MSME No" value={form.msmeNo} editing={editing} onChange={(value) => updateField("msmeNo", value)} /></div>
-                <div className="flex justify-end gap-2 pt-2">
-                  {editing ? <Button type="primary" loading={isSaving} className="bg-emerald-500" onClick={() => void save()}>Save</Button> : <Button type="primary" className="bg-emerald-500" onClick={() => setEditing(true)}>Edit</Button>}
+                <Field
+                  label="Account Number"
+                  value={form.accountNumber}
+                  editing={editing}
+                  onChange={(value) => updateField("accountNumber", value)}
+                />
+                <Field
+                  label="Account Holder Name"
+                  value={form.accountHolderName}
+                  editing={editing}
+                  onChange={(value) => updateField("accountHolderName", value)}
+                />
+                <Field
+                  label="IFSC Code"
+                  value={form.ifscCode}
+                  editing={editing}
+                  onChange={(value) => updateField("ifscCode", value)}
+                />
+                <Field
+                  label="Bank Name"
+                  value={form.bankName}
+                  editing={editing}
+                  onChange={(value) => updateField("bankName", value)}
+                />
+                <Field
+                  label="Branch Name"
+                  value={form.branchName}
+                  editing={editing}
+                  onChange={(value) => updateField("branchName", value)}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <Field
+                    label="GST No"
+                    value={form.gstNo}
+                    editing={editing}
+                    onChange={(value) => updateField("gstNo", value)}
+                  />
+                  <Field
+                    label="FSSAI No"
+                    value={form.fssaiNo}
+                    editing={editing}
+                    onChange={(value) => updateField("fssaiNo", value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field
+                    label="CIN"
+                    value={form.cin}
+                    editing={editing}
+                    onChange={(value) => updateField("cin", value)}
+                  />
+                  <Field
+                    label="MSME No"
+                    value={form.msmeNo}
+                    editing={editing}
+                    onChange={(value) => updateField("msmeNo", value)}
+                  />
                 </div>
               </div>
+            </div>
+            <div className="-mx-5 -mb-5 mt-5 flex justify-end gap-2 border-t border-slate-200 bg-white px-5 py-3">
+              {editing ? (
+                <Button
+                  type="primary"
+                  loading={isSaving}
+                  className="app-save-button min-w-[74px]"
+                  onClick={() => void save()}
+                >
+                  Save
+                </Button>
+              ) : (
+                <Button
+                  type="primary"
+                  className="min-w-[74px] !bg-emerald-600 !border-none !text-white"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit
+                </Button>
+              )}
             </div>
           </section>
         </Spin>

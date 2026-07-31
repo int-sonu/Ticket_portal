@@ -12,7 +12,6 @@ import {
 } from 'antd';
 
 import {
-  DeleteOutlined,
   EditOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -24,6 +23,7 @@ import AntTable from '../../../ui/Table/AntTable';
 
 import SimpleMasterDrawer from './SimpleMasterDrawer';
 import { usePermissions } from '../../../common/sidebar/PermissionContext';
+import deleteRedIcon from '../../../assets/icons/delete-red.svg';
 
 import { useSimpleMasterCrud } from './useSimpleMasterCrud';
 
@@ -660,10 +660,6 @@ const SimpleMasterList = ({
 
     saveMaster(trimmedValues);
   };
-
-
-
-
   // OPEN DRAWER
 
   const openDrawer = async (
@@ -764,10 +760,6 @@ const SimpleMasterList = ({
     setCurrentPage(page);
     setPageSize(size);
   };
-
-
-
-
   // TABLE COLUMNS
 
   const columns = [
@@ -781,9 +773,6 @@ const SimpleMasterList = ({
 
       width: 52,
     },
-
-
-
     {
       title: nameColumnTitle,
 
@@ -791,10 +780,7 @@ const SimpleMasterList = ({
 
       key: 'name',
     },
-
-
-
-    ...(hasShortName
+   ...(hasShortName
       ? [
           {
             title: 'Short Name',
@@ -805,16 +791,8 @@ const SimpleMasterList = ({
           },
         ]
       : []),
-
-
-
     // EXTRA COLUMNS
-
     ...extraColumns,
-
-
-
-
     {
       title: 'Active',
 
@@ -873,9 +851,6 @@ const SimpleMasterList = ({
         />
       ),
     },
-
-
-
     {
       title: 'Edit',
 
@@ -921,9 +896,6 @@ const SimpleMasterList = ({
         />
       ),
     },
-
-
-
     {
       title: 'Delete',
 
@@ -940,7 +912,7 @@ const SimpleMasterList = ({
 
           danger
 
-          icon={<DeleteOutlined />}
+          icon={<img src={deleteRedIcon} alt="" className="h-4 w-4" />}
 
           disabled={
             disableDelete?.(record) &&

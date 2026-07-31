@@ -600,8 +600,7 @@ const LeaveApplicationPage = () => {
                 </Upload>
                 <Button
                   type="primary"
-                  className="ml-2 min-w-[74px]"
-                  style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
+                  className="app-save-button ml-2 min-w-[74px]"
                   loading={updateLeave.isPending || deleteLeaveAttachments.isPending || uploadAttachments.isPending}
                   onClick={saveEditedLeave}
                 >
@@ -820,8 +819,7 @@ const LeaveApplicationPage = () => {
             </Upload>
             <Button
               type="primary"
-              className="min-w-[74px]"
-              style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
+              className="app-save-button min-w-[74px]"
               loading={saveLeave.isPending || uploadAttachments.isPending}
               onClick={submitLeave}
             >

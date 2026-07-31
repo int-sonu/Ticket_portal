@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Input, Spin } from "antd";
-import { CheckCircleOutlined, SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import { getRequestPayload } from "../../../Utils/requestPayload";
@@ -8,6 +8,7 @@ import { extractList } from "../../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../../Ticket/Common/TicketModulePagination";
 import AntTable from "../../../ui/Table/AntTable";
 import { useClosedTicketReviewList } from "../../../Hooks/Ticket/useTicketQueries";
+import tickIcon from "../../../assets/icons/tickIcon.svg";
 
 const normalizeText = (value: any) =>
   String(value ?? "")
@@ -70,6 +71,7 @@ const ReviewClosedTicketsPage = () => {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const currentCallReportDate = useMemo(() => formatDateTime(new Date()), []);
   const sessionPayload = useMemo(() => getRequestPayload() as Record<string, any>, []);
   const payload = useMemo(
     () => ({
@@ -156,7 +158,7 @@ const ReviewClosedTicketsPage = () => {
         <Spin spinning={query.isLoading || query.isFetching}>
           <AntTable
             elevated={false}
-            className="review-closed-ticket-table h-full"
+            className="review-closed-ticket-table h-full [&_.ant-table-cell]:!text-[12px]"
             showPagination={false}
             disableHorizontalScroll
             loading={query.isLoading || query.isFetching}
@@ -180,16 +182,7 @@ const ReviewClosedTicketsPage = () => {
               {
                 title: "Call Report Date",
                 width: 170,
-                render: (_: any, record: any) =>
-                  formatDateTime(
-                    getFieldValue(record, [
-                      "dCallReportDate",
-                      "CallReportDate",
-                      "dCreatedDate",
-                      "CreatedDate",
-                      "CreatedOn",
-                    ]),
-                  ),
+                render: () => currentCallReportDate,
               },
               {
                 title: "Ticket No.",
@@ -239,9 +232,14 @@ const ReviewClosedTicketsPage = () => {
                       event.stopPropagation();
                       openTicketView(record);
                     }}
-                    className="text-lg text-sky-500 hover:text-sky-600"
+                    className="flex h-4 w-4 items-center justify-center rounded-full border border-[#3AB0B3] transition-colors hover:bg-cyan-50"
                   >
-                    <CheckCircleOutlined />
+                    <img
+                      src={tickIcon}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-[6px] w-[9px]"
+                    />
                   </button>
                 ),
               },

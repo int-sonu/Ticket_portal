@@ -199,6 +199,7 @@ const ShareTicketModal = ({
         <Button
           key="save"
           type="primary"
+          className="app-save-button"
           loading={shareTicket.isPending}
           disabled={shareTicket.isPending}
           onClick={() => form.submit()}

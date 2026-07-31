@@ -79,9 +79,11 @@ const CustomPagination = ({
           ) : (
             <Button
               key={page}
-              type={page === current ? "primary" : "default"}
+              type="default"
               onClick={() => changePage(page)}
-              className="custom-pagination__page"
+              className={`custom-pagination__page ${
+                page === current ? "custom-pagination__page--active" : ""
+              }`}
             >
               {page}
             </Button>

@@ -13,8 +13,20 @@ import CustomerPickerModal from "../Ticket/TicketCreate/CustomerPickerModal";
 import editIcon from "../../assets/icons/edit-black.svg";
 import deleteRed from "../../assets/icons/delete-red.svg";
 import { usePermissions } from "../../common/sidebar/PermissionContext";
+import DateFilterIconPopover from "../../ui/CalendarPopup/DateFilterIconPopover";
+import filterIcon from "../../assets/icons/filterdetails.svg";
 
 type BillRow = Record<string, any>;
+
+const normalizeFilterDate = (value: Date) =>
+  new Date(value.getFullYear(), value.getMonth(), value.getDate());
+
+const formatFilterDate = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const getFieldValue = (record: BillRow, keys: string[]) => {
   for (const key of keys) {
@@ -170,17 +182,39 @@ const BillsListPage = () => {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const payload = useMemo(
-    () => ({
-      ...getRequestPayload(),
-    }),
-    [],
-  );
+  const sessionPayload = useMemo(() => getRequestPayload(), []);
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isAddBillModalOpen, setIsAddBillModalOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [fromDate, setFromDate] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const [toDate, setToDate] = useState(() => normalizeFilterDate(new Date()));
+  const [draftCalendarMonth, setDraftCalendarMonth] = useState(
+    () => normalizeFilterDate(new Date()),
+  );
+  const [draftSelectedDate, setDraftSelectedDate] = useState(
+    () => normalizeFilterDate(new Date()),
+  );
+  const [draftFromDate, setDraftFromDate] = useState<Date | undefined>(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const [draftToDate, setDraftToDate] = useState<Date | undefined>(
+    () => normalizeFilterDate(new Date()),
+  );
+  const payload = useMemo(
+    () => ({
+      ...sessionPayload,
+      dFromDate: formatFilterDate(fromDate),
+      dToDate: formatFilterDate(toDate),
+      cFromDate: formatFilterDate(fromDate),
+      cToDate: formatFilterDate(toDate),
+    }),
+    [fromDate, sessionPayload, toDate],
+  );
   const { data: customerDropdownData } = useGetCustomerDropDown({
     ...payload,
     pageNumber: 1,
@@ -197,6 +231,52 @@ const BillsListPage = () => {
   );
 
   const sourceRows = useMemo(() => extractBillRows(data), [data]);
+
+  const handleToggleDateFilter = () => {
+    setDraftCalendarMonth(normalizeFilterDate(toDate));
+    setDraftSelectedDate(normalizeFilterDate(toDate));
+    setDraftFromDate(normalizeFilterDate(fromDate));
+    setDraftToDate(normalizeFilterDate(toDate));
+    setCalendarOpen((current) => !current);
+  };
+
+  const handleSelectRangeDate = (date: Date) => {
+    const selected = normalizeFilterDate(date);
+    setDraftSelectedDate(selected);
+
+    if (!draftFromDate || draftToDate) {
+      setDraftFromDate(selected);
+      setDraftToDate(undefined);
+      return;
+    }
+
+    const start = normalizeFilterDate(draftFromDate);
+    if (selected < start) {
+      setDraftFromDate(selected);
+      setDraftToDate(start);
+      return;
+    }
+
+    setDraftToDate(selected);
+  };
+
+  const handleApplyDateFilter = () => {
+    if (!draftFromDate) return;
+    const start = normalizeFilterDate(draftFromDate);
+    const end = normalizeFilterDate(draftToDate ?? draftFromDate);
+    setFromDate(start <= end ? start : end);
+    setToDate(start <= end ? end : start);
+    setCurrentPage(1);
+    setCalendarOpen(false);
+  };
+
+  const handleCancelDateFilter = () => {
+    setDraftCalendarMonth(normalizeFilterDate(toDate));
+    setDraftSelectedDate(normalizeFilterDate(toDate));
+    setDraftFromDate(normalizeFilterDate(fromDate));
+    setDraftToDate(normalizeFilterDate(toDate));
+    setCalendarOpen(false);
+  };
 
   const displayedRows = useMemo(() => {
     const searchTerm = normalizeText(search);
@@ -349,10 +429,27 @@ const BillsListPage = () => {
               className="w-[340px]"
               style={{ height: 34 }}
             />
+            <DateFilterIconPopover
+              open={calendarOpen}
+              iconSrc={filterIcon}
+              ariaLabel="Filter bills by date range"
+              title="Filter"
+              month={draftCalendarMonth}
+              selectedDate={draftSelectedDate}
+              selectedFromDate={draftFromDate}
+              selectedToDate={draftToDate}
+              onOpenToggle={handleToggleDateFilter}
+              onMonthChange={setDraftCalendarMonth}
+              onYearChange={setDraftCalendarMonth}
+              onSelectDate={setDraftSelectedDate}
+              onSelectRangeDate={handleSelectRangeDate}
+              onApply={handleApplyDateFilter}
+              onCancel={handleCancelDateFilter}
+            />
             <button
               type="button"
               onClick={() => setIsAddBillModalOpen(true)}
-              className="rounded-md bg-emerald-500 w-25 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+              className="rounded-md bg-emerald-500 w-26 px-4 py-2 text-xs h-9  font-semibold text-white hover:bg-emerald-600"
             >
               Add Bill
             </button>

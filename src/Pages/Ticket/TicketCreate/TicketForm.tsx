@@ -3368,7 +3368,7 @@ const TicketForm = ({
                 type="primary"
                 htmlType="submit"
               
-                className="ticket-right-save bg-emerald-500 border-emerald-500 hover:!bg-emerald-600"
+                className="app-save-button ticket-right-save"
               >
                 {isEdit ? "Update" : "Save"}
               </Button>
@@ -3552,7 +3552,7 @@ const TicketForm = ({
               </Button>
               <Button
                 type="primary"
-                className="bg-sky-500 border-sky-500"
+                className="app-save-button"
                 onClick={handleEditorSave}
               >
                 Save
@@ -4339,7 +4339,7 @@ const TicketForm = ({
           <Button
             type="primary"
             loading={isSavingAsset}
-            className="ticket-asset-save-btn px-8"
+            className="app-save-button ticket-asset-save-btn px-8"
             onClick={saveAssetMaster}
           >
             Save

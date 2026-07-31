@@ -2,11 +2,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Empty, Input, Spin, message } from "antd";
 import {
-  MailOutlined,
-  PhoneOutlined,
-  UserOutlined,
   CloseOutlined,
   SearchOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -18,6 +16,36 @@ import { extractList } from "../Master/Common/SimpleMasterUtils";
 import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 
 type CallReportRow = Record<string, any>;
+
+const CustomerFilledIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="h-[20px] w-[20px] shrink-0 fill-black"
+    viewBox="0 0 24 24"
+  >
+    <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5.33 0-8 2.67-8 6v1h16v-1c0-3.33-2.67-6-8-6Z" />
+  </svg>
+);
+
+const PhoneFilledIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="h-[20px] w-[20px] shrink-0 fill-black"
+    viewBox="0 0 24 24"
+  >
+    <path d="M6.62 10.79a15.46 15.46 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.59a1 1 0 0 1-.25 1.02l-2.2 2.18Z" />
+  </svg>
+);
+
+const EmailFilledIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="h-[20px] w-[20px] shrink-0 fill-black"
+    viewBox="0 0 24 24"
+  >
+    <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z" />
+  </svg>
+);
 
 const normalizeText = (value: any) =>
   String(value ?? "")
@@ -206,6 +234,18 @@ const getStatus = (row: CallReportRow) =>
     ]),
   );
 
+const getPriority = (row: CallReportRow) =>
+  formatDisplayValue(
+    getFieldValue(row, [
+      "cPriority",
+      "Priority",
+      "cPriorityName",
+      "PriorityName",
+      "cPriorityLevel",
+      "nPriority",
+    ]),
+  );
+
 const normalizeBillPartList = (response: any) => {
   const candidates = [
     response,
@@ -278,7 +318,9 @@ const BillingCustomerCallReportPage = () => {
         getFieldValue(row, ["dCallReportDate", "dCreatedDate", "cCallReportDate"]),
         getCallReportId(row),
         getFieldValue(row, ["nTicketNo", "TicketNo", "TicketNo.", "cTicketNo"]),
-      getFieldValue(row, ["cTicketSummary", "cCallSummary", "Summary", "cViewSummary"]),
+        getFieldValue(row, ["cTicketSummary", "cCallSummary", "Summary", "cViewSummary"]),
+        getPriority(row),
+        getStatus(row),
       ]
         .map((item) => normalizeText(item))
         .join(" ");
@@ -442,6 +484,8 @@ const BillingCustomerCallReportPage = () => {
           formatDisplayValue(
             getFieldValue(row, ["cTicketSummary", "cCallSummary", "Summary", "cViewSummary"]),
           ) || "-",
+        priority: getPriority(row) || "-",
+        status: getStatus(row) || "-",
       })),
     [currentPage, pageSize, paginatedRows],
   );
@@ -464,7 +508,7 @@ const BillingCustomerCallReportPage = () => {
       <div className="mt-3 rounded-md border border-sky-200 bg-[#eaf5ff] px-3 py-2 text-[13px] text-slate-700">
         <div className="grid grid-cols-[1.2fr_110px_130px_1.4fr] items-center gap-4">
           <div className="flex min-w-0 items-center gap-2">
-            <UserOutlined className="shrink-0 text-[16px] text-slate-900" />
+            <CustomerFilledIcon />
             <span className="truncate font-semibold uppercase text-slate-900">
               {customerNameFromRoute}
             </span>
@@ -476,14 +520,14 @@ const BillingCustomerCallReportPage = () => {
 
           <div className="border-l border-sky-200 pl-4">
             <div className="flex min-w-0 items-center gap-2">
-              <PhoneOutlined className="shrink-0 text-[16px] text-slate-900" />
+              <PhoneFilledIcon />
               <span className="truncate">{customerPhoneFromRoute}</span>
             </div>
           </div>
 
           <div className="border-l border-sky-200 pl-4">
             <div className="flex min-w-0 items-center gap-2">
-              <MailOutlined className="shrink-0 text-[16px] text-slate-900" />
+              <EmailFilledIcon />
               <span className="truncate">{customerEmailFromRoute}</span>
             </div>
           </div>
@@ -508,12 +552,14 @@ const BillingCustomerCallReportPage = () => {
       <div className="mt-3 min-h-0 flex-1 overflow-hidden">
         <Spin spinning={isLoading}>
           <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border border-slate-200 bg-white">
-            <div className="grid grid-cols-[48px_1.2fr_100px_80px_1.6fr] gap-1 border-b border-slate-200 px-4 py-3 text-[12px] font-medium text-slate-900">
+            <div className="grid grid-cols-[48px_1.2fr_100px_80px_1.6fr_100px_120px] gap-1 border-b border-slate-200 px-4 py-3 text-[12px] font-medium text-slate-900">
               <div>Srl</div>
               <div>Call Report Date</div>
               <div>Call Report Id</div>
               <div>Ticket No.</div>
               <div>Ticket Summary</div>
+              <div>Priority</div>
+              <div>Status</div>
             </div>
 
             <div className="min-h-[320px] flex-1 overflow-hidden p-0">
@@ -533,13 +579,21 @@ const BillingCustomerCallReportPage = () => {
                           void handleRowClick(row.raw);
                         }
                       }}
-                      className="grid cursor-pointer grid-cols-[48px_1.2fr_100px_80px_1.6fr] gap-1 border-b border-slate-100 px-4 py-3 text-[12px] text-slate-700 hover:bg-sky-50"
+                      className="grid cursor-pointer grid-cols-[48px_1.2fr_100px_80px_1.6fr_100px_120px] gap-1 border-b border-slate-100 px-4 py-3 text-[12px] text-slate-700 hover:bg-sky-50"
                     >
                       <div>{row.srl}</div>
                       <div>{row.callReportDate}</div>
                       <div>{row.callReportId}</div>
                       <div>{row.ticketNo}</div>
                       <div className="truncate">{row.callSummary}</div>
+                      <div>{row.priority}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{row.status}</span>
+                        <CheckCircleOutlined
+                          className="shrink-0 text-[15px] text-cyan-500"
+                          aria-hidden="true"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>

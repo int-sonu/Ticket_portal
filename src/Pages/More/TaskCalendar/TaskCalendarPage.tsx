@@ -257,7 +257,7 @@ const TaskCalendarPage = () => {
       <div className="flex min-h-50 flex-1 flex-col  rounded-lg border border-slate-100 bg-white shadow-sm  ">
         <div className="grid grid-cols-[140px_minmax(0,1fr)] border-b border-slate-100 px-4 py-4 text-[13px] font-medium text-slate-700 ">
           <div>Date</div>
-          <div>Task</div>
+          <div className="ml-28">Task</div>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-blue scrollbar-track-slate-50">
           <Spin spinning={isLoading || isFetching} className="flex min-h-0 flex-1">
@@ -300,7 +300,7 @@ const TaskCalendarPage = () => {
                         }
                       }}
                     >
-                      <div className="flex flex-col">
+                      <div className="flex flex-col-2 gap-6">
                         <span>{dateValue}</span>
                         <span className="text-xs text-slate-500">
                           {text(
@@ -336,7 +336,7 @@ const TaskCalendarPage = () => {
                           ) : null}
                         </div>
                       ) : (
-                        <div className="font-medium text-lime-500">No Ticket Assigned</div>
+                        <div className="font-medium text-lime-500 ml-20">No Ticket Assigned</div>
                       )}
                     </button>
                   );

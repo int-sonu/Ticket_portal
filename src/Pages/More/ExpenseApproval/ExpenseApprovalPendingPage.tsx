@@ -126,38 +126,16 @@ const ExpenseApprovalPendingPage = () => {
   const safePage = Math.min(page, Math.max(1, Math.ceil(filteredRows.length / pageSize)));
   const visibleRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-  const openDetails = (row: Record<string, unknown>) => {
+  const openPeriodModal = (row: Record<string, unknown>) => {
     const bounds = getPeriodBounds(row);
-    navigate("/more/expenseapproval/periodwiseview", {
-      state: {
-        approvalId:
-          Number(
-            getValue(row, [
-              "nApprovalId",
-              "ApprovalId",
-              "nApprovalID",
-              "ApprovalID",
-            ]),
-          ) || 0,
-        expenseApprovalId:
-          Number(
-            getValue(row, [
-              "nExpenseApprovalId",
-              "ExpenseApprovalId",
-              "nExpenseId",
-              "ExpenseId",
-              "id",
-            ]),
-          ) || 0,
-        nAgentId:
-          Number(getValue(row, ["nAgentId", "AgentId", "AgentID"])) || 0,
-        cAgentId: text(getValue(row, ["cAgentId", "AgentCode"]), ""),
-        approval: row,
-        fromDate: bounds.periodStart.format("YYYY/MM/DD"),
-        toDate: bounds.periodEnd.format("YYYY/MM/DD"),
-        fromPending: true,
-      },
+    setPeriodModal({
+      ...bounds,
+      from: bounds.periodStart,
+      to: bounds.periodEnd,
+      row,
     });
+    setCalendarMonth(bounds.periodEnd.startOf("month"));
+    setActiveDateField(null);
   };
 
   return (
@@ -187,8 +165,11 @@ const ExpenseApprovalPendingPage = () => {
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-none border-0 bg-white">
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-white">
+        <div
+          className="expense-approval-pending-scroll h-full min-h-0 flex-1 overflow-x-hidden overflow-y-scroll"
+          style={{ scrollbarGutter: "stable" }}
+        >
           <div className={`sticky top-0 z-10 grid ${gridTemplate} border-b border-slate-200 bg-white px-2 py-3 text-xs font-medium text-slate-700`}>
             {pageColumns.map((column) => (
               <span key={column.key}>{column.label}</span>
@@ -228,7 +209,7 @@ const ExpenseApprovalPendingPage = () => {
                   key={approvalId}
                   type="button"
                   className={`grid min-h-[62px] w-full ${gridTemplate} items-center border-b border-slate-100 bg-white px-2 text-left text-xs transition-colors hover:bg-slate-50`}
-        onClick={() => openDetails(row)}
+                  onClick={() => openPeriodModal(row)}
                 >
                   <span>{(safePage - 1) * pageSize + index + 1}</span>
                   <span>{text(getValue(row, ["cAgentName", "AgentName", "cName", "Name"]), "-")}</span>
@@ -288,7 +269,12 @@ const ExpenseApprovalPendingPage = () => {
           <div className="grid grid-cols-2 gap-5">
             <div>
               <div className="mb-2 text-sm text-slate-600">From</div>
-              <div className="flex h-10 items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 shadow-sm">
+              <div
+                role="textbox"
+                aria-label="From date"
+                aria-readonly="true"
+                className="flex h-10 cursor-not-allowed items-center justify-between rounded-md border border-slate-300 bg-slate-50 px-3 text-sm text-slate-600 shadow-sm"
+              >
                 {periodModal?.from.format("DD/MM/YYYY")}
                 <CalendarOutlined className="text-slate-500" />
               </div>

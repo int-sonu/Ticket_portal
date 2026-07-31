@@ -1,7 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { MenuOutlined, BellOutlined, CloseOutlined, LockOutlined } from '@ant-design/icons';
+import { message, Spin } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import CompanyLogo from '../../assets/icons/topbar-logo.svg';
 import { getApiImageBaseUrl } from '../../Axios/config';
+import { notificationApis } from '../../Axios/NotificationApis';
+import { getRequestPayload } from '../../Utils/requestPayload';
+import NotificationList from './Notification/NotificationList';
+import type { Notification } from './Notification/Utils';
+import notificationUserIcon from '../../assets/icons/notificationusericon2.svg';
+import { navigateByType } from './Notification/notificationRoutes';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
@@ -123,12 +131,99 @@ const getHeaderSessionData = () => {
   };
 };
 
+const extractNotificationRows = (response: unknown): Record<string, unknown>[] => {
+  const source = response as Record<string, any> | null;
+  const candidates = [
+    response,
+    source?.data,
+    source?.result,
+    source?.items,
+    source?.list,
+    source?.message,
+    source?.NotificationList,
+    source?.notificationList,
+    source?.data?.data,
+    source?.data?.result,
+    source?.data?.items,
+    source?.data?.list,
+    source?.data?.NotificationList,
+    source?.data?.notificationList,
+  ];
+
+  const list = candidates.find(Array.isArray);
+  return Array.isArray(list) ? list : [];
+};
+
+const toBoolean = (value: unknown, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'read'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'unread'].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+const mapNotification = (row: Record<string, any>): Notification => {
+  const rawDate = firstText(
+    row?.cDate,
+    row?.dNotificationDate,
+    row?.dCreatedDate,
+    row?.CreatedDate,
+    row?.Date,
+  );
+  const parsedDate = rawDate ? new Date(rawDate) : null;
+  const validDate = parsedDate && !Number.isNaN(parsedDate.getTime());
+  const datePart = validDate
+    ? `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
+    : rawDate.split('T')[0] || new Date().toISOString().split('T')[0];
+  const timePart = validDate
+    ? parsedDate.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    : rawDate.split('T')[1]?.slice(0, 5) || '';
+
+  return {
+    id: Number(
+      row?.nNotifId ??
+        row?.nNotificationId ??
+        row?.NotificationId ??
+        row?.id ??
+        0,
+    ),
+    title: firstText(
+      row?.cNotification,
+      row?.cMessage,
+      row?.cTitle,
+      row?.Notification,
+      row?.Message,
+      row?.Title,
+    ),
+    icon: notificationUserIcon,
+    cTime: timePart,
+    nDate: datePart,
+    bRead: toBoolean(row?.bRead ?? row?.isRead ?? row?.IsRead, false),
+    cType: firstText(row?.cType, row?.NotificationType, row?.cNotificationType),
+    nFormId:
+      Number(row?.nFormId ?? row?.FormId ?? row?.nReferenceId ?? 0) ||
+      undefined,
+  };
+};
+
 const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
+  const navigate = useNavigate();
   const { userName, companyName, logoUrl, profileData } =
     getHeaderSessionData();
 
   // Profile Popup states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationError, setNotificationError] = useState('');
   const [showChangePassword, setShowChangePassword] = useState(false);
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -138,22 +233,126 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Close profile popup when clicking outside
+  const fetchNotifications = useCallback(async () => {
+    const requestPayload = getRequestPayload();
+    if (!requestPayload.nAgentId) {
+      setNotifications([]);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    setNotificationError('');
+    try {
+      const response = await notificationApis.notificationList({
+        ...requestPayload,
+        nAgentId: requestPayload.nAgentId,
+      });
+      setNotifications(extractNotificationRows(response).map(mapNotification));
+    } catch (error: any) {
+      console.error('Failed to load notifications', error);
+      setNotificationError(
+        firstText(
+          error?.response?.data?.message,
+          error?.message,
+          'Unable to load notifications.',
+        ),
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
+  const handleClearNotification = async (notificationId: number) => {
+    if (!notificationId) return;
+    const requestPayload = getRequestPayload();
+
+    try {
+      await notificationApis.clearNotificationList({
+        ...requestPayload,
+        nAgentId: requestPayload.nAgentId,
+        cNotifIds: String(notificationId),
+      });
+      setNotifications((current) =>
+        current.filter((item) => item.id !== notificationId),
+      );
+    } catch (error: any) {
+      message.error(
+        firstText(
+          error?.response?.data?.message,
+          error?.message,
+          'Failed to clear notification.',
+        ),
+      );
+    }
+  };
+
+  const handleClearAllNotifications = async () => {
+    if (!notifications.length) return;
+    const requestPayload = getRequestPayload();
+
+    try {
+      await notificationApis.clearAllNotifications({
+        ...requestPayload,
+        nAgentId: requestPayload.nAgentId,
+      });
+      setNotifications([]);
+    } catch (error: any) {
+      message.error(
+        firstText(
+          error?.response?.data?.message,
+          error?.message,
+          'Failed to clear notifications.',
+        ),
+      );
+    }
+  };
+
+  const handleNotificationClick = (item: Notification) => {
+    if (navigateByType(navigate, item.cType, item.nFormId)) {
+      setIsNotificationOpen(false);
+    }
+  };
+
+  // Close header popups when clicking outside.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
+        setIsNotificationOpen(false);
       }
     };
-    if (isProfileOpen) {
+    if (isProfileOpen || isNotificationOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isProfileOpen]);
+  }, [isNotificationOpen, isProfileOpen]);
+
+  useEffect(() => {
+    void fetchNotifications();
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void fetchNotifications();
+      }
+    }, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchNotifications]);
 
   const userInitials = (userName?.trim()?.slice(0, 2) || 'US').toUpperCase();
+  const unreadCount = notifications.filter((item) => item.bRead === false).length;
 
   const handlePasswordSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,6 +410,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
         <button
           onClick={() => {
             setIsProfileOpen(!isProfileOpen);
+            setIsNotificationOpen(false);
             setShowChangePassword(false);
           }}
           type="button"
@@ -218,15 +418,89 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
         >
           {userInitials}
         </button>
-        <button className="rounded-md p-1.5 cursor-pointer bg-[#FFDADA] hover:bg-[#ffbcbc] transition-colors">
+        <button
+          type="button"
+          aria-label="Open notifications"
+          aria-expanded={isNotificationOpen}
+          onClick={() => {
+            const nextOpen = !isNotificationOpen;
+            setIsNotificationOpen(nextOpen);
+            setIsProfileOpen(false);
+            if (nextOpen) void fetchNotifications();
+          }}
+          className="rounded-md p-1.5 cursor-pointer bg-[#FFDADA] hover:bg-[#ffbcbc] transition-colors"
+        >
           <div className="relative">
             <BellOutlined className="w-4 h-4 text-[#ef4444]" />
+            {unreadCount > 0 ? (
+              <span className="absolute -right-2.5 -top-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : null}
           </div>
         </button>
 
+        {isNotificationOpen ? (
+          <div className="absolute right-0 top-11 z-[9999] w-[min(420px,calc(100vw-16px))] overflow-hidden rounded-lg border border-sky-100 bg-white shadow-[0_12px_42px_rgba(0,0,0,0.18)]">
+            <div className="bg-[#B8E7F9] px-3 py-3 text-slate-900">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[20px] font-medium">Notifications</div>
+                <div className="flex items-center gap-4">
+                  {notifications.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleClearAllNotifications()}
+                      className="text-[12px] font-medium text-red-500 hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label="Close notifications"
+                    onClick={() => setIsNotificationOpen(false)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/40"
+                  >
+                    <CloseOutlined className="text-sm" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-0.5 text-[13px] text-slate-700">
+                You have {unreadCount} unread notification
+                {unreadCount === 1 ? '' : 's'}
+              </div>
+            </div>
+
+            <Spin spinning={notificationsLoading}>
+              {notificationError ? (
+                <div className="flex h-[260px] flex-col items-center justify-center gap-3 px-5 text-center">
+                  <div className="text-sm text-red-500">{notificationError}</div>
+                  <button
+                    type="button"
+                    onClick={() => void fetchNotifications()}
+                    className="rounded-md border border-sky-400 px-4 py-1.5 text-xs font-medium text-sky-600 hover:bg-sky-50"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <div className="px-2 pb-2">
+                  <NotificationList
+                    tabData={notifications}
+                    clearNotification={(id) => {
+                      void handleClearNotification(id);
+                    }}
+                    onNotificationClick={handleNotificationClick}
+                  />
+                </div>
+              )}
+            </Spin>
+          </div>
+        ) : null}
+
         {/* User Profile Modal Dropdown */}
         {isProfileOpen && (
-          <div className="absolute right-0 top-11 z-[9999] w-[min(340px,calc(100vw-16px))] rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-[0_12px_42px_rgba(0,0,0,0.15)] flex flex-col gap-4 animate-in fade-in slide-in-from-top-3 duration-150">
+          <div className="absolute right-0 top-11 z-[9999] flex w-[min(338px,calc(100vw-16px))] flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_12px_42px_rgba(0,0,0,0.15)] animate-in fade-in slide-in-from-top-3 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-50 pb-2">
               <span className="font-bold text-slate-800 text-[15px]">User Profile</span>
@@ -242,17 +516,12 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             {!showChangePassword ? (
               <>
                 {/* Profile Avatar section */}
-                <div className="flex flex-col items-center gap-2 mt-2">
-                  <div className="w-22 h-22 rounded-full bg-[#8ECCF7] flex items-center justify-center text-slate-800 font-bold text-3xl shadow-sm">
+                <div className="mt-1 flex flex-col items-center gap-2">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#8ECCF7] text-2xl font-bold text-slate-800 shadow-sm">
                     {userInitials}
                   </div>
                   <span className="font-bold text-slate-800 text-[16px]">
                     {profileData.name || 'User'}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    {profileData.userType
-                      ? `( ${profileData.userType === 'Admin' ? 'Service' : profileData.userType} )`
-                      : ''}
                   </span>
                 </div>
 
@@ -384,7 +653,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
               </>
             ) : (
               /* Change Password Form inside modal */
-              <form onSubmit={handlePasswordSave} className="flex flex-col gap-3.5 mt-1 animate-in fade-in duration-200">
+              <form onSubmit={handlePasswordSave} className="flex min-h-[300px] flex-col gap-3.5 mt-1 animate-in fade-in duration-200">
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
                     Current Password
@@ -433,7 +702,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 mt-2">
+                <div className="-mx-4 -mb-4 mt-auto flex items-center gap-2 border-t border-slate-100 bg-white px-4 py-3">
                   <button
                     onClick={() => {
                       setShowChangePassword(false);
@@ -446,7 +715,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2 rounded-lg bg-sky-500 text-white hover:bg-sky-600 font-semibold text-xs transition-colors cursor-pointer shadow-sm shadow-sky-500/10"
+                    className="app-save-button flex-1 cursor-pointer rounded-lg py-2 text-xs font-semibold transition-colors"
                   >
                     Save
                   </button>

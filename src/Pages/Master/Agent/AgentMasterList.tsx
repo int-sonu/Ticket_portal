@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { Button, Empty, Form, Input, Switch, message } from 'antd';
-import { DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
+import { EditOutlined, SearchOutlined } from '@ant-design/icons';
 import AntTable from '../../../ui/Table/AntTable';
+import deleteRedIcon from '../../../assets/icons/delete-red.svg';
 import { useDeleteAgent, useGetAgentDetails, useGetAgentDropdown, useGetAgents, useGetReportToAgents, useSaveAgent, useUpdateAgent } from './Hooks';
 import AgentMasterDrawer from './AgentMasterDrawer';
 import { useAgentCrud } from './useAgentCrud';
@@ -306,7 +307,7 @@ const AgentMasterList: React.FC = () => {
       key: 'delete',
       width: 64,
       render: (_: unknown, record: AgentRow) => (
-        <Button type="text" danger icon={<DeleteOutlined />} onClick={(event) => handlePermissionDelete(event, record)} />
+        <Button type="text" danger icon={<img src={deleteRedIcon} alt="" className="h-4 w-4" />} onClick={(event) => handlePermissionDelete(event, record)} />
       ),
     },
   ];

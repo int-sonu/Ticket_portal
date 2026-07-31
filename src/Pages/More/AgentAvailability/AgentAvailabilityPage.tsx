@@ -133,7 +133,6 @@ const AgentAvailabilityPage = () => {
             onChange={(event) => setDraftGroup(event.target.value)}
             className="flex flex-col gap-3"
           >
-            <Radio value="" className="text-sm text-slate-600">All Groups</Radio>
             {availableGroups.map((group) => (
               <Radio key={group} value={group} className="text-sm text-slate-600">
                 {group}

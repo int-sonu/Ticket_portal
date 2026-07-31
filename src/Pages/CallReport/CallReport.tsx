@@ -15,14 +15,11 @@ import TicketModulePagination from "../Ticket/Common/TicketModulePagination";
 import year from "../../assets/icons/year.svg";
 import tabIcon from "../../assets/icons/tabIcon.svg";
 import tabIconActive from "../../assets/icons/tabIconActive.svg";
+import CalendarPopup from "../../ui/CalendarPopup/CalendarPopup";
 
 type CallReportRow = Record<string, any>;
 type CallReportTab = "ALL" | "BILLED" | "UNBILLED";
 type DateRange = [Dayjs, Dayjs];
-type CalendarCell = {
-  day: number;
-  currentMonth: boolean;
-};
 
 type CallReportProps = {
   initialTab?: CallReportTab;
@@ -230,41 +227,6 @@ const getPreviousMonthRange = (): DateRange => {
   return [previousMonth.startOf("month"), previousMonth.endOf("month")];
 };
 
-const buildCalendarGrid = (monthValue: Dayjs) => {
-  const startOfMonth = monthValue.startOf("month");
-  const startDayOfWeek = startOfMonth.day();
-  const totalDays = monthValue.daysInMonth();
-  const prevMonthDays = monthValue.subtract(1, "month").daysInMonth();
-
-  const daysGrid: CalendarCell[] = [];
-
-  for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    daysGrid.push({
-      day: prevMonthDays - i,
-      currentMonth: false,
-    });
-  }
-
-  for (let i = 1; i <= totalDays; i++) {
-    daysGrid.push({
-      day: i,
-      currentMonth: true,
-    });
-  }
-
-  const totalCells = daysGrid.length > 35 ? 42 : 35;
-  const nextDaysCount = totalCells - daysGrid.length;
-
-  for (let i = 1; i <= nextDaysCount; i++) {
-    daysGrid.push({
-      day: i,
-      currentMonth: false,
-    });
-  }
-
-  return daysGrid;
-};
-
 const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
   const navigate = useNavigate();
   const filterPanelRef = useRef<HTMLDivElement>(null);
@@ -275,8 +237,10 @@ const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
   const [draftCalendarMonth, setDraftCalendarMonth] = useState(
     getPreviousMonthRange()[0],
   );
-  const [draftSelectedDate, setDraftSelectedDate] = useState(
-    getPreviousMonthRange()[0],
+  const [draftDateRange, setDraftDateRange] = useState<
+    [Dayjs | null, Dayjs | null]
+  >(
+    getPreviousMonthRange(),
   );
 
   const [activeTab, setActiveTab] = useState<CallReportTab>(initialTab);
@@ -351,71 +315,40 @@ const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
 
   const handleToggleDateFilter = () => {
     setDraftCalendarMonth(appliedDateRange[0].startOf("month"));
-    setDraftSelectedDate(appliedDateRange[0]);
+    setDraftDateRange(appliedDateRange);
     setIsDateFilterOpen((current) => !current);
   };
 
   const handleApplyDateFilter = () => {
-    if (activeTab === "ALL") {
-      setActiveTab("BILLED");
+    if (!draftDateRange[0] || !draftDateRange[1]) {
+      return;
     }
-    setAppliedDateRange([
-      draftCalendarMonth.startOf("month"),
-      draftCalendarMonth.endOf("month"),
-    ]);
+
+    setAppliedDateRange([draftDateRange[0], draftDateRange[1]]);
     setIsDateFilterOpen(false);
   };
 
   const handleCancelDateFilter = () => {
     setDraftCalendarMonth(appliedDateRange[0].startOf("month"));
-    setDraftSelectedDate(appliedDateRange[0]);
+    setDraftDateRange(appliedDateRange);
     setIsDateFilterOpen(false);
   };
 
-  const handlePrevYear = () => {
-    setDraftCalendarMonth((current) => current.subtract(1, "year"));
-  };
+  const handleDateSelect = (selectedDate: Dayjs) => {
+    const normalizedDate = selectedDate.startOf("day");
+    const [rangeStart, rangeEnd] = draftDateRange;
 
-  const handleNextYear = () => {
-    setDraftCalendarMonth((current) => current.add(1, "year"));
-  };
-
-  const handlePrevMonth = () => {
-    setDraftCalendarMonth((current) => current.subtract(1, "month"));
-  };
-
-  const handleNextMonth = () => {
-    setDraftCalendarMonth((current) => current.add(1, "month"));
-  };
-
-  const handleDateSelect = (day: number, currentMonth: boolean) => {
-    if (!currentMonth) {
+    if (!rangeStart || rangeEnd) {
+      setDraftDateRange([normalizedDate, null]);
       return;
     }
 
-    setDraftSelectedDate(draftCalendarMonth.date(day));
-  };
+    if (normalizedDate.isBefore(rangeStart, "day")) {
+      setDraftDateRange([normalizedDate, rangeStart]);
+      return;
+    }
 
-  const calendarDays = useMemo(
-    () => buildCalendarGrid(draftCalendarMonth),
-    [draftCalendarMonth],
-  );
-  const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-  const isSelectedDay = (day: number, currentMonth: boolean) =>
-    currentMonth &&
-    draftSelectedDate.date() === day &&
-    draftSelectedDate.month() === draftCalendarMonth.month() &&
-    draftSelectedDate.year() === draftCalendarMonth.year();
-
-  const isToday = (day: number, currentMonth: boolean) => {
-    const today = dayjs();
-    return (
-      currentMonth &&
-      today.date() === day &&
-      today.month() === draftCalendarMonth.month() &&
-      today.year() === draftCalendarMonth.year()
-    );
+    setDraftDateRange([rangeStart, normalizedDate]);
   };
 
   const displayedRows = useMemo(() => {
@@ -592,7 +525,7 @@ const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
               className="w-[400px]"
-              style={{ height: 34 }}
+              style={{ height: 34 ,borderColor:"#56A7C4"}}
             />
             <button
               type="button"
@@ -602,111 +535,24 @@ const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
             >
               <img src={year} alt="year" className="h-5 w-5" />
             </button>
-            {isDateFilterOpen ? (
-              <div className="absolute right-0 top-full z-50 mt-2 w-[340px] rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)]">
-                <div className="mb-3 text-sm font-semibold text-slate-800">
-                  Filter
-                </div>
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePrevYear}
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                    >
-                      &lt;
-                    </button>
-                    <span className="w-10 text-center text-[13px] font-bold text-slate-700">
-                      {draftCalendarMonth.format("YYYY")}
-                    </span>
-                    <button
-                      onClick={handleNextYear}
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePrevMonth}
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                    >
-                      &lt;
-                    </button>
-                    <span className="w-16 text-center text-[13px] font-bold text-slate-700">
-                      {draftCalendarMonth.format("MMMM")}
-                    </span>
-                    <button
-                      onClick={handleNextMonth}
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col">
-                  <div className="mb-2 grid grid-cols-7 text-center text-xs font-semibold text-slate-600">
-                    {weekDays.map((weekDay) => (
-                      <div
-                        key={weekDay}
-                        className="flex h-6 items-center justify-center"
-                      >
-                        {weekDay}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-y-1">
-                    {calendarDays.map(({ day, currentMonth }, index) => {
-                      const selected = isSelectedDay(day, currentMonth);
-                      const activeToday = isToday(day, currentMonth);
-
-                      return (
-                        <button
-                          key={`${day}-${currentMonth}-${index}`}
-                          onClick={() => handleDateSelect(day, currentMonth)}
-                          type="button"
-                          className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-colors
-                            ${
-                              selected
-                                ? "bg-[#2cd5a9] font-bold text-white"
-                                : currentMonth
-                                  ? activeToday
-                                    ? "border border-[#2cd5a9] text-[#2cd5a9]"
-                                    : "text-slate-800 hover:bg-slate-100"
-                                  : "cursor-not-allowed text-slate-300"
-                            }`}
-                          disabled={!currentMonth}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                  <button
-                    type="button"
-                    onClick={handleCancelDateFilter}
-                    className="rounded-lg border border-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-[#2cd5a9] transition-colors hover:bg-teal-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleApplyDateFilter}
-                    className="rounded-lg bg-[#2cd5a9] px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#25bfa4]"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-            ) : null}
+            <CalendarPopup
+              open={isDateFilterOpen}
+              title="Filter"
+              month={draftCalendarMonth.toDate()}
+              selectedDate={(draftDateRange[0] ?? draftCalendarMonth).toDate()}
+              selectedFromDate={draftDateRange[0]?.toDate()}
+              selectedToDate={draftDateRange[1]?.toDate()}
+              onMonthChange={(nextMonth) =>
+                setDraftCalendarMonth(dayjs(nextMonth))
+              }
+              onYearChange={(nextYear) =>
+                setDraftCalendarMonth(dayjs(nextYear))
+              }
+              onSelectDate={(date) => handleDateSelect(dayjs(date))}
+              onSelectRangeDate={(date) => handleDateSelect(dayjs(date))}
+              onApply={handleApplyDateFilter}
+              onCancel={handleCancelDateFilter}
+            />
           </div>
         </div>
 
@@ -721,8 +567,8 @@ const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
                 onClick={() => setActiveTab(item.key)}
                 className={`flex items-center gap-2 rounded-[6px] border px-3 py-1.5 h-7 text-[11px] font-medium transition-colors ${
                   active
-                    ? "border-[#2bbbe7] bg-[#2f80ed] text-white"
-                    : "border-[#2f80ed] bg-[#f0f7ff] text-[#475569] hover:bg-[#e0effe]"
+                    ? "border-[#279FF5] bg-[#279FF5] text-white"
+                    : "border-[#279FF5] bg-[] text-[#475569] hover:bg-[#e0effe]"
                 }`}
               >
                 <img
@@ -769,7 +615,7 @@ const DashboardCallReport = ({ initialTab = "ALL" }: CallReportProps) => {
                           handleRowClick(row);
                         }
                       }}
-                      className="grid grid-cols-[48px_108px_72px_88px_1fr_0.9fr_1.1fr_78px] gap-1 border-b border-slate-100 px-2 py-2 text-[12px] text-slate-700 cursor-pointer hover:bg-sky-50"
+                      className="grid grid-cols-[48px_108px_72px_88px_1fr_0.9fr_1.1fr_78px] gap-2 border-b border-slate-100 px-2 py-2.5 text-[12px] text-slate-700 cursor-pointer hover:bg-sky-50 --font-display:Oswald, sans-serif"
                     >
                       <div>{row.srl}</div>
                       <div>{row.callReportDate}</div>

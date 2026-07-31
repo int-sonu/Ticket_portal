@@ -341,7 +341,7 @@ const PayModeDrawer = ({
       footer={
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white px-5 py-3">
           <Button onClick={onCancel}>Cancel</Button>
-          <Button type="primary" onClick={onSave} loading={saving} disabled={saving}>
+          <Button className="app-save-button" type="primary" onClick={onSave} loading={saving} disabled={saving}>
             Save
           </Button>
         </div>

@@ -166,8 +166,7 @@ const CustomerAssetDrawer = ({
           <Button
             type="primary"
             loading={saving}
-            className="min-w-[90px]"
-            style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
+            className="app-save-button min-w-[90px]"
             onClick={onSave}
           >
             {mode === "edit" ? "Save" : "Save"}

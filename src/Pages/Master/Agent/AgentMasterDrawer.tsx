@@ -14,12 +14,12 @@ import type { FormInstance } from 'antd';
 
 import {
   CloseOutlined,
-  DeleteOutlined,
   EditOutlined,
 } from '@ant-design/icons';
 
 import type { AgentRow } from './Utils';
 import { normalizeCompareText } from './Utils';
+import deleteWhiteIcon from '../../../assets/icons/delete-white.svg';
 
 type Option = {
   label: string;
@@ -82,7 +82,7 @@ const AgentMasterDrawer = ({
       destroyOnClose
       className="agent-master-drawer simple-master-drawer"
       footer={
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-3">
 
           <span className="text-sm font-medium text-slate-700">
             Active / Inactive
@@ -111,7 +111,7 @@ const AgentMasterDrawer = ({
                 <Button
                   danger
                   type="primary"
-                  icon={<DeleteOutlined />}
+                  icon={<img src={deleteWhiteIcon} alt="" className="h-4 w-4" />}
                   onClick={(event) =>
                     onDelete(
                       event,
@@ -127,7 +127,7 @@ const AgentMasterDrawer = ({
               htmlType="submit"
               form="agent-master-form"
               loading={isSaving}
-              className="bg-emerald-500 border-emerald-500 px-6 hover:!bg-emerald-600"
+              className="app-save-button px-6"
             >
               Save
             </Button>
@@ -200,11 +200,6 @@ const AgentMasterDrawer = ({
         >
           <Input className="h-[30px]" />
         </Form.Item>
-
-
-
-
-
         <div className="grid grid-cols-2 gap-3">
 
           {/* SHORT NAME */}
@@ -371,11 +366,6 @@ const AgentMasterDrawer = ({
             Support Agent
           </Checkbox>
         </Form.Item>
-
-
-
-
-
         <div className="grid grid-cols-[0.8fr_1.6fr] gap-3 border-b border-slate-100 pb-2">
 
           {/* MOBILE */}

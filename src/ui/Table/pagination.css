@@ -37,13 +37,20 @@
   box-shadow: none;
 }
 
-.custom-pagination__controls .ant-btn-primary {
-  color: #fff;
+.custom-pagination__controls .ant-btn:not(:disabled):hover {
+  background: #fff;
 }
 
 .custom-pagination__page {
   min-width: 32px !important;
   padding-inline: 10px !important;
+}
+
+.custom-pagination__page--active,
+.custom-pagination__page--active:not(:disabled):hover {
+  border-color: #1677ff;
+  background: #fff;
+  color: #1677ff;
 }
 
 .custom-pagination__controls .ant-btn[disabled] {

@@ -1743,8 +1743,8 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
                         {!assetViewMode && (
                           <Button
                             htmlType="button"
-                            style={{ height: 32, background: '#000', color: '#fff', borderColor: '#000', paddingInline: 20 }}
-                            className="hover:!bg-black hover:!text-white hover:!border-black"
+                            style={{ height: 32, paddingInline: 20 }}
+                            className="app-save-button"
                             loading={savingAssetToDb}
                             onClick={handleAssetSave}
                           >
@@ -1768,6 +1768,7 @@ const CustomerDrawer = ({ form, selectedRow, viewMode = false }: CustomerDrawerP
         onCancel={() => setLocationOpen(false)}
         onOk={handleLocationSave}
         okText="Save Location"
+        okButtonProps={{ className: "app-save-button" }}
         centered={false}
         style={{ top: 0, margin: 0, padding: 0, maxWidth: "100vw" }}
         styles={{

@@ -329,6 +329,12 @@ const AssetMasterList = () => {
       hasShortName:
         true,
 
+      tableClassName:
+        "asset-master-table",
+
+      tableScroll:
+        { y: "calc(100vh - 215px)" },
+
       extraColumns: [
         {
           title: "Brand",

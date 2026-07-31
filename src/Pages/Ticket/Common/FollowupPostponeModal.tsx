@@ -117,7 +117,7 @@ const FollowupPostponeModal = ({
             type="primary"
             onClick={handleSave}
             loading={postponeTicket.isPending}
-            style={{ backgroundColor: "#10b981" }}
+            className="app-save-button"
           >
             Save
           </Button>

@@ -363,7 +363,7 @@ const TransferTicketModal = ({
           ]
         : [
             <Button key="cancel" onClick={onClose}>Cancel</Button>,
-            <Button key="save" type="primary" loading={transferTicket.isPending} onClick={() => form.submit()}>
+            <Button className="app-save-button" key="save" type="primary" loading={transferTicket.isPending} onClick={() => form.submit()}>
               Save
             </Button>,
           ]}

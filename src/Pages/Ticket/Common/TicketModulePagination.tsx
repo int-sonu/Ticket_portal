@@ -71,10 +71,18 @@ const TicketModulePagination = ({
           </div>
 
           <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2 whitespace-nowrap">
-            <Button size={compact ? "small" : "middle"} disabled={isFirstPage} onClick={() => changePage(1)}>
+            <Button
+              size={compact ? "small" : "middle"}
+              disabled={isFirstPage}
+              onClick={() => changePage(1)}
+            >
               &lt;&lt; Prev
             </Button>
-            <Button size={compact ? "small" : "middle"} disabled={isFirstPage} onClick={() => changePage(current - 1)}>
+            <Button
+              size={compact ? "small" : "middle"}
+              disabled={isFirstPage}
+              onClick={() => changePage(current - 1)}
+            >
               &lt; Prev
             </Button>
 
@@ -86,20 +94,32 @@ const TicketModulePagination = ({
               ) : (
                 <Button
                   key={page}
-                  type={page === current ? "primary" : "default"}
+                  type={page === current ? "text" : "default"} 
                   size={compact ? "small" : "middle"}
                   onClick={() => changePage(page)}
-                  className="min-w-[32px] px-3"
+                  className={`min-w-[32px] px-3 transition-colors ${
+                    page === current
+                      ? " text-black hover:!border-sky-600 hover:!text-black" // Active styles
+                      : "bg-white text-gray-700 hover:!border-sky-600 hover:!text-black" // Inactive styles
+                  }`}
                 >
                   {page}
                 </Button>
-              )
+              ),
             )}
 
-            <Button size={compact ? "small" : "middle"} disabled={isLastPage} onClick={() => changePage(current + 1)}>
+            <Button
+              size={compact ? "small" : "middle"}
+              disabled={isLastPage}
+              onClick={() => changePage(current + 1)}
+            >
               Next &gt;
             </Button>
-            <Button size={compact ? "small" : "middle"} disabled={isLastPage} onClick={() => changePage(maxPage)}>
+            <Button
+              size={compact ? "small" : "middle"}
+              disabled={isLastPage}
+              onClick={() => changePage(maxPage)}
+            >
               Next &gt;&gt;
             </Button>
           </div>

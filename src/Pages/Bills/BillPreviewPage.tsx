@@ -1646,7 +1646,7 @@ const BillPreviewPage: React.FC = () => {
                 type="primary"
                 onClick={handleSaveClick}
                 loading={savingBill}
-                className="min-w-[58px] !bg-white !border-[#222] !text-[#111] hover:!border-[#111] hover:!text-[#111]"
+                className="app-save-button min-w-[72px]"
               >
                 Save
               </Button>
@@ -1667,7 +1667,7 @@ const BillPreviewPage: React.FC = () => {
         footer={
           <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white px-5 py-3">
             <Button onClick={() => setPayModeOpen(false)}>Cancel</Button>
-            <Button type="primary" onClick={handleSaveClick} loading={savingBill}>
+            <Button className="app-save-button" type="primary" onClick={handleSaveClick} loading={savingBill}>
               Save
             </Button>
           </div>

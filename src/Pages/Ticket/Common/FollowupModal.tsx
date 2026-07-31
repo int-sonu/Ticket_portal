@@ -134,7 +134,7 @@ const FollowupModal = ({
                 type="primary"
                 htmlType="submit"
                 loading={postponeTicket.isPending}
-                style={{ backgroundColor: "#10b981" }}
+                className="app-save-button"
               >
                 Save
               </Button>

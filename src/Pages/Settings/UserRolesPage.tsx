@@ -604,7 +604,7 @@ const UserRolesPage = () => {
         <div className="mt-4 flex justify-end">
           <Button
             type="primary"
-            className="min-w-[80px] !bg-emerald-500  hover:!bg-emerald-600"
+            className="app-save-button min-w-[80px]"
             loading={saving}
             disabled={!agentId || loading}
             onClick={() => void save()}
